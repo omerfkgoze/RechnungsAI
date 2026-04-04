@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RechnungsAI — Design Direction Exploration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #003153;
+    --primary-light: #4682B4;
+    --success: #2ECC71;
+    --warning: #F39C12;
+    --destructive: #E74C3C;
+    --info: #3498DB;
+    --foreground: #2C3E50;
+    --secondary-text: #708090;
+    --border: #CBD5E1;
+    --surface: #F8FAFC;
+    --background: #F1F5F9;
+    --card: #FFFFFF;
+    --page-bg: #1a1a2e;
+    --radius-btn: 6px;
+    --radius-card: 8px;
+    --radius-dialog: 12px;
+    --radius-hero: 16px;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--page-bg);
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+  }
+
+  .page-header {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 50px;
+  }
+  .page-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+  }
+  .page-header p {
+    font-size: 1rem;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 48px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; max-width: 500px; }
+  }
+
+  .direction {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .direction-label {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .direction-label h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .direction-label p {
+    font-size: 0.82rem;
+    color: #94a3b8;
+  }
+
+  /* Phone frame */
+  .phone-frame {
+    width: 375px;
+    height: 720px;
+    background: #000;
+    border-radius: 40px;
+    padding: 12px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.5), inset 0 0 0 2px #333;
+    cursor: pointer;
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1), box-shadow 0.35s ease;
+    position: relative;
+  }
+  .phone-frame:hover {
+    transform: scale(1.03);
+    box-shadow: 0 30px 70px rgba(0,0,0,0.6), inset 0 0 0 2px #444;
+  }
+  .phone-frame.expanded {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1.35);
+    z-index: 1000;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.8), inset 0 0 0 2px #555;
+  }
+  .phone-frame .notch {
+    width: 120px;
+    height: 24px;
+    background: #000;
+    border-radius: 0 0 14px 14px;
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+  }
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 28px;
+    overflow: hidden;
+    background: var(--background);
+    position: relative;
+    font-size: 13px;
+    color: var(--foreground);
+  }
+
+  /* Desktop frame for Direction 5 */
+  .desktop-frame {
+    width: 560px;
+    height: 400px;
+    background: #222;
+    border-radius: 12px;
+    padding: 8px 8px 28px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    cursor: pointer;
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1), box-shadow 0.35s ease;
+    position: relative;
+  }
+  .desktop-frame:hover {
+    transform: scale(1.03);
+  }
+  .desktop-frame.expanded {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1.5);
+    z-index: 1000;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+  }
+  .desktop-frame::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: #555;
+    border-radius: 2px;
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .desktop-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--background);
+    font-size: 12px;
+    color: var(--foreground);
+    display: flex;
+  }
+
+  /* Overlay for expanded */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 999;
+  }
+  .overlay.active { display: block; }
+
+  /* Shared inner component styles */
+  .trust-bar {
+    background: var(--primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.3px;
+  }
+  .trust-bar .flag { font-size: 13px; }
+
+  .status-bar {
+    background: var(--primary);
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .bottom-nav {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 2;
+  }
+  .bottom-nav .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 9px;
+    color: var(--secondary-text);
+  }
+  .bottom-nav .nav-item.active { color: var(--primary); }
+  .bottom-nav .nav-item .icon {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+  .bottom-nav .nav-item.capture-btn .icon {
+    background: var(--primary);
+    color: #fff;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+    margin-top: -16px;
+    box-shadow: 0 2px 8px rgba(0,49,83,0.3);
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--secondary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 12px 16px 6px;
+  }
+
+  .amount {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .confidence-high { border-left: 3px solid var(--success); }
+  .confidence-med { border-left: 3px solid var(--warning); }
+  .confidence-low { border-left: 3px solid var(--destructive); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+  }
+  .badge-green { background: #d5f5e3; color: #1a9c54; }
+  .badge-amber { background: #fef3cd; color: #b8860b; }
+  .badge-red { background: #fadbd8; color: #c0392b; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: var(--radius-btn);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--foreground); }
+  .btn-destructive { background: var(--destructive); color: #fff; }
+
+  /* Direction 5 special grid item spanning */
+  .direction.wide {
+    grid-column: 1 / -1;
+    max-width: 600px;
+    justify-self: center;
+  }
+  @media (max-width: 900px) {
+    .direction.wide { max-width: 100%; }
+    .desktop-frame { width: 100%; max-width: 560px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>RechnungsAI — Design Direction Exploration</h1>
+  <p>Six design directions for the mobile invoice processing experience. Click any mockup to zoom in. All directions use the same design token foundation (Prussian Blue, Inter, confidence color coding).</p>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeExpanded()"></div>
+
+<div class="grid">
+
+  <!-- ============================================================ -->
+  <!-- DIRECTION 1: Minimal Trust -->
+  <!-- ============================================================ -->
+  <div class="direction">
+    <div class="direction-label">
+      <h2>1. Minimal Trust</h2>
+      <p>Ultra-clean, maximum white space, three key metrics</p>
+    </div>
+    <div class="phone-frame" onclick="toggleExpand(this)">
+      <div class="notch"></div>
+      <div class="phone-screen" style="display:flex;flex-direction:column;">
+        <!-- Trust Bar -->
+        <div class="trust-bar">
+          <span class="flag">🇩🇪</span> Gehostet in Deutschland
+        </div>
+        <!-- Status -->
+        <div class="status-bar">
+          <span>9:41</span>
+          <span style="font-weight:600;font-size:12px;">RechnungsAI</span>
+          <span>●●●</span>
+        </div>
+        <!-- Content -->
+        <div style="flex:1;overflow-y:auto;padding:20px 16px 72px;">
+          <div style="margin-bottom:24px;">
+            <div style="font-size:22px;font-weight:700;color:var(--foreground);line-height:1.2;">Guten Morgen 👋</div>
+            <div style="font-size:12px;color:var(--secondary-text);margin-top:4px;">Donnerstag, 2. April 2026</div>
+          </div>
+          <!-- 3 Large Cards -->
+          <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:28px;">
+            <div style="background:var(--card);border-radius:var(--radius-hero);padding:24px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+              <div style="font-size:11px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Offene Rechnungen</div>
+              <div style="font-size:36px;font-weight:700;color:var(--primary);line-height:1;">5</div>
+              <div style="font-size:11px;color:var(--secondary-text);margin-top:4px;">brauchen deine Prüfung</div>
+            </div>
+            <div style="display:flex;gap:14px;">
+              <div style="flex:1;background:var(--card);border-radius:var(--radius-hero);padding:20px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                <div style="font-size:10px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Zeit gespart</div>
+                <div style="font-size:24px;font-weight:700;color:var(--success);line-height:1;">47 min</div>
+                <div style="font-size:10px;color:var(--secondary-text);margin-top:2px;">diese Woche</div>
+              </div>
+              <div style="flex:1;background:var(--card);border-radius:var(--radius-hero);padding:20px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                <div style="font-size:10px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Export bereit</div>
+                <div style="font-size:24px;font-weight:700;color:var(--info);line-height:1;">3</div>
+                <div style="font-size:10px;color:var(--secondary-text);margin-top:2px;">DATEV-Stapel</div>
+              </div>
+            </div>
+          </div>
+          <!-- Invoice Card -->
+          <div class="section-title">Neueste Rechnung</div>
+          <div style="background:var(--card);border-radius:var(--radius-card);padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:4px solid var(--success);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+              <div>
+                <div style="font-weight:600;font-size:14px;">Holz-Müller GmbH</div>
+                <div style="font-size:11px;color:var(--secondary-text);margin-top:2px;">RE-2026-0847 · 28.03.2026</div>
+              </div>
+              <div class="amount" style="font-size:16px;color:var(--foreground);font-variant-numeric:tabular-nums;">€ 1.234,56</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">
+              <span class="badge badge-green">98% Konfidenz</span>
+              <span style="font-size:10px;color:var(--secondary-text);">SKR03: 3400</span>
+            </div>
+            <button class="btn btn-success" style="width:100%;border-radius:var(--radius-btn);">Freigeben</button>
+          </div>
+        </div>
+        <!-- Bottom Nav -->
+        <div class="bottom-nav">
+          <div class="nav-item active">
+            <div class="icon">⌂</div>
+            <span>Home</span>
+          </div>
+          <div class="nav-item capture-btn">
+            <div class="icon">+</div>
+            <span>Erfassen</span>
+          </div>
+          <div class="nav-item">
+            <div class="icon">▤</div>
+            <span>Archiv</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIRECTION 2: Workbench Density -->
+  <!-- ============================================================ -->
+  <div class="direction">
+    <div class="direction-label">
+      <h2>2. Workbench Density</h2>
+      <p>Information-rich, compact rows, efficiency-focused</p>
+    </div>
+    <div class="phone-frame" onclick="toggleExpand(this)">
+      <div class="notch"></div>
+      <div class="phone-screen" style="display:flex;flex-direction:column;">
+        <div class="trust-bar">
+          <span class="flag">🇩🇪</span> Gehostet in Deutschland
+        </div>
+        <div class="status-bar">
+          <span>9:41</span>
+          <span style="font-weight:600;font-size:12px;">RechnungsAI</span>
+          <span>●●●</span>
+        </div>
+        <div style="flex:1;overflow-y:auto;">
+          <!-- Compact stat bar -->
+          <div style="display:flex;background:var(--card);border-bottom:1px solid var(--border);">
+            <div style="flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--border);">
+              <div style="font-size:18px;font-weight:700;color:var(--primary);">5</div>
+              <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.3px;">Offen</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--border);">
+              <div style="font-size:18px;font-weight:700;color:var(--success);">12</div>
+              <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.3px;">Geprüft</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--border);">
+              <div style="font-size:18px;font-weight:700;color:var(--warning);">2</div>
+              <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.3px;">Markiert</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px 4px;">
+              <div style="font-size:18px;font-weight:700;color:var(--info);">3</div>
+              <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.3px;">Export</div>
+            </div>
+          </div>
+          <!-- Column headers -->
+          <div style="display:flex;padding:8px 12px;font-size:9px;font-weight:600;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.5px;background:var(--surface);border-bottom:1px solid var(--border);">
+            <div style="flex:2;">Lieferant ▾</div>
+            <div style="flex:1;text-align:right;">Betrag ▾</div>
+            <div style="flex:1;text-align:center;">Konf.</div>
+            <div style="flex:1;text-align:right;">Datum ▾</div>
+          </div>
+          <!-- Invoice rows -->
+          <div style="background:var(--card);">
+            <div style="display:flex;align-items:center;padding:11px 12px;border-bottom:1px solid var(--border);border-left:3px solid var(--success);">
+              <div style="flex:2;font-size:12px;font-weight:500;">Holz-Müller GmbH</div>
+              <div style="flex:1;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;">1.234,56</div>
+              <div style="flex:1;text-align:center;"><span class="badge badge-green">98%</span></div>
+              <div style="flex:1;text-align:right;font-size:10px;color:var(--secondary-text);">28.03.</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 12px;border-bottom:1px solid var(--border);border-left:3px solid var(--success);">
+              <div style="flex:2;font-size:12px;font-weight:500;">Bürobedarf Schmidt</div>
+              <div style="flex:1;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;">89,90</div>
+              <div style="flex:1;text-align:center;"><span class="badge badge-green">95%</span></div>
+              <div style="flex:1;text-align:right;font-size:10px;color:var(--secondary-text);">27.03.</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 12px;border-bottom:1px solid var(--border);border-left:3px solid var(--warning);">
+              <div style="flex:2;font-size:12px;font-weight:500;">AutoTeile Weber</div>
+              <div style="flex:1;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;">567,23</div>
+              <div style="flex:1;text-align:center;"><span class="badge badge-amber">74%</span></div>
+              <div style="flex:1;text-align:right;font-size:10px;color:var(--secondary-text);">26.03.</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 12px;border-bottom:1px solid var(--border);border-left:3px solid var(--success);">
+              <div style="flex:2;font-size:12px;font-weight:500;">Druckerei Hoffmann</div>
+              <div style="flex:1;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;">345,00</div>
+              <div style="flex:1;text-align:center;"><span class="badge badge-green">92%</span></div>
+              <div style="flex:1;text-align:right;font-size:10px;color:var(--secondary-text);">25.03.</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 12px;border-bottom:1px solid var(--border);border-left:3px solid var(--destructive);">
+              <div style="flex:2;font-size:12px;font-weight:500;">IT-Service Braun</div>
+              <div style="flex:1;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;">2.890,00</div>
+              <div style="flex:1;text-align:center;"><span class="badge badge-red">52%</span></div>
+              <div style="flex:1;text-align:right;font-size:10px;color:var(--secondary-text);">24.03.</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 12px;border-bottom:1px solid var(--border);border-left:3px solid var(--success);">
+              <div style="flex:2;font-size:12px;font-weight:500;">Reinigung Klar OHG</div>
+              <div style="flex:1;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;">178,50</div>
+              <div style="flex:1;text-align:center;"><span class="badge badge-green">96%</span></div>
+              <div style="flex:1;text-align:right;font-size:10px;color:var(--secondary-text);">23.03.</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 12px;border-bottom:1px solid var(--border);border-left:3px solid var(--success);">
+              <div style="flex:2;font-size:12px;font-weight:500;">Elektro Fuchs e.K.</div>
+              <div style="flex:1;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;">456,78</div>
+              <div style="flex:1;text-align:center;"><span class="badge badge-green">91%</span></div>
+              <div style="flex:1;text-align:right;font-size:10px;color:var(--secondary-text);">22.03.</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 12px;border-bottom:1px solid var(--border);border-left:3px solid var(--warning);">
+              <div style="flex:2;font-size:12px;font-weight:500;">Maler Kunstwerk</div>
+              <div style="flex:1;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;">1.023,45</div>
+              <div style="flex:1;text-align:center;"><span class="badge badge-amber">68%</span></div>
+              <div style="flex:1;text-align:right;font-size:10px;color:var(--secondary-text);">21.03.</div>
+            </div>
+          </div>
+        </div>
+        <!-- FAB -->
+        <div style="position:absolute;bottom:24px;right:20px;width:52px;height:52px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;box-shadow:0 4px 14px rgba(0,49,83,0.4);z-index:3;">+</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIRECTION 3: Card Stack (Tinder-style) -->
+  <!-- ============================================================ -->
+  <div class="direction">
+    <div class="direction-label">
+      <h2>3. Card Stack</h2>
+      <p>Tinder-inspired swipeable invoice cards</p>
+    </div>
+    <div class="phone-frame" onclick="toggleExpand(this)">
+      <div class="notch"></div>
+      <div class="phone-screen" style="display:flex;flex-direction:column;">
+        <div class="trust-bar">
+          <span class="flag">🇩🇪</span> Gehostet in Deutschland
+        </div>
+        <div class="status-bar">
+          <span>9:41</span>
+          <span style="font-weight:600;font-size:12px;">RechnungsAI</span>
+          <span>●●●</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;padding:12px 16px 16px;">
+          <!-- Hero stat -->
+          <div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:var(--radius-card);padding:14px 16px;color:#fff;margin-bottom:14px;">
+            <div style="font-size:10px;opacity:0.8;text-transform:uppercase;letter-spacing:0.5px;">Wochenübersicht</div>
+            <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px;">
+              <span style="font-size:26px;font-weight:700;">€ 5.126,24</span>
+              <span style="font-size:10px;opacity:0.7;">in 5 Rechnungen</span>
+            </div>
+          </div>
+          <!-- Swipe area -->
+          <div style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;">
+            <!-- Swipe hints -->
+            <div style="position:absolute;left:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;z-index:1;">
+              <div style="width:36px;height:36px;border-radius:50%;background:rgba(231,76,60,0.12);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--destructive);">←</div>
+              <span style="font-size:8px;color:var(--destructive);font-weight:600;">Markieren</span>
+            </div>
+            <div style="position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;z-index:1;">
+              <div style="width:36px;height:36px;border-radius:50%;background:rgba(46,204,113,0.12);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--success);">→</div>
+              <span style="font-size:8px;color:var(--success);font-weight:600;">Freigeben</span>
+            </div>
+            <!-- Background cards for stack effect -->
+            <div style="position:absolute;width:82%;height:92%;background:var(--card);border-radius:var(--radius-dialog);box-shadow:0 2px 8px rgba(0,0,0,0.05);transform:rotate(2deg) translateY(6px);opacity:0.6;"></div>
+            <div style="position:absolute;width:86%;height:94%;background:var(--card);border-radius:var(--radius-dialog);box-shadow:0 2px 8px rgba(0,0,0,0.07);transform:rotate(-1deg) translateY(3px);opacity:0.8;"></div>
+            <!-- Main card -->
+            <div style="width:90%;background:var(--card);border-radius:var(--radius-dialog);box-shadow:0 8px 30px rgba(0,0,0,0.1);padding:16px;position:relative;z-index:2;border-left:4px solid var(--success);">
+              <!-- Doc thumbnail area -->
+              <div style="background:var(--surface);border-radius:var(--radius-btn);height:80px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;border:1px dashed var(--border);">
+                <div style="text-align:center;color:var(--secondary-text);">
+                  <div style="font-size:20px;margin-bottom:2px;">📄</div>
+                  <div style="font-size:9px;">RE-2026-0847.pdf</div>
+                </div>
+              </div>
+              <!-- Extracted fields -->
+              <div style="font-size:16px;font-weight:700;margin-bottom:2px;">Holz-Müller GmbH</div>
+              <div style="font-size:11px;color:var(--secondary-text);margin-bottom:12px;">Rechnung RE-2026-0847</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="background:var(--surface);border-radius:var(--radius-btn);padding:8px;">
+                  <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;margin-bottom:2px;">Betrag</div>
+                  <div style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;">€ 1.234,56</div>
+                </div>
+                <div style="background:var(--surface);border-radius:var(--radius-btn);padding:8px;">
+                  <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;margin-bottom:2px;">MwSt</div>
+                  <div style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;">€ 197,15</div>
+                </div>
+                <div style="background:var(--surface);border-radius:var(--radius-btn);padding:8px;">
+                  <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;margin-bottom:2px;">SKR03 Konto</div>
+                  <div style="font-size:14px;font-weight:600;">3400</div>
+                </div>
+                <div style="background:var(--surface);border-radius:var(--radius-btn);padding:8px;">
+                  <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;margin-bottom:2px;">Konfidenz</div>
+                  <div style="font-size:14px;font-weight:600;color:var(--success);">98%</div>
+                </div>
+              </div>
+              <div style="font-size:10px;color:var(--secondary-text);margin-top:10px;text-align:center;">Datum: 28.03.2026 · Fällig: 11.04.2026</div>
+            </div>
+          </div>
+          <!-- Dots indicator -->
+          <div style="display:flex;justify-content:center;gap:6px;padding:10px 0;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--primary);"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--border);"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--border);"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--border);"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--border);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIRECTION 4: Progressive Reveal -->
+  <!-- ============================================================ -->
+  <div class="direction">
+    <div class="direction-label">
+      <h2>4. Progressive Reveal</h2>
+      <p>Minimal upfront, expand on demand, accordion-style</p>
+    </div>
+    <div class="phone-frame" onclick="toggleExpand(this)">
+      <div class="notch"></div>
+      <div class="phone-screen" style="display:flex;flex-direction:column;">
+        <div class="trust-bar">
+          <span class="flag">🇩🇪</span> Gehostet in Deutschland
+        </div>
+        <div class="status-bar">
+          <span>9:41</span>
+          <span style="font-weight:600;font-size:12px;">RechnungsAI</span>
+          <span>●●●</span>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:20px 16px 72px;">
+          <!-- Critical number -->
+          <div style="text-align:center;padding:24px 16px 28px;">
+            <div style="font-size:48px;font-weight:700;color:var(--primary);line-height:1;">5</div>
+            <div style="font-size:15px;font-weight:500;color:var(--foreground);margin-top:8px;line-height:1.4;">Rechnungen brauchen<br>deine Aufmerksamkeit</div>
+            <div style="font-size:11px;color:var(--secondary-text);margin-top:6px;">Gesamtwert: € 5.126,24</div>
+          </div>
+          <!-- Accordion items -->
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <!-- Expanded item -->
+            <div style="background:var(--card);border-radius:var(--radius-card);box-shadow:0 2px 8px rgba(0,0,0,0.08);border-left:4px solid var(--success);overflow:hidden;">
+              <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-weight:600;font-size:14px;">Holz-Müller GmbH</div>
+                  <div style="font-size:11px;color:var(--secondary-text);margin-top:2px;">RE-2026-0847</div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="amount" style="font-size:15px;font-variant-numeric:tabular-nums;">€ 1.234,56</div>
+                  <div style="font-size:14px;margin-top:2px;">▴</div>
+                </div>
+              </div>
+              <!-- Expanded details -->
+              <div style="padding:0 16px 16px;border-top:1px solid var(--border);">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+                  <div>
+                    <div style="font-size:9px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;">Datum</div>
+                    <div style="font-size:12px;font-weight:500;margin-top:2px;">28.03.2026</div>
+                  </div>
+                  <div>
+                    <div style="font-size:9px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;">Fällig</div>
+                    <div style="font-size:12px;font-weight:500;margin-top:2px;">11.04.2026</div>
+                  </div>
+                  <div>
+                    <div style="font-size:9px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;">MwSt (19%)</div>
+                    <div style="font-size:12px;font-weight:500;margin-top:2px;font-variant-numeric:tabular-nums;">€ 197,15</div>
+                  </div>
+                  <div>
+                    <div style="font-size:9px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;">SKR03 Konto</div>
+                    <div style="font-size:12px;font-weight:500;margin-top:2px;">3400 Wareneingang</div>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:12px;margin-bottom:14px;">
+                  <span class="badge badge-green">98% Konfidenz</span>
+                  <span style="font-size:9px;color:var(--secondary-text);">Alle Felder erkannt</span>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-success" style="flex:1;font-size:12px;min-height:44px;">Freigeben</button>
+                  <button class="btn btn-outline" style="min-height:44px;padding:0 16px;font-size:12px;">Markieren</button>
+                </div>
+              </div>
+            </div>
+            <!-- Collapsed items -->
+            <div style="background:var(--card);border-radius:var(--radius-card);padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);display:flex;justify-content:space-between;align-items:center;border-left:4px solid var(--success);">
+              <div>
+                <div style="font-weight:600;font-size:13px;">Bürobedarf Schmidt</div>
+                <div style="font-size:10px;color:var(--secondary-text);margin-top:1px;">RE-2026-0901</div>
+              </div>
+              <div style="text-align:right;">
+                <div class="amount" style="font-size:14px;font-variant-numeric:tabular-nums;">€ 89,90</div>
+                <div style="font-size:14px;color:var(--secondary-text);">▾</div>
+              </div>
+            </div>
+            <div style="background:var(--card);border-radius:var(--radius-card);padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);display:flex;justify-content:space-between;align-items:center;border-left:4px solid var(--warning);">
+              <div>
+                <div style="font-weight:600;font-size:13px;">AutoTeile Weber</div>
+                <div style="font-size:10px;color:var(--secondary-text);margin-top:1px;">RE-2026-0885</div>
+              </div>
+              <div style="text-align:right;">
+                <div class="amount" style="font-size:14px;font-variant-numeric:tabular-nums;">€ 567,23</div>
+                <div style="font-size:14px;color:var(--secondary-text);">▾</div>
+              </div>
+            </div>
+            <div style="background:var(--card);border-radius:var(--radius-card);padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);display:flex;justify-content:space-between;align-items:center;border-left:4px solid var(--success);">
+              <div>
+                <div style="font-weight:600;font-size:13px;">Druckerei Hoffmann</div>
+                <div style="font-size:10px;color:var(--secondary-text);margin-top:1px;">RE-2026-0870</div>
+              </div>
+              <div style="text-align:right;">
+                <div class="amount" style="font-size:14px;font-variant-numeric:tabular-nums;">€ 345,00</div>
+                <div style="font-size:14px;color:var(--secondary-text);">▾</div>
+              </div>
+            </div>
+            <div style="background:var(--card);border-radius:var(--radius-card);padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);display:flex;justify-content:space-between;align-items:center;border-left:4px solid var(--destructive);">
+              <div>
+                <div style="font-weight:600;font-size:13px;">IT-Service Braun</div>
+                <div style="font-size:10px;color:var(--secondary-text);margin-top:1px;">RE-2026-0912</div>
+              </div>
+              <div style="text-align:right;">
+                <div class="amount" style="font-size:14px;font-variant-numeric:tabular-nums;">€ 2.890,00</div>
+                <div style="font-size:14px;color:var(--secondary-text);">▾</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Bottom Nav -->
+        <div class="bottom-nav">
+          <div class="nav-item active">
+            <div class="icon">⌂</div>
+            <span>Home</span>
+          </div>
+          <div class="nav-item capture-btn">
+            <div class="icon">+</div>
+            <span>Erfassen</span>
+          </div>
+          <div class="nav-item">
+            <div class="icon">▤</div>
+            <span>Archiv</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIRECTION 5: Split View (Desktop) -->
+  <!-- ============================================================ -->
+  <div class="direction wide">
+    <div class="direction-label">
+      <h2>5. Split View</h2>
+      <p>Document + data side by side, desktop layout for detailed review</p>
+    </div>
+    <div class="desktop-frame" onclick="toggleExpand(this)">
+      <div class="desktop-screen">
+        <!-- Left: Document panel -->
+        <div style="flex:1;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;">
+          <div class="trust-bar" style="border-radius:6px 0 0 0;">
+            <span class="flag">🇩🇪</span> Gehostet in Deutschland
+          </div>
+          <div style="padding:10px;flex:1;display:flex;flex-direction:column;">
+            <div style="font-size:10px;font-weight:600;color:var(--secondary-text);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Quelldokument</div>
+            <div style="flex:1;background:#fff;border-radius:var(--radius-btn);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;">
+              <div style="text-align:center;color:var(--secondary-text);">
+                <div style="font-size:40px;margin-bottom:8px;">📄</div>
+                <div style="font-size:11px;font-weight:500;">RE-2026-0847.pdf</div>
+                <div style="font-size:9px;margin-top:2px;">Holz-Müller GmbH</div>
+                <div style="margin-top:10px;padding:6px 10px;background:var(--surface);border-radius:4px;font-size:9px;">Rechnungsdatum: 28.03.2026</div>
+                <div style="margin-top:4px;padding:6px 10px;background:var(--surface);border-radius:4px;font-size:9px;">Bruttobetrag: € 1.234,56</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Right: Data panel -->
+        <div style="flex:1;display:flex;flex-direction:column;background:var(--card);">
+          <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:12px;font-weight:600;">Extrahierte Daten</div>
+            <span class="badge badge-green">98% Konfidenz</span>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:10px 12px;">
+            <!-- Fields -->
+            <div style="margin-bottom:10px;">
+              <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Lieferant</div>
+              <div style="font-size:11px;font-weight:600;padding:6px 8px;background:var(--surface);border-radius:4px;border-left:3px solid var(--success);">Holz-Müller GmbH</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+              <div>
+                <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Rechnungsnr.</div>
+                <div style="font-size:11px;font-weight:500;padding:6px 8px;background:var(--surface);border-radius:4px;border-left:3px solid var(--success);">RE-2026-0847</div>
+              </div>
+              <div>
+                <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Datum</div>
+                <div style="font-size:11px;font-weight:500;padding:6px 8px;background:var(--surface);border-radius:4px;border-left:3px solid var(--success);">28.03.2026</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+              <div>
+                <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Nettobetrag</div>
+                <div style="font-size:11px;font-weight:600;padding:6px 8px;background:var(--surface);border-radius:4px;border-left:3px solid var(--success);font-variant-numeric:tabular-nums;">€ 1.037,41</div>
+              </div>
+              <div>
+                <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">MwSt (19%)</div>
+                <div style="font-size:11px;font-weight:600;padding:6px 8px;background:var(--surface);border-radius:4px;border-left:3px solid var(--success);font-variant-numeric:tabular-nums;">€ 197,15</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+              <div>
+                <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Bruttobetrag</div>
+                <div style="font-size:12px;font-weight:700;padding:6px 8px;background:var(--surface);border-radius:4px;border-left:3px solid var(--success);font-variant-numeric:tabular-nums;">€ 1.234,56</div>
+              </div>
+              <div>
+                <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">SKR03 Konto</div>
+                <div style="font-size:11px;font-weight:600;padding:6px 8px;background:var(--surface);border-radius:4px;border-left:3px solid var(--warning);">3400</div>
+              </div>
+            </div>
+            <div style="margin-bottom:10px;">
+              <div style="font-size:8px;color:var(--secondary-text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Fälligkeitsdatum</div>
+              <div style="font-size:11px;font-weight:500;padding:6px 8px;background:var(--surface);border-radius:4px;border-left:3px solid var(--success);">11.04.2026</div>
+            </div>
+          </div>
+          <!-- Action buttons -->
+          <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;">
+            <button class="btn btn-success" style="flex:1;min-height:36px;font-size:11px;">Freigeben</button>
+            <button class="btn btn-outline" style="min-height:36px;padding:0 14px;font-size:11px;">Markieren</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIRECTION 6: Status Timeline -->
+  <!-- ============================================================ -->
+  <div class="direction">
+    <div class="direction-label">
+      <h2>6. Status Timeline</h2>
+      <p>Process-oriented pipeline view with stage indicators</p>
+    </div>
+    <div class="phone-frame" onclick="toggleExpand(this)">
+      <div class="notch"></div>
+      <div class="phone-screen" style="display:flex;flex-direction:column;">
+        <div class="trust-bar">
+          <span class="flag">🇩🇪</span> Gehostet in Deutschland
+        </div>
+        <div class="status-bar">
+          <span>9:41</span>
+          <span style="font-weight:600;font-size:12px;">RechnungsAI</span>
+          <span>●●●</span>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:0 0 72px;">
+          <!-- Pipeline header -->
+          <div style="display:flex;background:var(--card);border-bottom:1px solid var(--border);overflow-x:auto;">
+            <div style="flex:1;text-align:center;padding:10px 6px;border-bottom:2.5px solid var(--primary);">
+              <div style="font-size:16px;font-weight:700;color:var(--primary);">2</div>
+              <div style="font-size:7px;color:var(--primary);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">Erfasst</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px 6px;border-bottom:2.5px solid var(--warning);">
+              <div style="font-size:16px;font-weight:700;color:var(--warning);">1</div>
+              <div style="font-size:7px;color:var(--warning);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">Verarbeitung</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px 6px;border-bottom:2.5px solid var(--success);">
+              <div style="font-size:16px;font-weight:700;color:var(--success);">5</div>
+              <div style="font-size:7px;color:var(--success);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">Bereit</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px 6px;border-bottom:2.5px solid var(--info);">
+              <div style="font-size:16px;font-weight:700;color:var(--info);">12</div>
+              <div style="font-size:7px;color:var(--info);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">Exportiert</div>
+            </div>
+          </div>
+
+          <!-- Pipeline sections -->
+          <div style="padding:12px;">
+            <!-- Erfasst section -->
+            <div style="margin-bottom:16px;">
+              <div style="font-size:10px;font-weight:600;color:var(--primary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;">○</span> Erfasst
+              </div>
+              <div style="background:var(--card);border-radius:var(--radius-card);padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:6px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:12px;font-weight:500;">Maler Kunstwerk</div>
+                  <div style="font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;">€ 1.023,45</div>
+                </div>
+                <div style="font-size:9px;color:var(--secondary-text);margin-top:3px;">Vor 2 Minuten hochgeladen</div>
+                <!-- Timeline indicator -->
+                <div style="display:flex;align-items:center;gap:4px;margin-top:8px;">
+                  <span style="font-size:11px;color:var(--primary);">●</span>
+                  <div style="flex:1;height:2px;background:var(--border);border-radius:1px;"><div style="width:15%;height:100%;background:var(--primary);border-radius:1px;"></div></div>
+                  <span style="font-size:11px;color:var(--border);">◐</span>
+                  <div style="flex:1;height:2px;background:var(--border);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--border);">●</span>
+                  <div style="flex:1;height:2px;background:var(--border);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--border);">✓</span>
+                  <div style="flex:1;height:2px;background:var(--border);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--border);">✓✓</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Verarbeitung section -->
+            <div style="margin-bottom:16px;">
+              <div style="font-size:10px;font-weight:600;color:var(--warning);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;">◐</span> Verarbeitung
+              </div>
+              <div style="background:var(--card);border-radius:var(--radius-card);padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:12px;font-weight:500;">IT-Service Braun</div>
+                  <div style="font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;">€ 2.890,00</div>
+                </div>
+                <div style="font-size:9px;color:var(--secondary-text);margin-top:3px;">KI-Extraktion läuft...</div>
+                <div style="display:flex;align-items:center;gap:4px;margin-top:8px;">
+                  <span style="font-size:11px;color:var(--success);">●</span>
+                  <div style="flex:1;height:2px;background:var(--success);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--warning);">◐</span>
+                  <div style="flex:1;height:2px;background:var(--border);border-radius:1px;"><div style="width:60%;height:100%;background:var(--warning);border-radius:1px;"></div></div>
+                  <span style="font-size:11px;color:var(--border);">●</span>
+                  <div style="flex:1;height:2px;background:var(--border);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--border);">✓</span>
+                  <div style="flex:1;height:2px;background:var(--border);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--border);">✓✓</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bereit section -->
+            <div style="margin-bottom:16px;">
+              <div style="font-size:10px;font-weight:600;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;">●</span> Bereit zur Prüfung
+              </div>
+              <!-- Main invoice card with full timeline -->
+              <div style="background:var(--card);border-radius:var(--radius-card);padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border-left:4px solid var(--success);margin-bottom:6px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                  <div>
+                    <div style="font-size:13px;font-weight:600;">Holz-Müller GmbH</div>
+                    <div style="font-size:10px;color:var(--secondary-text);margin-top:1px;">RE-2026-0847 · SKR03: 3400</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;">€ 1.234,56</div>
+                    <span class="badge badge-green" style="margin-top:2px;">98%</span>
+                  </div>
+                </div>
+                <!-- Status timeline -->
+                <div style="display:flex;align-items:center;gap:4px;margin-top:10px;">
+                  <span style="font-size:11px;color:var(--success);">●</span>
+                  <div style="flex:1;height:2px;background:var(--success);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--success);">◐</span>
+                  <div style="flex:1;height:2px;background:var(--success);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--success);">●</span>
+                  <div style="flex:1;height:2px;background:var(--border);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--border);">✓</span>
+                  <div style="flex:1;height:2px;background:var(--border);border-radius:1px;"></div>
+                  <span style="font-size:11px;color:var(--border);">✓✓</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:3px;">
+                  <span style="font-size:7px;color:var(--success);">Erfasst</span>
+                  <span style="font-size:7px;color:var(--success);">Verarbeitet</span>
+                  <span style="font-size:7px;color:var(--success);font-weight:600;">Bereit</span>
+                  <span style="font-size:7px;color:var(--secondary-text);">Geprüft</span>
+                  <span style="font-size:7px;color:var(--secondary-text);">Exportiert</span>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                  <button class="btn btn-success" style="flex:1;min-height:36px;font-size:11px;border-radius:var(--radius-btn);">Freigeben</button>
+                  <button class="btn btn-outline" style="min-height:36px;padding:0 12px;font-size:11px;border-radius:var(--radius-btn);">Markieren</button>
+                </div>
+              </div>
+              <!-- Compact bereit items -->
+              <div style="background:var(--card);border-radius:var(--radius-card);padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border-left:4px solid var(--success);margin-bottom:6px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:12px;font-weight:500;">Bürobedarf Schmidt</div>
+                  <div style="font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;">€ 89,90</div>
+                </div>
+              </div>
+              <div style="background:var(--card);border-radius:var(--radius-card);padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border-left:4px solid var(--warning);margin-bottom:6px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:12px;font-weight:500;">AutoTeile Weber</div>
+                  <div style="font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;">€ 567,23</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Exportiert section -->
+            <div>
+              <div style="font-size:10px;font-weight:600;color:var(--info);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;">✓✓</span> Exportiert
+              </div>
+              <div style="background:var(--card);border-radius:var(--radius-card);padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);opacity:0.7;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:12px;font-weight:500;color:var(--secondary-text);">Reinigung Klar OHG</div>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--secondary-text);">€ 178,50</div>
+                    <span style="font-size:11px;color:var(--info);">✓✓</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Bottom Nav -->
+        <div class="bottom-nav">
+          <div class="nav-item active">
+            <div class="icon">⌂</div>
+            <span>Pipeline</span>
+          </div>
+          <div class="nav-item capture-btn">
+            <div class="icon">+</div>
+            <span>Erfassen</span>
+          </div>
+          <div class="nav-item">
+            <div class="icon">▤</div>
+            <span>Archiv</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let expandedEl = null;
+  const overlay = document.getElementById('overlay');
+
+  function toggleExpand(el) {
+    if (expandedEl === el) {
+      closeExpanded();
+      return;
+    }
+    if (expandedEl) closeExpanded();
+    el.classList.add('expanded');
+    overlay.classList.add('active');
+    expandedEl = el;
+  }
+
+  function closeExpanded() {
+    if (expandedEl) {
+      expandedEl.classList.remove('expanded');
+      expandedEl = null;
+    }
+    overlay.classList.remove('active');
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeExpanded();
+  });
+</script>
+
+</body>
+</html>
