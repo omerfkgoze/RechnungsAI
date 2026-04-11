@@ -1,1 +1,1 @@
-export type { ActionResult } from "./types/action-result";
+export type { ActionResult } from "./types/action-result.js";

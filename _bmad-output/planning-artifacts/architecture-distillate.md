@@ -11,7 +11,7 @@ parts: 1
 ## Project Context
 
 - Project: RechnungsAI; User: GOZE; Date: 2026-04-03; Status: complete
-- Input docs: product-brief-RechnungsAI-distillate.md, prd.md, ux-design-specification-distillate/_index.md
+- Input docs: product-brief-RechnungsAI-distillate.md, prd.md, ux-design-specification-distillate/\_index.md
 - Domain: Full-stack SaaS (web + PWA + AI pipeline + compliance); Complexity: High — regulated fintech; AI accuracy impacts tax liability
 - 51 FRs (FR1–FR51) across 9 capability areas; 30 NFRs (NFR1–NFR30)
 - ~12 major architectural components

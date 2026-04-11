@@ -1,8 +1,8 @@
 ---
-title: 'Product Brief: RechnungsAI'
-status: 'complete'
-created: '2026-04-01'
-updated: '2026-04-02'
+title: "Product Brief: RechnungsAI"
+status: "complete"
+created: "2026-04-01"
+updated: "2026-04-02"
 inputs:
   - docs/pre-brainstorming-RechnungsAI.md
   - web research (Brave Search — market data, competitor analysis)

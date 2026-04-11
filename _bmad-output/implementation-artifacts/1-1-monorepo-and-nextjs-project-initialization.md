@@ -1,6 +1,6 @@
 # Story 1.1: Monorepo and Next.js Project Initialization
 
-Status: review
+Status: done
 
 ## Story
 
@@ -110,30 +110,31 @@ So that all subsequent features can be built on a solid, consistent foundation.
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
     },
     "lint": {
-      "outputs": []
+      "outputs": [],
     },
     "check-types": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
     },
     "test": {
       "dependsOn": ["build"],
-      "outputs": ["coverage/**"]
-    }
-  }
+      "outputs": ["coverage/**"],
+    },
+  },
 }
 ```
 
 ### Package Structure Convention
 
 Each workspace package follows this structure:
+
 ```
 packages/{name}/
   ├── package.json        # name: @rechnungsai/{name}
@@ -149,7 +150,7 @@ packages/{name}/
 // packages/shared/src/types/action-result.ts
 export type ActionResult<T> =
   | { success: true; data: T }
-  | { success: false; error: string }
+  | { success: false; error: string };
 ```
 
 This is the ONLY return format for all Server Actions throughout the project.
@@ -189,15 +190,15 @@ CMD ["node", "apps/web/server.js"]
 
 ### Naming Conventions (Enforce from Day One)
 
-| Element | Convention | Example |
-|---------|-----------|---------|
-| Files | kebab-case | `invoice-card.tsx` |
-| Components | PascalCase | `InvoiceCard` |
-| Functions | camelCase | `getInvoices` |
-| Constants | UPPER_SNAKE_CASE | `MAX_FREE_INVOICES` |
-| DB tables | snake_case plural | `invoices` |
-| DB columns | snake_case | `tenant_id` |
-| Packages | `@rechnungsai/{name}` | `@rechnungsai/shared` |
+| Element    | Convention            | Example               |
+| ---------- | --------------------- | --------------------- |
+| Files      | kebab-case            | `invoice-card.tsx`    |
+| Components | PascalCase            | `InvoiceCard`         |
+| Functions  | camelCase             | `getInvoices`         |
+| Constants  | UPPER_SNAKE_CASE      | `MAX_FREE_INVOICES`   |
+| DB tables  | snake_case plural     | `invoices`            |
+| DB columns | snake_case            | `tenant_id`           |
+| Packages   | `@rechnungsai/{name}` | `@rechnungsai/shared` |
 
 ### Package Dependency Graph
 
@@ -268,6 +269,7 @@ Docker must be running before `supabase start`. The local instance includes Post
 ## Dev Agent Record
 
 ### Agent Model Used
+
 Claude Opus 4.6
 
 ### Debug Log References
@@ -282,7 +284,7 @@ Claude Opus 4.6
 - Turborepo monorepo initialized with pnpm@10.33.0 and turbo@2.9.6
 - Next.js 16.2.3 with App Router, Turbopack, TypeScript strict mode, Tailwind CSS v4, shadcn/ui
 - 8 workspace packages created: shared, ai, datev, validation, gobd, pdf, email + web app
-- Config packages (typescript-config, eslint-config) from create-turbo, renamed to @rechnungsai/* scope
+- Config packages (typescript-config, eslint-config) from create-turbo, renamed to @rechnungsai/\* scope
 - Package dependency graph enforced: domain packages depend only on shared; shared has no workspace deps
 - Supabase local dev environment configured and verified (PostgreSQL, Auth, Storage, Realtime)
 - Multi-stage Dockerfile for production deployment with turbo prune
@@ -349,3 +351,17 @@ Claude Opus 4.6
 ### Change Log
 
 - 2026-04-11: Story 1.1 implemented — Turborepo monorepo with Next.js 16, Tailwind CSS v4, shadcn/ui, Supabase, 8 workspace packages, Dockerfile, ESLint
+- 2026-04-11: Code review completed — 6 patches applied, 4 deferred, 10 dismissed. Fixes: removed nested .git from apps/web (create-next-app artifact), apps/web/tsconfig.json now extends shared config, ESLint config uses @rechnungsai/eslint-config, Dockerfile pnpm pinned to 10.33.0, .dockerignore excludes .env\*, shared index.ts NodeNext .js extension fix
+
+## Review Findings
+
+- [x] [Review][Patch] `apps/` directory untracked — nested `.git` from `create-next-app` removed; `apps/web/` staged — FIXED
+- [x] [Review][Patch] ~~`packages/shared/src/index.ts` exports nothing~~ — FALSE POSITIVE, barrel re-export already present; fixed `.js` extension for NodeNext resolution
+- [x] [Review][Patch] `apps/web/tsconfig.json` now extends `@rechnungsai/typescript-config/nextjs.json` — FIXED
+- [x] [Review][Patch] `apps/web/eslint.config.mjs` now uses `@rechnungsai/eslint-config/next-js`; devDep added — FIXED
+- [x] [Review][Patch] Dockerfile now pins `pnpm@10.33.0` — FIXED
+- [x] [Review][Patch] `.dockerignore` now excludes `.env*` files — FIXED
+- [x] [Review][Defer] `eslint-plugin-only-warn` silences all ESLint errors to warnings in domain packages — create-turbo default, intentional pattern — deferred, pre-existing
+- [x] [Review][Defer] `turbo.json` missing `globalEnv` declarations — env var changes (Supabase keys) won't invalidate Turbo cache — deferred, pre-existing
+- [x] [Review][Defer] Monorepo import boundary enforced only by documentation comment — no ESLint boundary plugin or tooling enforcing cross-package import rules — deferred, pre-existing
+- [x] [Review][Defer] Domain packages lack `build` scripts — potential risk if Next.js standalone tracer cannot follow raw `.ts` entrypoints; needs production deploy verification — deferred, pre-existing

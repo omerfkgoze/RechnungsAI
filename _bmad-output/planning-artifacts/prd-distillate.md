@@ -9,6 +9,7 @@ parts: 1
 ---
 
 ## Core Concept
+
 - RechnungsAI: AI-powered e-invoicing/accounting SaaS for German micro-businesses (5-20 employees)
 - Germany's Wachstumschancengesetz mandates structured e-invoices (XRechnung/ZUGFeRD) by Jan 2028; 25% SMEs unprepared
 - Market gap: Lexoffice = affordable but manual; DATEV = powerful but expensive/complex; RechnungsAI = AI automation at accessible pricing
@@ -17,6 +18,7 @@ parts: 1
 - 2025-2027 regulatory transition = once-in-a-generation forced switching event with winner-take-most dynamics
 
 ## Project Classification
+
 - Type: SaaS B2B; multi-tenant, subscription tiers, web dashboard, integrations (DATEV, ELSTER)
 - Domain: Fintech; GoBD, DSGVO, EN 16931 regulatory frameworks
 - Complexity: High; regulated industry, AI accuracy impacts tax returns, data residency requirements
@@ -24,12 +26,14 @@ parts: 1
 - Author: GOZE; Date: 2026-04-02
 
 ## Users & Personas
+
 - Thomas Brenner: 42, Schreinerei owner Munich, 6 employees, ~EUR 800K revenue, 25-30 incoming + 15-20 outgoing invoices/week, zero digital maturity, uses Excel/Word; primary user
 - Lisa Hartmann: 29, e-commerce (Shopify/Amazon DE) Hamburg, 2 employees, ~EUR 350K revenue, 60+ supplier invoices/month from DE/PL/CN, multi-channel VAT complexity; needs intra-EU reverse-charge handling
 - Frau Claudia Schmidt: 54, Steuerberaterin Munich, 85 clients (40% Handwerk), uses DATEV Unternehmen Online; indirect user, spends 30% time on data cleanup; organic distribution channel
 - Target demographic: conservative German tradespeople 40+ with minimal digital experience; deep cloud skepticism
 
 ## Success Criteria
+
 - Aha moment: invoice photographed -> categorized/validated entry in seconds
 - Indispensable moment: weekly engagement notification quantifying time saved and tax deductions
 - Time saved: ~2.5 hrs/week reduction in manual bookkeeping
@@ -45,6 +49,7 @@ parts: 1
 - Weekly time saved: ~2 hrs at 3 months, ~2.5 hrs at 12 months
 
 ## MVP Feature Set (Phase 1)
+
 - Photo/PDF/XML upload + AI data extraction (core aha moment)
 - AI auto-categorization SKR03/SKR04
 - Human-in-the-loop confirmation with confidence scoring (green >95%, amber 70-95%, red <70%)
@@ -62,6 +67,7 @@ parts: 1
 - Solo developer scope discipline: no feature additions without removing something
 
 ## Explicitly Deferred from MVP
+
 - XRechnung/ZUGFeRD outgoing generation -> Phase 2
 - Bank connection (FinTS/PSD2) -> Phase 3
 - Full accounting (EUR/GuV) -> Phase 3
@@ -72,12 +78,14 @@ parts: 1
 - SEPA direct debit -> deferred until payment friction data justifies
 
 ## Phased Roadmap
+
 - Phase 2 (Months 3-4): outgoing XRechnung/ZUGFeRD generation (EN 16931), outgoing invoice management, SEPA direct debit
 - Phase 3 (Months 4-7): bank connection FinTS/PSD2, full accounting EÜR+GuV, ELSTER USt-VA auto-submission, multi-user RBAC (owner/bookkeeper/viewer), English, anomaly detection, incoming invoice email forwarding per tenant
 - Phase 4 (Months 7-12): Steuerberater portal, Shopify/WooCommerce integrations, AI tax optimization, German NL querying, API marketplace, advanced reporting
 - Phase 5 (Year 2): DACH expansion (Austria/Switzerland), sector-specific modules (Handwerk/Gastro/e-commerce), PEPPOL access point
 
 ## Subscription Tiers
+
 - Free: EUR 0, 10/month, full AI processing + DATEV export + GoBD archive
 - Starter: EUR 14.90/mo, unlimited, priority processing
 - Business: EUR 29.90/mo, unlimited, multi-user + bank integration + full accounting (Phase 3)
@@ -86,6 +94,7 @@ parts: 1
 - Billing edge cases: prorated upgrades mid-cycle, downgrade at period end, self-invoicing
 
 ## DATEV CSV Export Technical Spec
+
 - EXTF format: 3-part (header row 1, column headers row 2, data rows 3+)
 - Encoding: Windows-1252 (not UTF-8); delimiter: semicolon; text qualifier: double quotes; decimal: comma
 - Header fields: EXTF identifier, version 700, category 21 (Buchungsstapel), Berater-Nr, Mandanten-Nr, WJ-Beginn, Sachkontenlänge (typically 4), date range, currency EUR
@@ -96,12 +105,14 @@ parts: 1
 - Monitor version field (currently 700) for format updates
 
 ## Multi-Tenancy & Auth
+
 - Every table includes tenant_id FK; Supabase native RLS enforced at DB level
 - MVP: 1 user per tenant, 1:1 mapping; schema supports multi-user without migration (users->tenants junction table, role column pre-defined)
 - Role enum: owner (MVP active), bookkeeper (Phase 3), viewer (Phase 3)
 - Tenant settings: Berater-Nr, Mandanten-Nr, SKR plan, fiscal year start, company details
 
 ## Security & Trust
+
 - Data residency: exclusively German data centers (Hetzner Cloud, Nürnberg/Falkenstein); no data leaves EU
 - Encryption: AES-256 at rest, TLS 1.3 in transit
 - GoBD-Ready archive: immutable storage, SHA-256 hash at ingestion, tamper-proof change logs, 10-year retention, audit-ready export
@@ -115,6 +126,7 @@ parts: 1
 - OWASP Top 10 assessment required before launch
 
 ## AI & Accuracy
+
 - Human-in-the-loop mandatory: every AI field presented for user confirmation before saving
 - Confidence scoring per field: green >95%, amber 70-95%, red <70%; amber/red require explicit attention
 - Legal disclaimer mandatory at onboarding + every AI result: "AI-suggested data must be reviewed. Final responsibility lies with the user." (German: "Die von der KI vorgeschlagenen Daten müssen überprüft werden. Die endgültige Verantwortung liegt beim Nutzer."); acceptance logged
@@ -124,6 +136,7 @@ parts: 1
 - Supplier pattern recognition: accuracy improves from 95% to 99%+ within first month per supplier
 
 ## Non-Functional Requirements
+
 - NFR1: AI extraction <5s (p95) single doc; NFR2: batch 20 docs <60s (p95)
 - NFR3: dashboard load <2s; NFR4: DATEV export <10s for 500 invoices; NFR5: search/filter <1s; NFR6: camera preview <500ms
 - NFR9: row-level security, zero cross-tenant access; NFR10: auth tokens 30-day expiry, password reset 1hr expiry
@@ -142,6 +155,7 @@ parts: 1
 - NFR30: email deliverability >95%
 
 ## Integration Architecture
+
 - MVP: DATEV CSV export; transactional email (Resend/AWS SES); Hetzner S3-compatible object storage (immutable bucket); Claude/OpenAI API
 - Phase 2: outgoing e-invoice generation
 - Phase 3: FinTS/PSD2 bank, ELSTER API, incoming invoice email forwarding
@@ -150,6 +164,7 @@ parts: 1
 - No offline mode MVP; German UI only; i18n architecture from day one
 
 ## Risks
+
 - HIGH RISK: solo developer burnout/feature overload (likelihood high, impact critical); mitigation: strict MVP scope, 8-10 week time-box, no additions without trade-offs
 - HIGH RISK: scope creep delays launch; mitigation: PRD is scope contract
 - MEDIUM RISK: AI accuracy <95% on real invoices (impact critical); mitigation: 200+ invoice validation gate, fallback to increased human-in-the-loop
@@ -165,11 +180,13 @@ parts: 1
 - RISK: GoBD non-compliance post-launch; mitigation: pre-launch legal review, GoBD-Ready architecture documentation
 
 ## Discovery Channels
+
 - Handwerkskammer e-Rechnung readiness seminars; free compliance checker tool as lead magnet
 - OMR Reviews articles; Shopify seller Facebook groups (organic referral)
 - Steuerberater as organic distribution channel (Phase 4 portal deepens this)
 
 ## Functional Requirements Summary (FR1-FR51)
+
 - FR1-FR7: document capture (photo/PDF/XML upload, batch, AI extraction <5s, confidence scoring, manual correction with AI learning)
 - FR8-FR12: categorization (SKR03/04 auto-suggestion, user override, BU-Schlüssel mapping for all VAT scenarios)
 - FR13-FR15: incoming e-invoice validation (XRechnung/ZUGFeRD against EN 16931, error display, pre-written correction email generation)

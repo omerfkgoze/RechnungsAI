@@ -1,16 +1,16 @@
 ---
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
 lastStep: 8
-status: 'complete'
-completedAt: '2026-04-03'
+status: "complete"
+completedAt: "2026-04-03"
 inputDocuments:
-  - 'planning-artifacts/product-brief-RechnungsAI-distillate.md'
-  - 'planning-artifacts/prd.md'
-  - 'planning-artifacts/ux-design-specification-distillate/_index.md'
-workflowType: 'architecture'
-project_name: 'RechnungsAI'
-user_name: 'GOZE'
-date: '2026-04-03'
+  - "planning-artifacts/product-brief-RechnungsAI-distillate.md"
+  - "planning-artifacts/prd.md"
+  - "planning-artifacts/ux-design-specification-distillate/_index.md"
+workflowType: "architecture"
+project_name: "RechnungsAI"
+user_name: "GOZE"
+date: "2026-04-03"
 ---
 
 # Architecture Decision Document
@@ -24,17 +24,17 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 **Functional Requirements:**
 51 functional requirements (FR1–FR51) organized into 9 capability areas:
 
-| Capability Area | FR Count | Architectural Impact |
-|---|---|---|
-| Document Capture & AI Processing | FR1–FR7 | AI pipeline, file storage, async processing queue, camera API integration |
-| Invoice Categorization | FR8–FR12 | ML model integration, SKR03/04 mapping engine, learning/feedback loop |
-| E-Invoice Validation | FR13–FR15 | EN 16931 validation engine (XRechnung UBL 2.1, ZUGFeRD CII D16B), email generation |
-| DATEV Export | FR16–FR20 | DATEV EXTF format generator (Windows-1252, 116+ columns), tenant settings |
-| GoBD-Compliant Archive | FR21–FR25 | Immutable object storage, SHA-256 hashing, audit trail, 10-year lifecycle |
-| Verfahrensdokumentation | FR26–FR29 | PDF generation engine, tenant-aware template system |
-| Dashboard & Management | FR30–FR34 | Real-time pipeline view, filtering, statistics aggregation |
-| Auth & Billing | FR35–FR44 | Supabase Auth, Stripe integration, usage tracking, subscription management |
-| Notifications & Trust | FR45–FR51 | Email service (weekly recaps), onboarding flow, compliance badge system |
+| Capability Area                  | FR Count  | Architectural Impact                                                               |
+| -------------------------------- | --------- | ---------------------------------------------------------------------------------- |
+| Document Capture & AI Processing | FR1–FR7   | AI pipeline, file storage, async processing queue, camera API integration          |
+| Invoice Categorization           | FR8–FR12  | ML model integration, SKR03/04 mapping engine, learning/feedback loop              |
+| E-Invoice Validation             | FR13–FR15 | EN 16931 validation engine (XRechnung UBL 2.1, ZUGFeRD CII D16B), email generation |
+| DATEV Export                     | FR16–FR20 | DATEV EXTF format generator (Windows-1252, 116+ columns), tenant settings          |
+| GoBD-Compliant Archive           | FR21–FR25 | Immutable object storage, SHA-256 hashing, audit trail, 10-year lifecycle          |
+| Verfahrensdokumentation          | FR26–FR29 | PDF generation engine, tenant-aware template system                                |
+| Dashboard & Management           | FR30–FR34 | Real-time pipeline view, filtering, statistics aggregation                         |
+| Auth & Billing                   | FR35–FR44 | Supabase Auth, Stripe integration, usage tracking, subscription management         |
+| Notifications & Trust            | FR45–FR51 | Email service (weekly recaps), onboarding flow, compliance badge system            |
 
 **Non-Functional Requirements:**
 30 NFRs (NFR1–NFR30) driving architectural decisions:
@@ -54,17 +54,17 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ### Technical Constraints & Dependencies
 
-| Constraint | Source | Architectural Impact |
-|---|---|---|
-| German data residency (DSGVO) | Legal | All infrastructure must be in German/EU data centers — blocks US-only cloud services |
-| GoBD immutability | Legal | Once stored, documents cannot be modified — write-once storage pattern, cryptographic hashing |
-| DATEV EXTF format | Integration | Windows-1252 encoding, semicolon delimiter, specific header structure — dedicated format generator needed |
-| EN 16931 validation | Regulatory | Must validate against official KoSIT reference validator — either integrate or replicate validation rules |
-| Solo developer | Resource | Every technology choice must minimize operational overhead — managed services preferred over self-hosted |
-| AI provider abstraction | Strategic | Must support Claude and OpenAI without user-facing changes — abstraction layer required from day one |
-| PWA with offline capture | UX | Service Worker + IndexedDB for offline photo queuing — adds client-side complexity |
-| 10-year retention | Legal | Storage costs compound — need cost-efficient immutable storage with lifecycle management |
-| No AI training on user data | Privacy | AI API calls must use zero-retention endpoints — contractual and technical guarantee needed |
+| Constraint                    | Source      | Architectural Impact                                                                                      |
+| ----------------------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| German data residency (DSGVO) | Legal       | All infrastructure must be in German/EU data centers — blocks US-only cloud services                      |
+| GoBD immutability             | Legal       | Once stored, documents cannot be modified — write-once storage pattern, cryptographic hashing             |
+| DATEV EXTF format             | Integration | Windows-1252 encoding, semicolon delimiter, specific header structure — dedicated format generator needed |
+| EN 16931 validation           | Regulatory  | Must validate against official KoSIT reference validator — either integrate or replicate validation rules |
+| Solo developer                | Resource    | Every technology choice must minimize operational overhead — managed services preferred over self-hosted  |
+| AI provider abstraction       | Strategic   | Must support Claude and OpenAI without user-facing changes — abstraction layer required from day one      |
+| PWA with offline capture      | UX          | Service Worker + IndexedDB for offline photo queuing — adds client-side complexity                        |
+| 10-year retention             | Legal       | Storage costs compound — need cost-efficient immutable storage with lifecycle management                  |
+| No AI training on user data   | Privacy     | AI API calls must use zero-retention endpoints — contractual and technical guarantee needed               |
 
 ### Cross-Cutting Concerns Identified
 
@@ -84,11 +84,11 @@ Full-stack SaaS (Next.js App Router + Supabase + AI pipeline) — Turborepo mono
 
 ### Starter Options Considered
 
-| Starter | Pros | Cons | Verdict |
-|---|---|---|---|
-| **next-forge** | Production-grade, 20+ packages, Turborepo | Clerk auth (not Supabase), Prisma (not Supabase), Neon DB, Vercel-centric deployment | **Rejected** — too many components to replace, defeats purpose of starter |
-| **create-t3-turbo** | Turborepo, TypeScript, Tailwind | tRPC redundant with Supabase API, better-auth redundant with Supabase Auth, includes Expo (unnecessary) | **Rejected** — significant overlap/conflict with Supabase |
-| **create-turbo + create-next-app** | Clean monorepo skeleton, zero opinions on auth/DB/deployment, full control | Requires manual setup of shared packages | **Selected** — minimal friction, maximum compatibility with chosen stack |
+| Starter                            | Pros                                                                       | Cons                                                                                                    | Verdict                                                                   |
+| ---------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **next-forge**                     | Production-grade, 20+ packages, Turborepo                                  | Clerk auth (not Supabase), Prisma (not Supabase), Neon DB, Vercel-centric deployment                    | **Rejected** — too many components to replace, defeats purpose of starter |
+| **create-t3-turbo**                | Turborepo, TypeScript, Tailwind                                            | tRPC redundant with Supabase API, better-auth redundant with Supabase Auth, includes Expo (unnecessary) | **Rejected** — significant overlap/conflict with Supabase                 |
+| **create-turbo + create-next-app** | Clean monorepo skeleton, zero opinions on auth/DB/deployment, full control | Requires manual setup of shared packages                                                                | **Selected** — minimal friction, maximum compatibility with chosen stack  |
 
 ### Selected Starter: create-turbo (vanilla) + create-next-app
 
@@ -113,21 +113,25 @@ pnpm dlx shadcn@latest init
 **Architectural Decisions Provided by Starter:**
 
 **Language & Runtime:**
+
 - TypeScript (strict mode) across all packages and apps
 - Node.js runtime (compatible with Coolify/Nixpacks deployment)
 - pnpm workspaces for dependency management
 
 **Styling Solution:**
+
 - Tailwind CSS v4 (configured by create-next-app)
 - shadcn/ui components (copied into project, full ownership)
 - CSS custom properties for design token architecture
 
 **Build Tooling:**
+
 - Turbopack for development (Next.js native)
 - Turborepo for monorepo task orchestration and caching
 - ESLint for linting (shared config in packages)
 
 **Testing Framework:**
+
 - Not pre-configured by starter — to be decided in architectural decisions step (simple approach per user preference)
 
 **Code Organization:**
@@ -159,6 +163,7 @@ rechnungsai/
 ```
 
 **Development Experience:**
+
 - Hot reloading via Turbopack (sub-second refreshes)
 - Turborepo remote caching (optional, local by default)
 - Shared TypeScript and ESLint configs across all packages
@@ -171,6 +176,7 @@ rechnungsai/
 ### Decision Priority Analysis
 
 **Critical Decisions (Block Implementation):**
+
 - Data access: Supabase JS Client (direct)
 - Auth: Supabase Auth (Email + Password + Google OAuth)
 - File storage: Supabase Storage (self-hosted)
@@ -179,6 +185,7 @@ rechnungsai/
 - Deployment: Dockerfile (multi-stage) on Coolify
 
 **Important Decisions (Shape Architecture):**
+
 - State management: RSC + Zustand
 - Forms: React Hook Form + Zod
 - Animation: Framer Motion
@@ -187,70 +194,72 @@ rechnungsai/
 - Monitoring: Sentry (cloud free tier)
 
 **Deferred Decisions (Post-MVP):**
+
 - Redis caching (Phase 2 — when rate limiting or session caching needed)
 - Full observability stack (Phase 2 — Axiom/Better Stack when user base grows)
 - GitHub Actions CI/CD (Phase 2 — when test suite justifies pipeline)
 
 ### Data Architecture
 
-| Decision | Choice | Version | Rationale |
-|---|---|---|---|
-| Database | Supabase PostgreSQL (self-hosted) | Latest via Coolify | DSGVO-compliant (Hetzner Germany), RLS native, zero external dependency |
-| DB Access Layer | Supabase JS Client | `@supabase/supabase-js` latest | Direct RLS integration, type generation via CLI, no ORM overhead for solo developer |
-| File Storage | Supabase Storage (self-hosted) | Included with Supabase | Same infrastructure as DB, RLS-enforced tenant isolation, S3-compatible for GoBD archive |
-| Caching | Next.js built-in caching | Next.js native | `revalidate` strategies for dashboard/lists. No Redis needed at MVP scale (20-500 users) |
-| Type Safety | Supabase CLI type generation | `supabase gen types` | Auto-generated TypeScript types from DB schema — single source of truth |
-| Migrations | Supabase CLI migrations | `supabase db diff` / `supabase migration` | Native migration tooling, version-controlled SQL files |
-| Validation | Zod schemas | Shared across stack | Same schemas for form validation, AI structured output, and API input validation |
+| Decision        | Choice                            | Version                                   | Rationale                                                                                |
+| --------------- | --------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Database        | Supabase PostgreSQL (self-hosted) | Latest via Coolify                        | DSGVO-compliant (Hetzner Germany), RLS native, zero external dependency                  |
+| DB Access Layer | Supabase JS Client                | `@supabase/supabase-js` latest            | Direct RLS integration, type generation via CLI, no ORM overhead for solo developer      |
+| File Storage    | Supabase Storage (self-hosted)    | Included with Supabase                    | Same infrastructure as DB, RLS-enforced tenant isolation, S3-compatible for GoBD archive |
+| Caching         | Next.js built-in caching          | Next.js native                            | `revalidate` strategies for dashboard/lists. No Redis needed at MVP scale (20-500 users) |
+| Type Safety     | Supabase CLI type generation      | `supabase gen types`                      | Auto-generated TypeScript types from DB schema — single source of truth                  |
+| Migrations      | Supabase CLI migrations           | `supabase db diff` / `supabase migration` | Native migration tooling, version-controlled SQL files                                   |
+| Validation      | Zod schemas                       | Shared across stack                       | Same schemas for form validation, AI structured output, and API input validation         |
 
 ### Authentication & Security
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Auth Provider | Supabase Auth (self-hosted) | Integrated with DB, RLS enforcement, zero external auth dependency |
-| Auth Methods | Email + Password + Google OAuth | PRD-aligned. Email/password for Thomas (traditional), Google for Lisa (fast onboarding) |
-| Session Management | Supabase Auth JWT (30-day refresh) | PRD requirement: Thomas shouldn't re-login every Monday morning |
-| Authorization | Supabase RLS (Row-Level Security) | Database-level tenant isolation — zero cross-tenant data access by design |
-| API Rate Limiting | Next.js Middleware (in-memory) | MVP scale, single server. Redis upgrade path for Phase 2 |
-| Encryption at Rest | Supabase/PostgreSQL native + AES-256 for stored files | NFR7 compliance |
-| Encryption in Transit | TLS 1.3 (Coolify/reverse proxy) | NFR7 compliance |
-| AI Data Privacy | Zero-retention API endpoints (Anthropic/OpenAI) | NFR13: no third-party training on user invoice data |
+| Decision              | Choice                                                | Rationale                                                                               |
+| --------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Auth Provider         | Supabase Auth (self-hosted)                           | Integrated with DB, RLS enforcement, zero external auth dependency                      |
+| Auth Methods          | Email + Password + Google OAuth                       | PRD-aligned. Email/password for Thomas (traditional), Google for Lisa (fast onboarding) |
+| Session Management    | Supabase Auth JWT (30-day refresh)                    | PRD requirement: Thomas shouldn't re-login every Monday morning                         |
+| Authorization         | Supabase RLS (Row-Level Security)                     | Database-level tenant isolation — zero cross-tenant data access by design               |
+| API Rate Limiting     | Next.js Middleware (in-memory)                        | MVP scale, single server. Redis upgrade path for Phase 2                                |
+| Encryption at Rest    | Supabase/PostgreSQL native + AES-256 for stored files | NFR7 compliance                                                                         |
+| Encryption in Transit | TLS 1.3 (Coolify/reverse proxy)                       | NFR7 compliance                                                                         |
+| AI Data Privacy       | Zero-retention API endpoints (Anthropic/OpenAI)       | NFR13: no third-party training on user invoice data                                     |
 
 ### API & Communication Patterns
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Mutations | Next.js Server Actions | Zero API boilerplate, progressive enhancement, direct Supabase client access |
-| External Endpoints | Next.js Route Handlers | Stripe webhooks, DATEV CSV download, AI callbacks — require HTTP endpoints |
-| AI Integration | Vercel AI SDK v5 | Provider-agnostic `generateObject()` for structured invoice extraction. Zod schema shared with forms. One-line provider swap (Claude ↔ OpenAI) |
-| Email Service | Resend + React Email | 3K free/mo, >95% deliverability, JSX templates in monorepo, EU region |
-| Error Handling | Structured error responses + Sentry | Conversational German error messages (UX requirement), Sentry for tracking |
+| Decision           | Choice                              | Rationale                                                                                                                                      |
+| ------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mutations          | Next.js Server Actions              | Zero API boilerplate, progressive enhancement, direct Supabase client access                                                                   |
+| External Endpoints | Next.js Route Handlers              | Stripe webhooks, DATEV CSV download, AI callbacks — require HTTP endpoints                                                                     |
+| AI Integration     | Vercel AI SDK v5                    | Provider-agnostic `generateObject()` for structured invoice extraction. Zod schema shared with forms. One-line provider swap (Claude ↔ OpenAI) |
+| Email Service      | Resend + React Email                | 3K free/mo, >95% deliverability, JSX templates in monorepo, EU region                                                                          |
+| Error Handling     | Structured error responses + Sentry | Conversational German error messages (UX requirement), Sentry for tracking                                                                     |
 
 ### Frontend Architecture
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Data Fetching | React Server Components | Dashboard, invoice lists, stats — server-rendered, Supabase client server-side |
-| Client State | Zustand (minimal) | Camera capture queue, offline photo buffer, swipe gesture state — cross-component, client-only |
-| Forms | React Hook Form + Zod | shadcn/ui Form component built on RHF. Zod schemas shared across stack |
-| Animation | Framer Motion | Swipe gestures (drag threshold + spring), cascade animations, layout transitions, `prefers-reduced-motion` support. UX spec requirement |
-| PDF Generation | React PDF (`@react-pdf/renderer`) | JSX-based PDF templates for Verfahrensdokumentation. Server-side generation, no headless browser |
+| Decision       | Choice                            | Rationale                                                                                                                               |
+| -------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Data Fetching  | React Server Components           | Dashboard, invoice lists, stats — server-rendered, Supabase client server-side                                                          |
+| Client State   | Zustand (minimal)                 | Camera capture queue, offline photo buffer, swipe gesture state — cross-component, client-only                                          |
+| Forms          | React Hook Form + Zod             | shadcn/ui Form component built on RHF. Zod schemas shared across stack                                                                  |
+| Animation      | Framer Motion                     | Swipe gestures (drag threshold + spring), cascade animations, layout transitions, `prefers-reduced-motion` support. UX spec requirement |
+| PDF Generation | React PDF (`@react-pdf/renderer`) | JSX-based PDF templates for Verfahrensdokumentation. Server-side generation, no headless browser                                        |
 
 ### Infrastructure & Deployment
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Hosting | Hetzner Cloud (Germany) | DSGVO mandatory — all data in German data centers |
-| Orchestration | Coolify (self-hosted on Hetzner) | One-click Supabase, Git auto-deploy, built-in SSL, log viewer |
-| Web App Build | Dockerfile (multi-stage) | `turbo prune --scope=web` → minimal image, reproducible builds |
-| Supabase | Coolify one-click Supabase service | Separate service from web app, own docker-compose |
-| CI/CD | Coolify Git Push Auto-Deploy | Main branch push → auto build + deploy. Solo developer, minimal overhead |
-| Monitoring | Sentry cloud (free tier, 5K events/mo) | `@sentry/nextjs` — error tracking + performance. Coolify logs for general monitoring |
-| Uptime | Coolify built-in health checks | Sufficient for MVP. External uptime monitoring deferred to Phase 2 |
+| Decision      | Choice                                 | Rationale                                                                            |
+| ------------- | -------------------------------------- | ------------------------------------------------------------------------------------ |
+| Hosting       | Hetzner Cloud (Germany)                | DSGVO mandatory — all data in German data centers                                    |
+| Orchestration | Coolify (self-hosted on Hetzner)       | One-click Supabase, Git auto-deploy, built-in SSL, log viewer                        |
+| Web App Build | Dockerfile (multi-stage)               | `turbo prune --scope=web` → minimal image, reproducible builds                       |
+| Supabase      | Coolify one-click Supabase service     | Separate service from web app, own docker-compose                                    |
+| CI/CD         | Coolify Git Push Auto-Deploy           | Main branch push → auto build + deploy. Solo developer, minimal overhead             |
+| Monitoring    | Sentry cloud (free tier, 5K events/mo) | `@sentry/nextjs` — error tracking + performance. Coolify logs for general monitoring |
+| Uptime        | Coolify built-in health checks         | Sufficient for MVP. External uptime monitoring deferred to Phase 2                   |
 
 ### Decision Impact Analysis
 
 **Implementation Sequence:**
+
 1. Supabase self-host setup (Coolify) — foundation for everything
 2. Turborepo + Next.js project initialization
 3. Supabase Auth + RLS configuration
@@ -263,6 +272,7 @@ rechnungsai/
 10. Coolify deployment pipeline
 
 **Cross-Component Dependencies:**
+
 - **Zod schemas** are the connective tissue: form validation ↔ AI structured output ↔ Supabase type validation
 - **Supabase client** flows through Server Actions and Route Handlers — RLS always enforced
 - **Vercel AI SDK** depends on Zod schemas from shared package for `generateObject()`
@@ -279,32 +289,32 @@ rechnungsai/
 
 **Database Naming Conventions:**
 
-| Element | Convention | Example |
-| --- | --- | --- |
-| Tables | snake_case, plural | `invoices`, `audit_logs`, `tenant_settings` |
-| Columns | snake_case | `created_at`, `tenant_id`, `invoice_number` |
-| Foreign keys | `{singular_table}_id` | `tenant_id`, `invoice_id` |
-| Enums | snake_case | `confidence_level`, `invoice_status` |
+| Element      | Convention            | Example                                     |
+| ------------ | --------------------- | ------------------------------------------- |
+| Tables       | snake_case, plural    | `invoices`, `audit_logs`, `tenant_settings` |
+| Columns      | snake_case            | `created_at`, `tenant_id`, `invoice_number` |
+| Foreign keys | `{singular_table}_id` | `tenant_id`, `invoice_id`                   |
+| Enums        | snake_case            | `confidence_level`, `invoice_status`        |
 
 **Code Naming Conventions:**
 
-| Element | Convention | Example |
-| --- | --- | --- |
-| Files | kebab-case | `invoice-card.tsx`, `datev-export.ts` |
-| Components | PascalCase | `InvoiceCard`, `PipelineHeader` |
-| Functions/Variables | camelCase | `getInvoices`, `tenantId` |
-| Zod schemas | camelCase + Schema | `invoiceSchema`, `datevSettingsSchema` |
-| Types/Interfaces | PascalCase | `Invoice`, `ExtractedField`, `ConfidenceLevel` |
-| Constants | UPPER_SNAKE_CASE | `MAX_FREE_INVOICES`, `CONFIDENCE_THRESHOLD_HIGH` |
-| Server Actions | camelCase verb+noun | `approveInvoice`, `exportToDatev` |
+| Element             | Convention          | Example                                          |
+| ------------------- | ------------------- | ------------------------------------------------ |
+| Files               | kebab-case          | `invoice-card.tsx`, `datev-export.ts`            |
+| Components          | PascalCase          | `InvoiceCard`, `PipelineHeader`                  |
+| Functions/Variables | camelCase           | `getInvoices`, `tenantId`                        |
+| Zod schemas         | camelCase + Schema  | `invoiceSchema`, `datevSettingsSchema`           |
+| Types/Interfaces    | PascalCase          | `Invoice`, `ExtractedField`, `ConfidenceLevel`   |
+| Constants           | UPPER_SNAKE_CASE    | `MAX_FREE_INVOICES`, `CONFIDENCE_THRESHOLD_HIGH` |
+| Server Actions      | camelCase verb+noun | `approveInvoice`, `exportToDatev`                |
 
 **Route Naming Conventions:**
 
-| Element | Convention | Example |
-| --- | --- | --- |
-| App Router routes | kebab-case folders | `app/dashboard/`, `app/invoices/[id]/` |
-| Route Handlers | kebab-case path | `app/api/webhooks/stripe/route.ts` |
-| Server Action files | feature-based | `app/actions/invoices.ts`, `app/actions/export.ts` |
+| Element             | Convention         | Example                                            |
+| ------------------- | ------------------ | -------------------------------------------------- |
+| App Router routes   | kebab-case folders | `app/dashboard/`, `app/invoices/[id]/`             |
+| Route Handlers      | kebab-case path    | `app/api/webhooks/stripe/route.ts`                 |
+| Server Action files | feature-based      | `app/actions/invoices.ts`, `app/actions/export.ts` |
 
 ### Structure Patterns
 
@@ -345,28 +355,28 @@ app/actions/
 ```typescript
 type ActionResult<T> =
   | { success: true; data: T }
-  | { success: false; error: string }
+  | { success: false; error: string };
 ```
 
 All Server Actions return this format. Frontend checks `success` flag. Consistent, simple, type-safe.
 
 **Date/Time Formats:**
 
-| Context | Format | Example |
-| --- | --- | --- |
-| Database | ISO 8601 UTC (`timestamptz`) | `2026-04-03T10:30:00Z` |
-| UI display | German locale | `03.04.2026`, `03.04.2026 10:30` |
-| DATEV export | `ddMM` (4-digit, year in header) | `0304` |
-| JSON/API | ISO 8601 string | `2026-04-03T10:30:00Z` |
+| Context      | Format                           | Example                          |
+| ------------ | -------------------------------- | -------------------------------- |
+| Database     | ISO 8601 UTC (`timestamptz`)     | `2026-04-03T10:30:00Z`           |
+| UI display   | German locale                    | `03.04.2026`, `03.04.2026 10:30` |
+| DATEV export | `ddMM` (4-digit, year in header) | `0304`                           |
+| JSON/API     | ISO 8601 string                  | `2026-04-03T10:30:00Z`           |
 
 **Currency/Number Formats:**
 
-| Context | Format | Example |
-| --- | --- | --- |
-| Database | `numeric(10,2)` | `1234.56` |
-| UI display | German locale with € | `€ 1.234,56` |
-| DATEV export | German comma decimal | `1234,56` |
-| JSON/API | Number (decimal point) | `1234.56` |
+| Context      | Format                 | Example      |
+| ------------ | ---------------------- | ------------ |
+| Database     | `numeric(10,2)`        | `1234.56`    |
+| UI display   | German locale with €   | `€ 1.234,56` |
+| DATEV export | German comma decimal   | `1234,56`    |
+| JSON/API     | Number (decimal point) | `1234.56`    |
 
 ### Communication Patterns
 
@@ -374,11 +384,11 @@ All Server Actions return this format. Frontend checks `success` flag. Consisten
 
 ```typescript
 // Server-side (Server Actions, Route Handlers, RSC)
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient } from "@supabase/ssr";
 // → cookies() for auth context, RLS automatic
 
 // Client-side (only when truly needed — realtime, offline sync)
-import { createBrowserClient } from '@supabase/ssr'
+import { createBrowserClient } from "@supabase/ssr";
 ```
 
 **Zustand Store Pattern:**
@@ -387,9 +397,9 @@ import { createBrowserClient } from '@supabase/ssr'
 // One store per feature domain, minimal scope
 // stores/capture-store.ts
 interface CaptureStore {
-  queue: CapturedPhoto[]
-  addToQueue: (photo: CapturedPhoto) => void
-  removeFromQueue: (id: string) => void
+  queue: CapturedPhoto[];
+  addToQueue: (photo: CapturedPhoto) => void;
+  removeFromQueue: (id: string) => void;
 }
 ```
 
@@ -401,11 +411,11 @@ interface CaptureStore {
 // Server Action error pattern
 try {
   // ... operation
-  return { success: true, data: result }
+  return { success: true, data: result };
 } catch (error) {
-  console.error('[invoices:approve]', error)
-  Sentry.captureException(error)
-  return { success: false, error: 'Rechnung konnte nicht freigegeben werden.' }
+  console.error("[invoices:approve]", error);
+  Sentry.captureException(error);
+  return { success: false, error: "Rechnung konnte nicht freigegeben werden." };
 }
 ```
 
@@ -725,13 +735,13 @@ rechnungsai/
 
 **API Boundaries:**
 
-| Boundary | Entry Point | Auth | Purpose |
-| --- | --- | --- | --- |
-| Server Actions | `app/actions/*.ts` | Supabase Auth (cookie) | All mutations (approve, flag, correct, export, settings) |
-| Stripe Webhook | `app/api/webhooks/stripe/route.ts` | Stripe signature verification | Subscription events |
-| DATEV Download | `app/api/export/datev/route.ts` | Supabase Auth (cookie) | CSV file download (binary response) |
-| Cron: Weekly Recap | `app/api/cron/weekly-recap/route.ts` | Cron secret header | Trigger weekly email notifications |
-| Supabase Auth Callback | `app/(app)/auth/callback/route.ts` | Supabase PKCE flow | OAuth callback (Google) |
+| Boundary               | Entry Point                          | Auth                          | Purpose                                                  |
+| ---------------------- | ------------------------------------ | ----------------------------- | -------------------------------------------------------- |
+| Server Actions         | `app/actions/*.ts`                   | Supabase Auth (cookie)        | All mutations (approve, flag, correct, export, settings) |
+| Stripe Webhook         | `app/api/webhooks/stripe/route.ts`   | Stripe signature verification | Subscription events                                      |
+| DATEV Download         | `app/api/export/datev/route.ts`      | Supabase Auth (cookie)        | CSV file download (binary response)                      |
+| Cron: Weekly Recap     | `app/api/cron/weekly-recap/route.ts` | Cron secret header            | Trigger weekly email notifications                       |
+| Supabase Auth Callback | `app/(app)/auth/callback/route.ts`   | Supabase PKCE flow            | OAuth callback (Google)                                  |
 
 **Package Boundaries (Dependency Rules):**
 
@@ -753,40 +763,40 @@ FORBIDDEN:
 
 **Data Boundaries:**
 
-| Layer | Access Pattern | RLS Enforced |
-| --- | --- | --- |
-| RSC (pages) | `createServerClient` → read queries | Yes (tenant_id from auth) |
-| Server Actions | `createServerClient` → read/write | Yes (tenant_id from auth) |
-| Route Handlers | `createServerClient` → read/write | Yes (except webhook routes) |
-| Client Components | `createBrowserClient` → realtime only | Yes (tenant_id from auth) |
-| Supabase Storage | Storage API via server client | Yes (bucket RLS policies) |
+| Layer             | Access Pattern                        | RLS Enforced                |
+| ----------------- | ------------------------------------- | --------------------------- |
+| RSC (pages)       | `createServerClient` → read queries   | Yes (tenant_id from auth)   |
+| Server Actions    | `createServerClient` → read/write     | Yes (tenant_id from auth)   |
+| Route Handlers    | `createServerClient` → read/write     | Yes (except webhook routes) |
+| Client Components | `createBrowserClient` → realtime only | Yes (tenant_id from auth)   |
+| Supabase Storage  | Storage API via server client         | Yes (bucket RLS policies)   |
 
 ### Requirements to Structure Mapping
 
 **FR Category → Directory Mapping:**
 
-| FR Category | Primary Location | Package Dependencies |
-| --- | --- | --- |
-| FR1-FR7: Document Capture & AI | `app/capture/`, `app/actions/ai.ts`, `components/capture/` | `packages/ai`, `packages/shared` |
-| FR8-FR12: Categorization | `app/invoices/[id]/`, `app/actions/ai.ts`, `components/invoice/` | `packages/ai`, `packages/shared` |
-| FR13-FR15: E-Invoice Validation | `app/actions/invoices.ts`, `components/invoice/` | `packages/validation` |
-| FR16-FR20: DATEV Export | `app/export/`, `app/api/export/datev/`, `components/export/` | `packages/datev`, `packages/shared` |
-| FR21-FR25: GoBD Archive | `app/archive/`, `app/actions/invoices.ts` | `packages/gobd` |
-| FR26-FR29: Verfahrensdokumentation | `app/verfahrensdokumentation/`, `app/actions/export.ts` | `packages/gobd`, `packages/pdf` |
-| FR30-FR34: Dashboard | `app/dashboard/`, `components/dashboard/` | `packages/shared` |
-| FR35-FR44: Auth & Billing | `app/(auth)/`, `app/settings/`, `app/actions/auth.ts`, `app/actions/billing.ts` | `packages/shared` |
-| FR45-FR51: Notifications & Trust | `app/api/cron/`, `components/onboarding/`, `components/layout/` | `packages/email`, `packages/shared` |
+| FR Category                        | Primary Location                                                                | Package Dependencies                |
+| ---------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------- |
+| FR1-FR7: Document Capture & AI     | `app/capture/`, `app/actions/ai.ts`, `components/capture/`                      | `packages/ai`, `packages/shared`    |
+| FR8-FR12: Categorization           | `app/invoices/[id]/`, `app/actions/ai.ts`, `components/invoice/`                | `packages/ai`, `packages/shared`    |
+| FR13-FR15: E-Invoice Validation    | `app/actions/invoices.ts`, `components/invoice/`                                | `packages/validation`               |
+| FR16-FR20: DATEV Export            | `app/export/`, `app/api/export/datev/`, `components/export/`                    | `packages/datev`, `packages/shared` |
+| FR21-FR25: GoBD Archive            | `app/archive/`, `app/actions/invoices.ts`                                       | `packages/gobd`                     |
+| FR26-FR29: Verfahrensdokumentation | `app/verfahrensdokumentation/`, `app/actions/export.ts`                         | `packages/gobd`, `packages/pdf`     |
+| FR30-FR34: Dashboard               | `app/dashboard/`, `components/dashboard/`                                       | `packages/shared`                   |
+| FR35-FR44: Auth & Billing          | `app/(auth)/`, `app/settings/`, `app/actions/auth.ts`, `app/actions/billing.ts` | `packages/shared`                   |
+| FR45-FR51: Notifications & Trust   | `app/api/cron/`, `components/onboarding/`, `components/layout/`                 | `packages/email`, `packages/shared` |
 
 **Cross-Cutting Concerns → Location:**
 
-| Concern | Location |
-| --- | --- |
-| Tenant Isolation (RLS) | `supabase/migrations/`, `lib/supabase/server.ts` |
-| Audit Trail | `packages/gobd/src/audit-log.ts`, every Server Action |
-| Confidence Scoring | `packages/shared/src/types/invoice.ts`, `components/invoice/confidence-indicator.tsx` |
-| German Locale | `lib/utils.ts` (formatCurrency, formatDate), all `page.tsx` |
-| Error Handling | Every Server Action, `app/error.tsx`, Sentry |
-| Zod Schemas | `packages/shared/src/schemas/` — imported by web app, AI, validation |
+| Concern                | Location                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------- |
+| Tenant Isolation (RLS) | `supabase/migrations/`, `lib/supabase/server.ts`                                      |
+| Audit Trail            | `packages/gobd/src/audit-log.ts`, every Server Action                                 |
+| Confidence Scoring     | `packages/shared/src/types/invoice.ts`, `components/invoice/confidence-indicator.tsx` |
+| German Locale          | `lib/utils.ts` (formatCurrency, formatDate), all `page.tsx`                           |
+| Error Handling         | Every Server Action, `app/error.tsx`, Sentry                                          |
+| Zod Schemas            | `packages/shared/src/schemas/` — imported by web app, AI, validation                  |
 
 ### Data Flow
 
@@ -865,11 +875,11 @@ docker build -t rechnungsai .  # Multi-stage: turbo prune → install → build 
 
 ### Gap Analysis Results
 
-| Priority | Gap | Impact | Resolution |
-| --- | --- | --- | --- |
-| Important | Queue-based AI pipeline not detailed for MVP | Horizontal scaling deferred | MVP: synchronous AI calls in Server Actions. Phase 2: BullMQ or Supabase Edge Functions |
-| Important | PWA offline capture implementation shallow | UX spec requires offline-resilient capture | MVP: basic Service Worker + IndexedDB queue. Phase 2: full offline sync |
-| Minor | German terms trigger spell checker | Developer experience | Add `.cspell.json` with German accounting terms dictionary |
+| Priority  | Gap                                          | Impact                                     | Resolution                                                                              |
+| --------- | -------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Important | Queue-based AI pipeline not detailed for MVP | Horizontal scaling deferred                | MVP: synchronous AI calls in Server Actions. Phase 2: BullMQ or Supabase Edge Functions |
+| Important | PWA offline capture implementation shallow   | UX spec requires offline-resilient capture | MVP: basic Service Worker + IndexedDB queue. Phase 2: full offline sync                 |
+| Minor     | German terms trigger spell checker           | Developer experience                       | Add `.cspell.json` with German accounting terms dictionary                              |
 
 ### Architecture Completeness Checklist
 

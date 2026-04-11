@@ -1,13 +1,13 @@
 # Stage 1: Prune monorepo
 FROM node:20-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
 COPY . .
 RUN pnpm dlx turbo prune --scope=web --docker
 
 # Stage 2: Install and build
 FROM node:20-alpine AS installer
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
 COPY --from=builder /app/out/json/ .
 RUN pnpm install --frozen-lockfile

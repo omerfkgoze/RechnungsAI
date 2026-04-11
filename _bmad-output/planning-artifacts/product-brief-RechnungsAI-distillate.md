@@ -1,9 +1,9 @@
 ---
-title: 'Product Brief Distillate: RechnungsAI'
+title: "Product Brief Distillate: RechnungsAI"
 type: llm-distillate
-source: 'product-brief-RechnungsAI.md'
-created: '2026-04-02'
-purpose: 'Token-efficient context for downstream PRD creation'
+source: "product-brief-RechnungsAI.md"
+created: "2026-04-02"
+purpose: "Token-efficient context for downstream PRD creation"
 ---
 
 # Product Brief Distillate: RechnungsAI

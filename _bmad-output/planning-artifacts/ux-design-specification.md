@@ -1,11 +1,11 @@
 ---
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 lastStep: 14
-completedAt: '2026-04-03'
+completedAt: "2026-04-03"
 inputDocuments:
-  - 'planning-artifacts/product-brief-RechnungsAI.md'
-  - 'planning-artifacts/product-brief-RechnungsAI-distillate.md'
-  - 'planning-artifacts/prd.md'
+  - "planning-artifacts/product-brief-RechnungsAI.md"
+  - "planning-artifacts/product-brief-RechnungsAI-distillate.md"
+  - "planning-artifacts/prd.md"
 ---
 
 # UX Design Specification RechnungsAI
@@ -28,6 +28,7 @@ The UX design must bridge the gap between powerful AI automation and the extreme
 ### Target Users
 
 **Primary: Thomas — The Handwerk Business Owner**
+
 - Age 40+, owns a trade business (carpentry, plumbing, electrical), 5–20 employees
 - Processes 25–30 incoming invoices weekly using Excel and Word templates
 - Zero digital maturity — does bookkeeping himself after hours, badly, late at night
@@ -36,6 +37,7 @@ The UX design must bridge the gap between powerful AI automation and the extreme
 - Device context: Desktop for bulk processing, mobile phone for photo capture on job sites
 
 **Primary: Lisa — The E-Commerce Operator**
+
 - Age 25–35, runs a small online brand on Shopify/Amazon DE
 - Receives 60+ supplier invoices monthly from multiple countries
 - Digitally savvy but overwhelmed by German accounting rules (especially VAT complexity)
@@ -43,6 +45,7 @@ The UX design must bridge the gap between powerful AI automation and the extreme
 - Device context: Primarily desktop, occasional mobile
 
 **Indirect: Frau Schmidt — The Steuerberater**
+
 - Does not use RechnungsAI directly but receives DATEV exports from clients
 - Judges the product by export quality — zero errors, perfect DATEV format compliance
 - Becomes an organic distribution channel when impressed by data quality
@@ -143,16 +146,16 @@ The user must feel that they are never alone with their financial data. Every in
 
 ### Emotional Journey Mapping
 
-| Stage | Desired Emotion | Design Implication |
-|---|---|---|
-| **First Discovery** | Curiosity + Relief — "This might actually solve my problem" | Landing page communicates time saved and Steuerberater approval, not feature lists. Free compliance checker as low-commitment entry point. |
-| **Onboarding** | Trust + Safety — "My data is secure here" | German flag / server location badge. "Deine Daten bleiben in Deutschland." GoBD and DSGVO shields visible. Security screen before first upload — reassurance before vulnerability. |
-| **First Invoice Capture** | Wonder + Competence — "I can't believe it's this easy" | The "aha moment" — 3-second extraction with cascade animation. SKR03 code appears correctly. The user feels like they did something impressive, even though the AI did the work. |
-| **Review & Confirm** | Control + Mastery — "I understand what's happening and I approve" | Confidence scoring makes the user feel like a quality inspector, not a data entry clerk. Green fields = "AI agrees with my standards." The swipe-to-approve gesture feels decisive, not passive. |
-| **Error Encountered** | Collaboration + Agency — "I'm the expert here, let me help" | Amber fields are framed as "AI needs your expertise" — not "AI failed." The user is the master craftsman; the AI is the capable apprentice asking for guidance. This reframes every error as a moment of user competence. |
-| **DATEV Export** | Relief + Pride — "This is professional-grade work" | Export completion shows a quality summary: "12 invoices, 0 errors, DATEV-ready." The user feels the weight lift. They are sending their Steuerberater work they can be proud of. |
-| **Weekly Recap** | Accomplishment + Validation — "I'm actually good at this now" | Quantified value: hours saved, invoices processed, deductions secured. The notification is a weekly trophy — proof that the user has transformed their relationship with bookkeeping. |
-| **Returning Use** | Familiarity + Anticipation — "Let me knock this out quickly" | The app remembers everything. No re-configuration. The Monday morning ritual becomes satisfying, not dreaded. The user looks forward to the efficiency. |
+| Stage                     | Desired Emotion                                                   | Design Implication                                                                                                                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **First Discovery**       | Curiosity + Relief — "This might actually solve my problem"       | Landing page communicates time saved and Steuerberater approval, not feature lists. Free compliance checker as low-commitment entry point.                                                                                |
+| **Onboarding**            | Trust + Safety — "My data is secure here"                         | German flag / server location badge. "Deine Daten bleiben in Deutschland." GoBD and DSGVO shields visible. Security screen before first upload — reassurance before vulnerability.                                        |
+| **First Invoice Capture** | Wonder + Competence — "I can't believe it's this easy"            | The "aha moment" — 3-second extraction with cascade animation. SKR03 code appears correctly. The user feels like they did something impressive, even though the AI did the work.                                          |
+| **Review & Confirm**      | Control + Mastery — "I understand what's happening and I approve" | Confidence scoring makes the user feel like a quality inspector, not a data entry clerk. Green fields = "AI agrees with my standards." The swipe-to-approve gesture feels decisive, not passive.                          |
+| **Error Encountered**     | Collaboration + Agency — "I'm the expert here, let me help"       | Amber fields are framed as "AI needs your expertise" — not "AI failed." The user is the master craftsman; the AI is the capable apprentice asking for guidance. This reframes every error as a moment of user competence. |
+| **DATEV Export**          | Relief + Pride — "This is professional-grade work"                | Export completion shows a quality summary: "12 invoices, 0 errors, DATEV-ready." The user feels the weight lift. They are sending their Steuerberater work they can be proud of.                                          |
+| **Weekly Recap**          | Accomplishment + Validation — "I'm actually good at this now"     | Quantified value: hours saved, invoices processed, deductions secured. The notification is a weekly trophy — proof that the user has transformed their relationship with bookkeeping.                                     |
+| **Returning Use**         | Familiarity + Anticipation — "Let me knock this out quickly"      | The app remembers everything. No re-configuration. The Monday morning ritual becomes satisfying, not dreaded. The user looks forward to the efficiency.                                                                   |
 
 ### Micro-Emotions
 
@@ -185,14 +188,14 @@ The user must feel that they are never alone with their financial data. Every in
 
 ### Design Implications
 
-| Emotional Goal | UX Design Approach |
-|---|---|
-| **Competence** | UI language never talks down. No tutorials that feel like "teaching." Contextual hints appear only when needed, phrased as reminders ("You usually use SKR03 for this supplier"), not instructions. The user feels like they already know how to use the product. |
-| **Pride** | Every output the user shares externally (DATEV export, Verfahrensdokumentation) must be visually and structurally flawless. The user's professional image is at stake. Export quality is a direct expression of user pride. |
-| **Safety Net** | Error states are never alarming. No red alert modals. No "ERROR" headlines. Amber is the strongest negative signal — warm, attention-getting, but not panic-inducing. The tone is always: "Let's look at this together." |
-| **Collaboration (not failure)** | When AI confidence is low, the UI frames it as partnership: "AI is 78% sure this is €147.23 — can you confirm?" The user is the expert being consulted, not the operator cleaning up mistakes. |
-| **Transparency** | Every AI decision has a visible rationale. No black boxes. The user can tap any field to see: source document highlight, confidence percentage, and reasoning. Trust comes from understanding, not blind faith. |
-| **Progressive mastery** | The product subtly communicates improvement: "Last month you reviewed 8 amber fields. This month only 3 — the AI is learning your suppliers." The user and the AI grow together. |
+| Emotional Goal                  | UX Design Approach                                                                                                                                                                                                                                                |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Competence**                  | UI language never talks down. No tutorials that feel like "teaching." Contextual hints appear only when needed, phrased as reminders ("You usually use SKR03 for this supplier"), not instructions. The user feels like they already know how to use the product. |
+| **Pride**                       | Every output the user shares externally (DATEV export, Verfahrensdokumentation) must be visually and structurally flawless. The user's professional image is at stake. Export quality is a direct expression of user pride.                                       |
+| **Safety Net**                  | Error states are never alarming. No red alert modals. No "ERROR" headlines. Amber is the strongest negative signal — warm, attention-getting, but not panic-inducing. The tone is always: "Let's look at this together."                                          |
+| **Collaboration (not failure)** | When AI confidence is low, the UI frames it as partnership: "AI is 78% sure this is €147.23 — can you confirm?" The user is the expert being consulted, not the operator cleaning up mistakes.                                                                    |
+| **Transparency**                | Every AI decision has a visible rationale. No black boxes. The user can tap any field to see: source document highlight, confidence percentage, and reasoning. Trust comes from understanding, not blind faith.                                                   |
+| **Progressive mastery**         | The product subtly communicates improvement: "Last month you reviewed 8 amber fields. This month only 3 — the AI is learning your suppliers." The user and the AI grow together.                                                                                  |
 
 ### Emotional Design Principles
 
@@ -236,21 +239,21 @@ Key UX patterns to extract:
 
 **From Competitors — What They Got Right:**
 
-| Competitor | Pattern Worth Adopting | How to Adapt for RechnungsAI |
-| --- | --- | --- |
-| **Lexoffice** | Mobile OCR speed — camera opens and instantly detects the invoice document | Go further: auto-detect invoice boundaries and capture without requiring a manual shutter tap. "Point and shoot" becomes "point and done." |
-| **sevDesk** | VAT rate visual differentiation using color codes for 19%, 7%, 0% | Extend to full confidence scoring: green (high confidence), amber (needs review), red (action required). VAT rates inherit the same color logic but within the broader confidence framework. |
-| **DATEV** | Output discipline — exports are structurally perfect regardless of input quality | Make this the invisible backbone. No matter how chaotic Thomas's Monday morning photo session is, the DATEV CSV that reaches Frau Schmidt is impeccable. The mess-to-order transformation is the product's core magic. |
+| Competitor    | Pattern Worth Adopting                                                           | How to Adapt for RechnungsAI                                                                                                                                                                                           |
+| ------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lexoffice** | Mobile OCR speed — camera opens and instantly detects the invoice document       | Go further: auto-detect invoice boundaries and capture without requiring a manual shutter tap. "Point and shoot" becomes "point and done."                                                                             |
+| **sevDesk**   | VAT rate visual differentiation using color codes for 19%, 7%, 0%                | Extend to full confidence scoring: green (high confidence), amber (needs review), red (action required). VAT rates inherit the same color logic but within the broader confidence framework.                           |
+| **DATEV**     | Output discipline — exports are structurally perfect regardless of input quality | Make this the invisible backbone. No matter how chaotic Thomas's Monday morning photo session is, the DATEV CSV that reaches Frau Schmidt is impeccable. The mess-to-order transformation is the product's core magic. |
 
 **Cross-Industry Patterns:**
 
-| Pattern | Source | Application in RechnungsAI |
-| --- | --- | --- |
-| **WhatsApp checkmark status** | WhatsApp | Invoice lifecycle status: ○ Captured → ◐ Processing → ● Ready → ✓ Confirmed → ✓✓ Exported. Glanceable, no text needed. |
-| **Duolingo streaks** | Duolingo | Weekly processing streaks: "4 weeks consistent — your bookkeeping is on autopilot." Professional pride, not gamification points. |
-| **Swipe-to-action** | Tinder / iOS Mail | Swipe right to approve (green invoices). Swipe left to flag for review. The gesture is faster than any button tap. |
-| **Smart camera detection** | Mobile banking check deposit | Auto-detect invoice boundaries in camera viewfinder. Guide alignment with overlay frame. Capture triggers automatically when document is clearly in frame. |
-| **Pull-to-refresh** | Twitter / Instagram | Pull down on invoice list to check for newly processed invoices. Familiar gesture, satisfying animation. |
+| Pattern                       | Source                       | Application in RechnungsAI                                                                                                                                 |
+| ----------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **WhatsApp checkmark status** | WhatsApp                     | Invoice lifecycle status: ○ Captured → ◐ Processing → ● Ready → ✓ Confirmed → ✓✓ Exported. Glanceable, no text needed.                                     |
+| **Duolingo streaks**          | Duolingo                     | Weekly processing streaks: "4 weeks consistent — your bookkeeping is on autopilot." Professional pride, not gamification points.                           |
+| **Swipe-to-action**           | Tinder / iOS Mail            | Swipe right to approve (green invoices). Swipe left to flag for review. The gesture is faster than any button tap.                                         |
+| **Smart camera detection**    | Mobile banking check deposit | Auto-detect invoice boundaries in camera viewfinder. Guide alignment with overlay frame. Capture triggers automatically when document is clearly in frame. |
+| **Pull-to-refresh**           | Twitter / Instagram          | Pull down on invoice list to check for newly processed invoices. Familiar gesture, satisfying animation.                                                   |
 
 ### Anti-Patterns to Avoid
 
@@ -386,15 +389,15 @@ shadcn/ui uses CSS custom properties for theming, enabling a clean token-based d
 /* RechnungsAI Theme Tokens */
 :root {
   /* Confidence scoring colors — core to the product */
-  --confidence-high: 142 71% 45%;     /* Green — AI confident */
-  --confidence-medium: 38 92% 50%;    /* Amber — needs review */
-  --confidence-low: 0 84% 60%;        /* Red — action required */
+  --confidence-high: 142 71% 45%; /* Green — AI confident */
+  --confidence-medium: 38 92% 50%; /* Amber — needs review */
+  --confidence-low: 0 84% 60%; /* Red — action required */
 
   /* Brand colors — professional, trustworthy, German-market appropriate */
-  --primary: 221 83% 53%;             /* Deep blue — trust, professionalism */
+  --primary: 221 83% 53%; /* Deep blue — trust, professionalism */
   --primary-foreground: 210 40% 98%;
   --secondary: 210 40% 96%;
-  --accent: 142 71% 45%;              /* Green — success, confirmation */
+  --accent: 142 71% 45%; /* Green — success, confirmation */
 
   /* Semantic colors */
   --success: 142 71% 45%;
@@ -427,18 +430,18 @@ shadcn/ui uses CSS custom properties for theming, enabling a clean token-based d
 
 **Component Customization Priorities:**
 
-| Component | Customization Needed | Priority |
-| --- | --- | --- |
-| **Button** | Larger touch targets (min 44px), haptic feedback trigger, confidence-colored variants | MVP |
-| **Card** | Invoice card layout with confidence stripe, swipe gesture support | MVP |
-| **Badge** | Confidence scoring badges (green/amber/red) with pulse animation for amber | MVP |
-| **Toast** | Success notifications with time-saved messaging, non-intrusive positioning | MVP |
-| **Sheet** | Bottom sheet for mobile invoice detail view (native app feel) | MVP |
-| **Dialog** | Minimal use — only for destructive confirmations. Never for marketing | MVP |
-| **Table** | Invoice list with sortable columns, inline status indicators, batch selection | MVP |
-| **Skeleton** | Loading states for AI processing — progress-oriented, not spinner-oriented | MVP |
-| **Form** | DATEV settings form, tenant configuration — smart defaults, minimal required fields | MVP |
-| **Tooltip** | Contextual help — appears on hover/long-press, explains AI decisions | Post-MVP |
+| Component    | Customization Needed                                                                  | Priority |
+| ------------ | ------------------------------------------------------------------------------------- | -------- |
+| **Button**   | Larger touch targets (min 44px), haptic feedback trigger, confidence-colored variants | MVP      |
+| **Card**     | Invoice card layout with confidence stripe, swipe gesture support                     | MVP      |
+| **Badge**    | Confidence scoring badges (green/amber/red) with pulse animation for amber            | MVP      |
+| **Toast**    | Success notifications with time-saved messaging, non-intrusive positioning            | MVP      |
+| **Sheet**    | Bottom sheet for mobile invoice detail view (native app feel)                         | MVP      |
+| **Dialog**   | Minimal use — only for destructive confirmations. Never for marketing                 | MVP      |
+| **Table**    | Invoice list with sortable columns, inline status indicators, batch selection         | MVP      |
+| **Skeleton** | Loading states for AI processing — progress-oriented, not spinner-oriented            | MVP      |
+| **Form**     | DATEV settings form, tenant configuration — smart defaults, minimal required fields   | MVP      |
+| **Tooltip**  | Contextual help — appears on hover/long-press, explains AI decisions                  | Post-MVP |
 
 **Custom Components to Build:**
 
@@ -487,14 +490,14 @@ RechnungsAI transforms the accumulation habit into an instant elimination reflex
 
 **Mental Model Shift:**
 
-| Dimension | Old Model (Chaos) | New Model (Destruction) |
-| --- | --- | --- |
-| Invoice = | Physical burden to deal with later | Data to capture now and forget |
-| Desk pile = | Anxiety generator | Doesn't exist — invoices are destroyed on arrival |
-| Monday morning = | 3-hour dreaded chore | 15-minute satisfying ritual |
-| Month-end = | Panic, missing documents, errors | One-click export, zero stress |
-| Steuerberater call = | "What's missing this time?" | "Perfect as always, Thomas" |
-| Bookkeeping = | Punishment for running a business | Invisible background process |
+| Dimension            | Old Model (Chaos)                  | New Model (Destruction)                           |
+| -------------------- | ---------------------------------- | ------------------------------------------------- |
+| Invoice =            | Physical burden to deal with later | Data to capture now and forget                    |
+| Desk pile =          | Anxiety generator                  | Doesn't exist — invoices are destroyed on arrival |
+| Monday morning =     | 3-hour dreaded chore               | 15-minute satisfying ritual                       |
+| Month-end =          | Panic, missing documents, errors   | One-click export, zero stress                     |
+| Steuerberater call = | "What's missing this time?"        | "Perfect as always, Thomas"                       |
+| Bookkeeping =        | Punishment for running a business  | Invisible background process                      |
 
 ### Success Criteria
 
@@ -548,44 +551,44 @@ Camera capture (WhatsApp) → AI extraction (banking photo-transfer) → Swipe t
 
 **Phase 1: Initiation — "The Capture Trigger"**
 
-| Mechanic | Detail |
-| --- | --- |
-| **Entry point** | Single tap on floating action button (FAB) or home screen PWA icon → camera opens immediately |
-| **Camera behavior** | Full-screen viewfinder with document detection overlay. Subtle frame guide appears when invoice edges are detected. |
-| **Auto-capture** | When the system detects a clearly framed invoice (edges visible, adequate lighting, minimal blur), capture triggers automatically with a subtle shutter animation + haptic pulse. Manual tap also works. |
-| **Multi-capture mode** | After first capture, camera stays open. A small counter badge shows "1 captured" → "2 captured" → etc. Thomas keeps shooting until the stack is done. |
-| **Upload fallback** | For PDF/XML files: drag-and-drop zone on desktop, "share to app" on mobile. Files enter the same processing queue as photos. |
-| **Offline resilience** | If network is unavailable, photos are queued locally with a "waiting to sync" indicator. Processing begins automatically when connectivity returns. |
+| Mechanic               | Detail                                                                                                                                                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entry point**        | Single tap on floating action button (FAB) or home screen PWA icon → camera opens immediately                                                                                                            |
+| **Camera behavior**    | Full-screen viewfinder with document detection overlay. Subtle frame guide appears when invoice edges are detected.                                                                                      |
+| **Auto-capture**       | When the system detects a clearly framed invoice (edges visible, adequate lighting, minimal blur), capture triggers automatically with a subtle shutter animation + haptic pulse. Manual tap also works. |
+| **Multi-capture mode** | After first capture, camera stays open. A small counter badge shows "1 captured" → "2 captured" → etc. Thomas keeps shooting until the stack is done.                                                    |
+| **Upload fallback**    | For PDF/XML files: drag-and-drop zone on desktop, "share to app" on mobile. Files enter the same processing queue as photos.                                                                             |
+| **Offline resilience** | If network is unavailable, photos are queued locally with a "waiting to sync" indicator. Processing begins automatically when connectivity returns.                                                      |
 
 **Phase 2: Processing — "The Magic Window"**
 
-| Mechanic | Detail |
-| --- | --- |
-| **Background processing** | AI extraction begins immediately upon capture. The user is never blocked — they can keep capturing or switch to other tasks. |
-| **Progress indication** | WhatsApp-style status progression on each invoice card: ○ Captured → ◐ Processing → ● Ready for review. No percentage bars — the transition is fast enough that precise progress is unnecessary. |
-| **Processing animation** | When AI completes extraction, the invoice card transforms: a brief cascade animation reveals the extracted fields (supplier name, amount, VAT, SKR code) appearing one by one, top to bottom, in ~800ms. This is the "aha moment" animation — it must feel like watching magic happen. |
-| **Batch readiness** | When all captured invoices are processed, a notification pulse: "5 invoices ready for review." |
+| Mechanic                  | Detail                                                                                                                                                                                                                                                                                 |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Background processing** | AI extraction begins immediately upon capture. The user is never blocked — they can keep capturing or switch to other tasks.                                                                                                                                                           |
+| **Progress indication**   | WhatsApp-style status progression on each invoice card: ○ Captured → ◐ Processing → ● Ready for review. No percentage bars — the transition is fast enough that precise progress is unnecessary.                                                                                       |
+| **Processing animation**  | When AI completes extraction, the invoice card transforms: a brief cascade animation reveals the extracted fields (supplier name, amount, VAT, SKR code) appearing one by one, top to bottom, in ~800ms. This is the "aha moment" animation — it must feel like watching magic happen. |
+| **Batch readiness**       | When all captured invoices are processed, a notification pulse: "5 invoices ready for review."                                                                                                                                                                                         |
 
 **Phase 3: Review — "The Quality Inspection"**
 
-| Mechanic | Detail |
-| --- | --- |
-| **Review queue** | Invoices presented as swipeable cards, sorted by confidence level: green (high confidence) first, amber second, red last. Thomas handles the easy ones first, building momentum. |
-| **Green invoice (high confidence)** | Full card visible with all fields. Everything green. Swipe right to approve — single gesture, <1 second. The card slides off screen with a satisfying haptic pulse and a green checkmark flash. |
+| Mechanic                            | Detail                                                                                                                                                                                                                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Review queue**                    | Invoices presented as swipeable cards, sorted by confidence level: green (high confidence) first, amber second, red last. Thomas handles the easy ones first, building momentum.                                                                                               |
+| **Green invoice (high confidence)** | Full card visible with all fields. Everything green. Swipe right to approve — single gesture, <1 second. The card slides off screen with a satisfying haptic pulse and a green checkmark flash.                                                                                |
 | **Amber invoice (needs attention)** | Card highlights specific amber fields with a gentle pulse. One-line explanation per field: "Amount: €147.23 or €147.83? Image quality was low." Thomas taps the field, sees the source document with the relevant area highlighted, corrects if needed, and swipes to approve. |
-| **Red invoice (action required)** | Card shows clear action items: "Supplier tax ID missing — Vorsteuerabzug at risk." Pre-written correction email available with one tap. After action is taken, card transitions to amber → green flow. |
-| **Supplier recognition feedback** | For returning suppliers, the card shows: "Holz-Müller GmbH — recognized. Same as your last 6 invoices from this supplier." This builds the "it knows me" feeling. |
-| **Undo capability** | Accidentally swiped? A 5-second toast appears at the bottom: "Invoice approved. Undo?" One tap reverses the action. No permanent mistakes. |
+| **Red invoice (action required)**   | Card shows clear action items: "Supplier tax ID missing — Vorsteuerabzug at risk." Pre-written correction email available with one tap. After action is taken, card transitions to amber → green flow.                                                                         |
+| **Supplier recognition feedback**   | For returning suppliers, the card shows: "Holz-Müller GmbH — recognized. Same as your last 6 invoices from this supplier." This builds the "it knows me" feeling.                                                                                                              |
+| **Undo capability**                 | Accidentally swiped? A 5-second toast appears at the bottom: "Invoice approved. Undo?" One tap reverses the action. No permanent mistakes.                                                                                                                                     |
 
 **Phase 4: Completion — "The Destruction Confirmation"**
 
-| Mechanic | Detail |
-| --- | --- |
-| **Session summary** | After all invoices in the batch are reviewed: "Done! 7 invoices processed in 4 minutes. All GoBD-archived." Time comparison: "This used to take you ~1 hour 45 minutes." |
-| **Compliance seal** | Each confirmed invoice receives a visual "GoBD-Safe" stamp in the archive view. The stamp is ambient — always visible but never in the way. |
-| **Dashboard update** | Invoice count updates in real-time. The "Ready for Export" counter increments. If enough invoices are ready, the DATEV Export button subtly glows — inviting but not interrupting. |
-| **Weekly streak update** | If this session maintains the weekly processing streak: "Week 4 of consistent bookkeeping. Your records are impeccable." |
-| **Next action suggestion** | Contextual: "You have 23 confirmed invoices. Export to DATEV?" or "All caught up! See you next Monday." The system knows what comes next and gently suggests it. |
+| Mechanic                   | Detail                                                                                                                                                                             |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Session summary**        | After all invoices in the batch are reviewed: "Done! 7 invoices processed in 4 minutes. All GoBD-archived." Time comparison: "This used to take you ~1 hour 45 minutes."           |
+| **Compliance seal**        | Each confirmed invoice receives a visual "GoBD-Safe" stamp in the archive view. The stamp is ambient — always visible but never in the way.                                        |
+| **Dashboard update**       | Invoice count updates in real-time. The "Ready for Export" counter increments. If enough invoices are ready, the DATEV Export button subtly glows — inviting but not interrupting. |
+| **Weekly streak update**   | If this session maintains the weekly processing streak: "Week 4 of consistent bookkeeping. Your records are impeccable."                                                           |
+| **Next action suggestion** | Contextual: "You have 23 confirmed invoices. Export to DATEV?" or "All caught up! See you next Monday." The system knows what comes next and gently suggests it.                   |
 
 ## Visual Design Foundation
 
@@ -597,32 +600,32 @@ The color system is built on the emotional foundation of institutional German tr
 
 **Primary Palette:**
 
-| Role | Color | Hex | HSL Token | Emotional Function |
-| --- | --- | --- | --- | --- |
-| **Primary** | Prussian Blue | #003153 | 204 100% 16% | "I am here and your data is safe." Institutional authority without coldness. Used for navigation, headers, primary actions. |
-| **Primary Light** | Steel Blue | #4682B4 | 207 44% 49% | Interactive states — hover, focus rings, active elements. Lighter but still authoritative. |
-| **Primary Foreground** | White | #FFFFFF | 0 0% 100% | Text on primary backgrounds. Maximum contrast for readability. |
+| Role                   | Color         | Hex     | HSL Token    | Emotional Function                                                                                                          |
+| ---------------------- | ------------- | ------- | ------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| **Primary**            | Prussian Blue | #003153 | 204 100% 16% | "I am here and your data is safe." Institutional authority without coldness. Used for navigation, headers, primary actions. |
+| **Primary Light**      | Steel Blue    | #4682B4 | 207 44% 49%  | Interactive states — hover, focus rings, active elements. Lighter but still authoritative.                                  |
+| **Primary Foreground** | White         | #FFFFFF | 0 0% 100%    | Text on primary backgrounds. Maximum contrast for readability.                                                              |
 
 **Semantic Palette:**
 
-| Role | Color | Hex | HSL Token | Emotional Function |
-| --- | --- | --- | --- | --- |
-| **Success / Confidence High** | Emerald Green | #2ECC71 | 145 63% 49% | "Invoice processed. VAT secured." Traffic light "GO" — unambiguous permission to proceed. Used for confirmed fields, approve actions, completion states. |
-| **Warning / Confidence Medium** | Warm Amber | #F39C12 | 37 90% 51% | "Your expertise needed here." Warm, attention-getting, not alarming. Used for uncertain AI fields, gentle nudges. |
-| **Destructive / Confidence Low** | Soft Red | #E74C3C | 6 78% 57% | "Action required — but don't panic." Firm but not aggressive. Used for validation errors, missing data, compliance issues. |
-| **Info** | Ocean Blue | #3498DB | 204 70% 53% | Neutral information — tooltips, help text, AI reasoning explanations. |
+| Role                             | Color         | Hex     | HSL Token   | Emotional Function                                                                                                                                       |
+| -------------------------------- | ------------- | ------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Success / Confidence High**    | Emerald Green | #2ECC71 | 145 63% 49% | "Invoice processed. VAT secured." Traffic light "GO" — unambiguous permission to proceed. Used for confirmed fields, approve actions, completion states. |
+| **Warning / Confidence Medium**  | Warm Amber    | #F39C12 | 37 90% 51%  | "Your expertise needed here." Warm, attention-getting, not alarming. Used for uncertain AI fields, gentle nudges.                                        |
+| **Destructive / Confidence Low** | Soft Red      | #E74C3C | 6 78% 57%   | "Action required — but don't panic." Firm but not aggressive. Used for validation errors, missing data, compliance issues.                               |
+| **Info**                         | Ocean Blue    | #3498DB | 204 70% 53% | Neutral information — tooltips, help text, AI reasoning explanations.                                                                                    |
 
 **Neutral Palette:**
 
-| Role | Color | Hex | HSL Token | Usage |
-| --- | --- | --- | --- | --- |
-| **Foreground** | Charcoal | #2C3E50 | 210 29% 24% | Primary text — dark enough for contrast, softer than pure black. |
-| **Secondary Text** | Slate Gray | #708090 | 210 14% 53% | Secondary information, labels, timestamps. Reduces eye strain vs. black while maintaining readability. |
-| **Muted** | Light Slate | #94A3B8 | 215 16% 65% | Disabled states, placeholder text, tertiary information. |
-| **Border** | Silver | #CBD5E1 | 214 32% 91% | Card borders, dividers, input outlines. Subtle structure without visual weight. |
-| **Surface** | Ghost White | #F8FAFC | 210 40% 98% | Card backgrounds, elevated surfaces. Just barely off-white for depth. |
-| **Background** | Snow | #F1F5F9 | 210 40% 96% | Page background. Cool-toned white that feels clean and professional. |
-| **Card** | White | #FFFFFF | 0 0% 100% | Primary content cards. Pure white for maximum contrast against background. |
+| Role               | Color       | Hex     | HSL Token   | Usage                                                                                                  |
+| ------------------ | ----------- | ------- | ----------- | ------------------------------------------------------------------------------------------------------ |
+| **Foreground**     | Charcoal    | #2C3E50 | 210 29% 24% | Primary text — dark enough for contrast, softer than pure black.                                       |
+| **Secondary Text** | Slate Gray  | #708090 | 210 14% 53% | Secondary information, labels, timestamps. Reduces eye strain vs. black while maintaining readability. |
+| **Muted**          | Light Slate | #94A3B8 | 215 16% 65% | Disabled states, placeholder text, tertiary information.                                               |
+| **Border**         | Silver      | #CBD5E1 | 214 32% 91% | Card borders, dividers, input outlines. Subtle structure without visual weight.                        |
+| **Surface**        | Ghost White | #F8FAFC | 210 40% 98% | Card backgrounds, elevated surfaces. Just barely off-white for depth.                                  |
+| **Background**     | Snow        | #F1F5F9 | 210 40% 96% | Page background. Cool-toned white that feels clean and professional.                                   |
+| **Card**           | White       | #FFFFFF | 0 0% 100%   | Primary content cards. Pure white for maximum contrast against background.                             |
 
 **Confidence Scoring Color System (Core Product Colors):**
 
@@ -696,17 +699,17 @@ The typography says: "I am an accountant, but I live in 2026." No ornamental ser
 
 **Type Scale (Mobile-First):**
 
-| Token | Size (Mobile) | Size (Desktop) | Weight | Line Height | Usage |
-| --- | --- | --- | --- | --- | --- |
-| **display** | 28px / 1.75rem | 36px / 2.25rem | 700 (Bold) | 1.2 | Dashboard hero numbers ("€12,340 processed") |
-| **h1** | 24px / 1.5rem | 30px / 1.875rem | 600 (Semi-bold) | 1.3 | Page titles ("Rechnungen", "Dashboard") |
-| **h2** | 20px / 1.25rem | 24px / 1.5rem | 600 (Semi-bold) | 1.35 | Section headers ("This Week", "Ready for Export") |
-| **h3** | 17px / 1.063rem | 20px / 1.25rem | 600 (Semi-bold) | 1.4 | Card headers, subsection titles |
-| **body** | 16px / 1rem | 16px / 1rem | 400 (Regular) | 1.5 | Primary content text, descriptions |
-| **body-sm** | 14px / 0.875rem | 14px / 0.875rem | 400 (Regular) | 1.5 | Secondary text, labels, metadata |
-| **caption** | 12px / 0.75rem | 12px / 0.75rem | 400 (Regular) | 1.4 | Timestamps, helper text, fine print |
-| **amount** | 18px / 1.125rem | 20px / 1.25rem | 600 (Semi-bold) | 1.2 | Invoice amounts — tabular nums, always prominent |
-| **amount-lg** | 24px / 1.5rem | 32px / 2rem | 700 (Bold) | 1.1 | Dashboard totals, export summaries |
+| Token         | Size (Mobile)   | Size (Desktop)  | Weight          | Line Height | Usage                                             |
+| ------------- | --------------- | --------------- | --------------- | ----------- | ------------------------------------------------- |
+| **display**   | 28px / 1.75rem  | 36px / 2.25rem  | 700 (Bold)      | 1.2         | Dashboard hero numbers ("€12,340 processed")      |
+| **h1**        | 24px / 1.5rem   | 30px / 1.875rem | 600 (Semi-bold) | 1.3         | Page titles ("Rechnungen", "Dashboard")           |
+| **h2**        | 20px / 1.25rem  | 24px / 1.5rem   | 600 (Semi-bold) | 1.35        | Section headers ("This Week", "Ready for Export") |
+| **h3**        | 17px / 1.063rem | 20px / 1.25rem  | 600 (Semi-bold) | 1.4         | Card headers, subsection titles                   |
+| **body**      | 16px / 1rem     | 16px / 1rem     | 400 (Regular)   | 1.5         | Primary content text, descriptions                |
+| **body-sm**   | 14px / 0.875rem | 14px / 0.875rem | 400 (Regular)   | 1.5         | Secondary text, labels, metadata                  |
+| **caption**   | 12px / 0.75rem  | 12px / 0.75rem  | 400 (Regular)   | 1.4         | Timestamps, helper text, fine print               |
+| **amount**    | 18px / 1.125rem | 20px / 1.25rem  | 600 (Semi-bold) | 1.2         | Invoice amounts — tabular nums, always prominent  |
+| **amount-lg** | 24px / 1.5rem   | 32px / 2rem     | 700 (Bold)      | 1.1         | Dashboard totals, export summaries                |
 
 **Number Display Rules:**
 
@@ -731,18 +734,18 @@ The layout follows the workshop principle: the entrance is clean and inviting (d
 
 **Spacing Scale (4px Base Unit):**
 
-| Token | Value | Usage |
-| --- | --- | --- |
-| **space-0** | 0px | Reset, no spacing |
-| **space-1** | 4px | Minimal gap — between icon and label, inline elements |
-| **space-2** | 8px | Tight grouping — between related form fields, badge padding |
-| **space-3** | 12px | Standard inner padding — card content padding, list item gaps |
-| **space-4** | 16px | Standard outer padding — section margins, card gaps on mobile |
-| **space-5** | 20px | Comfortable breathing room — between card groups |
-| **space-6** | 24px | Section separation — between dashboard sections |
-| **space-8** | 32px | Major section breaks — page-level spacing |
-| **space-10** | 40px | Hero spacing — dashboard top area, empty states |
-| **space-12** | 48px | Maximum spacing — page margins on desktop |
+| Token        | Value | Usage                                                         |
+| ------------ | ----- | ------------------------------------------------------------- |
+| **space-0**  | 0px   | Reset, no spacing                                             |
+| **space-1**  | 4px   | Minimal gap — between icon and label, inline elements         |
+| **space-2**  | 8px   | Tight grouping — between related form fields, badge padding   |
+| **space-3**  | 12px  | Standard inner padding — card content padding, list item gaps |
+| **space-4**  | 16px  | Standard outer padding — section margins, card gaps on mobile |
+| **space-5**  | 20px  | Comfortable breathing room — between card groups              |
+| **space-6**  | 24px  | Section separation — between dashboard sections               |
+| **space-8**  | 32px  | Major section breaks — page-level spacing                     |
+| **space-10** | 40px  | Hero spacing — dashboard top area, empty states               |
+| **space-12** | 48px  | Maximum spacing — page margins on desktop                     |
 
 **Contextual Density Model:**
 
@@ -785,12 +788,12 @@ The layout follows the workshop principle: the entrance is clean and inviting (d
 
 **Border Radius Scale:**
 
-| Token | Value | Usage |
-| --- | --- | --- |
-| **radius-sm** | 6px | Buttons, badges, input fields |
-| **radius-md** | 8px | Cards, dropdowns, tooltips |
-| **radius-lg** | 12px | Modal dialogs, bottom sheets |
-| **radius-xl** | 16px | Dashboard hero cards |
+| Token           | Value  | Usage                          |
+| --------------- | ------ | ------------------------------ |
+| **radius-sm**   | 6px    | Buttons, badges, input fields  |
+| **radius-md**   | 8px    | Cards, dropdowns, tooltips     |
+| **radius-lg**   | 12px   | Modal dialogs, bottom sheets   |
+| **radius-xl**   | 16px   | Dashboard hero cards           |
 | **radius-full** | 9999px | FAB, avatar, circular elements |
 
 Rounded corners communicate approachability. No sharp 0px corners except for full-bleed elements (navigation bar, status bar). The slight roundness says: "I'm professional but not intimidating."
@@ -869,12 +872,12 @@ This keeps the interface clean when scanning many invoices, while providing full
 
 Dashboard statistics are scoped to meaningful time periods, not cumulative totals:
 
-| Stat | Scope | Rationale |
-| --- | --- | --- |
-| **Invoices processed** | This week / This month (toggleable) | Weekly for the Monday morning ritual view, monthly for end-of-month export context |
-| **Exported to DATEV** | This month | Monthly aligns with the Steuerberater export cycle. "23 Rechnungen im April exportiert" is meaningful; "2,847 total" is not. |
-| **Time saved** | This week | Immediate reinforcement of value. "~45 Min. diese Woche gespart" |
-| **Processing streak** | Consecutive weeks | Gamification metric — "4 Wochen in Folge" |
+| Stat                   | Scope                               | Rationale                                                                                                                    |
+| ---------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Invoices processed** | This week / This month (toggleable) | Weekly for the Monday morning ritual view, monthly for end-of-month export context                                           |
+| **Exported to DATEV**  | This month                          | Monthly aligns with the Steuerberater export cycle. "23 Rechnungen im April exportiert" is meaningful; "2,847 total" is not. |
+| **Time saved**         | This week                           | Immediate reinforcement of value. "~45 Min. diese Woche gespart"                                                             |
+| **Processing streak**  | Consecutive weeks                   | Gamification metric — "4 Wochen in Folge"                                                                                    |
 
 The toggle between weekly and monthly is a simple tab at the top of the stats area — not a settings page. Default: shows whichever is most relevant based on context (beginning of month = monthly so far, mid-week = weekly).
 
@@ -953,27 +956,27 @@ Same pipeline structure but with wider cards allowing more inline information in
 
 **Interaction Specifications:**
 
-| Interaction | Gesture/Action | Result |
-| --- | --- | --- |
-| Tap collapsed card | Tap anywhere on the card | Card expands with slide-down animation (250ms ease-out). Other cards in same stage remain collapsed. |
-| Tap expanded card header | Tap the supplier/amount row | Card collapses back (200ms ease-in) |
-| Swipe right on expanded card | Swipe gesture (>50% threshold) | Approve invoice — card moves to next pipeline stage with slide animation |
-| Swipe left on expanded card | Swipe gesture (>50% threshold) | Flag for review — amber highlight, stays in "Bereit" |
-| Tap pipeline stage header | Tap "● Bereit 5" | Scrolls to that stage section, expands first card |
-| Pull to refresh | Pull down gesture | Refreshes pipeline counts, checks for newly processed invoices |
-| Stats period toggle | Tap "Diese Woche" / "Dieser Monat" | Stats switch between weekly and monthly view with crossfade |
+| Interaction                  | Gesture/Action                     | Result                                                                                               |
+| ---------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Tap collapsed card           | Tap anywhere on the card           | Card expands with slide-down animation (250ms ease-out). Other cards in same stage remain collapsed. |
+| Tap expanded card header     | Tap the supplier/amount row        | Card collapses back (200ms ease-in)                                                                  |
+| Swipe right on expanded card | Swipe gesture (>50% threshold)     | Approve invoice — card moves to next pipeline stage with slide animation                             |
+| Swipe left on expanded card  | Swipe gesture (>50% threshold)     | Flag for review — amber highlight, stays in "Bereit"                                                 |
+| Tap pipeline stage header    | Tap "● Bereit 5"                   | Scrolls to that stage section, expands first card                                                    |
+| Pull to refresh              | Pull down gesture                  | Refreshes pipeline counts, checks for newly processed invoices                                       |
+| Stats period toggle          | Tap "Diese Woche" / "Dieser Monat" | Stats switch between weekly and monthly view with crossfade                                          |
 
 **Animation Specifications:**
 
-| Animation | Duration | Easing | Purpose |
-| --- | --- | --- | --- |
-| Card expand | 250ms | ease-out | Reveal detail — slightly slower for readability |
-| Card collapse | 200ms | ease-in | Dismiss detail — slightly faster, snappier |
-| Pipeline stage transition | 350ms | ease-in-out | Invoice moving between stages — must feel satisfying |
-| Confidence pulse (amber) | 2000ms loop | ease-in-out | Gentle attention draw on uncertain fields |
-| Approve swipe | 300ms | ease-out | Card slides off right with green flash |
-| Stats crossfade | 200ms | ease | Period toggle — subtle, no jarring change |
-| Processing shimmer | continuous | linear | Skeleton loading on cards in "Verarbeitung" stage |
+| Animation                 | Duration    | Easing      | Purpose                                              |
+| ------------------------- | ----------- | ----------- | ---------------------------------------------------- |
+| Card expand               | 250ms       | ease-out    | Reveal detail — slightly slower for readability      |
+| Card collapse             | 200ms       | ease-in     | Dismiss detail — slightly faster, snappier           |
+| Pipeline stage transition | 350ms       | ease-in-out | Invoice moving between stages — must feel satisfying |
+| Confidence pulse (amber)  | 2000ms loop | ease-in-out | Gentle attention draw on uncertain fields            |
+| Approve swipe             | 300ms       | ease-out    | Card slides off right with green flash               |
+| Stats crossfade           | 200ms       | ease        | Period toggle — subtle, no jarring change            |
+| Processing shimmer        | continuous  | linear      | Skeleton loading on cards in "Verarbeitung" stage    |
 
 ## User Journey Flows
 
@@ -1019,16 +1022,16 @@ flowchart TD
 
 **Screen-by-Screen Detail:**
 
-| Screen | Content | Duration | Critical UX Rules |
-| --- | --- | --- | --- |
-| **Signup** | Email + password only. Google OAuth as alternative. No phone number, no company details yet. | <30 seconds | No credit card. No mandatory fields beyond email/password. |
-| **Trust Screen** | Full-screen: German flag, "Gehostet in Deutschland", GoBD shield, DSGVO badge, bank-grade encryption icon. One sentence each. "Weiter" button at bottom. | 10 seconds reading | This screen is NOT skippable — it is the trust foundation. But it's concise, not a wall of text. |
-| **Company Setup** | 3 fields max: Company name, SKR plan toggle (03/04), optional Steuerberater name. All other settings can be configured later. | <60 seconds | "Später ergänzen" link visible. Thomas should not feel blocked by form fields. |
-| **First Invoice Prompt** | Full-screen with camera icon. "Fotografiere jetzt deine erste Rechnung!" Large, inviting, impossible to misunderstand. | 5 seconds | No feature tour. No slideshow. One action: take a photo. |
-| **Camera** | Full-screen viewfinder with document detection overlay. Auto-capture when invoice is clearly in frame. | <10 seconds | Camera MUST open fast (<500ms). Any delay here kills the momentum. |
-| **AI Processing** | Captured photo with processing overlay. Fields appear one by one in cascade animation (~800ms total). | ~3 seconds | No loading spinner. The cascade animation IS the loading state — it communicates progress and builds anticipation. |
-| **Aha Moment** | All extracted fields visible with green confidence indicators. SKR code suggested. VAT calculated. "Freigeben" button prominent. | User-paced | This is the most important screen in the entire product. Every pixel matters. |
-| **Success** | "Deine erste Rechnung ist archiviert! GoBD-sicher gespeichert." Subtle green pulse and checkmark. | 3 seconds | Immediately followed by nudge to capture more. Momentum is everything. |
+| Screen                   | Content                                                                                                                                                  | Duration           | Critical UX Rules                                                                                                  |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| **Signup**               | Email + password only. Google OAuth as alternative. No phone number, no company details yet.                                                             | <30 seconds        | No credit card. No mandatory fields beyond email/password.                                                         |
+| **Trust Screen**         | Full-screen: German flag, "Gehostet in Deutschland", GoBD shield, DSGVO badge, bank-grade encryption icon. One sentence each. "Weiter" button at bottom. | 10 seconds reading | This screen is NOT skippable — it is the trust foundation. But it's concise, not a wall of text.                   |
+| **Company Setup**        | 3 fields max: Company name, SKR plan toggle (03/04), optional Steuerberater name. All other settings can be configured later.                            | <60 seconds        | "Später ergänzen" link visible. Thomas should not feel blocked by form fields.                                     |
+| **First Invoice Prompt** | Full-screen with camera icon. "Fotografiere jetzt deine erste Rechnung!" Large, inviting, impossible to misunderstand.                                   | 5 seconds          | No feature tour. No slideshow. One action: take a photo.                                                           |
+| **Camera**               | Full-screen viewfinder with document detection overlay. Auto-capture when invoice is clearly in frame.                                                   | <10 seconds        | Camera MUST open fast (<500ms). Any delay here kills the momentum.                                                 |
+| **AI Processing**        | Captured photo with processing overlay. Fields appear one by one in cascade animation (~800ms total).                                                    | ~3 seconds         | No loading spinner. The cascade animation IS the loading state — it communicates progress and builds anticipation. |
+| **Aha Moment**           | All extracted fields visible with green confidence indicators. SKR code suggested. VAT calculated. "Freigeben" button prominent.                         | User-paced         | This is the most important screen in the entire product. Every pixel matters.                                      |
+| **Success**              | "Deine erste Rechnung ist archiviert! GoBD-sicher gespeichert." Subtle green pulse and checkmark.                                                        | 3 seconds          | Immediately followed by nudge to capture more. Momentum is everything.                                             |
 
 **Onboarding Metrics:**
 
@@ -1089,22 +1092,22 @@ flowchart TD
 
 **Capture Phase Detail:**
 
-| State | Visual Feedback | User Action |
-| --- | --- | --- |
-| Camera active | Full-screen viewfinder, document detection overlay | Point at invoice |
-| Document detected | Green frame appears around invoice edges | Hold steady |
-| Auto-capture triggered | Shutter animation + haptic pulse | (automatic) |
-| Photo queued | Counter badge increments: "1 erfasst", "2 erfasst"... | Point at next invoice |
-| Camera → Dashboard transition | Swipe down or tap "Fertig" button | Switch to review |
+| State                         | Visual Feedback                                       | User Action           |
+| ----------------------------- | ----------------------------------------------------- | --------------------- |
+| Camera active                 | Full-screen viewfinder, document detection overlay    | Point at invoice      |
+| Document detected             | Green frame appears around invoice edges              | Hold steady           |
+| Auto-capture triggered        | Shutter animation + haptic pulse                      | (automatic)           |
+| Photo queued                  | Counter badge increments: "1 erfasst", "2 erfasst"... | Point at next invoice |
+| Camera → Dashboard transition | Swipe down or tap "Fertig" button                     | Switch to review      |
 
 **Review Phase Detail:**
 
-| Card State | Visual | Interaction | Time per Card |
-| --- | --- | --- | --- |
-| **Collapsed (default)** | Supplier + amount + confidence border (green/amber/red) | Tap to expand | 0.5s glance |
-| **Expanded — All Green** | Full data, all fields green, "Freigeben" button + swipe hint | Swipe right or tap approve | <2 seconds |
-| **Expanded — Amber fields** | Full data, amber fields pulsing, explanation text per field | Review → correct if needed → approve | 10–30 seconds |
-| **Expanded — Red fields** | Full data, red fields with action badges, guidance text | Follow action steps → approve or flag | 30–60 seconds |
+| Card State                  | Visual                                                       | Interaction                           | Time per Card |
+| --------------------------- | ------------------------------------------------------------ | ------------------------------------- | ------------- |
+| **Collapsed (default)**     | Supplier + amount + confidence border (green/amber/red)      | Tap to expand                         | 0.5s glance   |
+| **Expanded — All Green**    | Full data, all fields green, "Freigeben" button + swipe hint | Swipe right or tap approve            | <2 seconds    |
+| **Expanded — Amber fields** | Full data, amber fields pulsing, explanation text per field  | Review → correct if needed → approve  | 10–30 seconds |
+| **Expanded — Red fields**   | Full data, red fields with action badges, guidance text      | Follow action steps → approve or flag | 30–60 seconds |
 
 **Returning Supplier Recognition:**
 
@@ -1164,13 +1167,13 @@ flowchart TD
 
 **Export Screen Detail:**
 
-| Screen | Content | Critical UX Rules |
-| --- | --- | --- |
-| **Export Configuration** | Date range (auto-suggested: current month), format confirmation, Berater-Nr/Mandanten-Nr display. All pre-filled from settings. | Maximum 1 tap to proceed if settings are complete. No form-filling in the happy path. |
-| **Progress** | Three-step progress: Validating → Formatting → Packaging. Each step gets a checkmark when done. | Total export time <10 seconds for up to 500 invoices. Progress must feel fast and confident. |
-| **Export Ready** | Green success state. Invoice count, zero errors, format confirmation. Download and email options side by side. | The "0 Fehler" message is the pride trigger. Make it visually prominent. |
-| **Validation Warning** | Amber state. Clear count of issues. "Details anzeigen" expands to show specific invoices with problems. Option to fix or skip. | Never block export entirely. Always allow partial export with clear communication of what's included/excluded. |
-| **Success Summary** | Full green. Count, zero errors, "Frau Schmidt wird beeindruckt sein" message. Pipeline counter updates. | This is the "Pride Moment." The message should make Thomas smile. |
+| Screen                   | Content                                                                                                                         | Critical UX Rules                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Export Configuration** | Date range (auto-suggested: current month), format confirmation, Berater-Nr/Mandanten-Nr display. All pre-filled from settings. | Maximum 1 tap to proceed if settings are complete. No form-filling in the happy path.                          |
+| **Progress**             | Three-step progress: Validating → Formatting → Packaging. Each step gets a checkmark when done.                                 | Total export time <10 seconds for up to 500 invoices. Progress must feel fast and confident.                   |
+| **Export Ready**         | Green success state. Invoice count, zero errors, format confirmation. Download and email options side by side.                  | The "0 Fehler" message is the pride trigger. Make it visually prominent.                                       |
+| **Validation Warning**   | Amber state. Clear count of issues. "Details anzeigen" expands to show specific invoices with problems. Option to fix or skip.  | Never block export entirely. Always allow partial export with clear communication of what's included/excluded. |
+| **Success Summary**      | Full green. Count, zero errors, "Frau Schmidt wird beeindruckt sein" message. Pipeline counter updates.                         | This is the "Pride Moment." The message should make Thomas smile.                                              |
 
 **Email Integration:**
 
@@ -1229,12 +1232,12 @@ flowchart TD
 
 **Error Type Handling Matrix:**
 
-| Error Type | Visual | Tone | User Action | AI Learning |
-| --- | --- | --- | --- | --- |
-| **Low confidence (amber)** | Pulsing amber field, one-line explanation | "I'm not sure about this — can you check?" | Tap field → view source → correct or confirm | Stores correction for this supplier/field pattern |
-| **Missing required data (red)** | Static red field with action badge | "This is missing and it matters for your taxes" | Manual entry or contact supplier | Associates field with this supplier for future invoices |
-| **Validation failure (red)** | Red badge on card header, validation report expandable | "This invoice doesn't meet e-Rechnung standards" | Send correction email to supplier | No AI learning needed — supplier must fix their invoice |
-| **Unreadable source (amber)** | Amber field with "Nicht lesbar" option | "The image quality made this hard to read" | Manual entry from original document | Stores manual entry; improves capture guidance |
+| Error Type                      | Visual                                                 | Tone                                             | User Action                                  | AI Learning                                             |
+| ------------------------------- | ------------------------------------------------------ | ------------------------------------------------ | -------------------------------------------- | ------------------------------------------------------- |
+| **Low confidence (amber)**      | Pulsing amber field, one-line explanation              | "I'm not sure about this — can you check?"       | Tap field → view source → correct or confirm | Stores correction for this supplier/field pattern       |
+| **Missing required data (red)** | Static red field with action badge                     | "This is missing and it matters for your taxes"  | Manual entry or contact supplier             | Associates field with this supplier for future invoices |
+| **Validation failure (red)**    | Red badge on card header, validation report expandable | "This invoice doesn't meet e-Rechnung standards" | Send correction email to supplier            | No AI learning needed — supplier must fix their invoice |
+| **Unreadable source (amber)**   | Amber field with "Nicht lesbar" option                 | "The image quality made this hard to read"       | Manual entry from original document          | Stores manual entry; improves capture guidance          |
 
 **Source Document Viewer:**
 
@@ -1318,24 +1321,24 @@ Thomas can always make progress. No single issue locks the entire system.
 
 **Coverage Analysis — What shadcn/ui provides out of the box:**
 
-| shadcn/ui Component | Usage in RechnungsAI | Customization Level |
-| --- | --- | --- |
-| **Button** | Approve, export, navigation actions | Medium — larger touch targets, confidence-colored variants |
-| **Card** | Base for invoice cards, stat cards, summary cards | High — extended with confidence stripe, accordion behavior |
-| **Badge** | Confidence indicators, pipeline stage counts, status labels | Medium — custom color mapping to confidence system |
-| **Toast** | Session summaries, undo notifications, success confirmations | Low — mostly styling adjustments |
-| **Sheet** | Mobile invoice detail view, source document viewer | Medium — bottom sheet behavior for mobile |
-| **Dialog** | Destructive action confirmations only (delete invoice) | Low — minimal use per anti-pattern rules |
-| **Input** | Manual field corrections, settings forms | Medium — numeric keypad variant, German locale formatting |
-| **Select** | SKR plan toggle, date range selection, filter options | Low — standard usage |
-| **Table** | Desktop invoice list view, export history | Medium — sortable columns, inline status indicators |
-| **Form** | DATEV settings, company setup, onboarding fields | Low — standard form patterns with smart defaults |
-| **Skeleton** | Processing states in pipeline | Medium — custom shimmer pattern for invoice cards |
-| **Tooltip** | AI reasoning explanations, field help text | Low — hover/long-press trigger |
-| **Tabs** | Stats period toggle (weekly/monthly), pipeline stage filter | Low — standard tab behavior |
-| **Separator** | Section dividers between pipeline stages | None — use as-is |
-| **Label** | Form field labels, data field labels | None — use as-is |
-| **Dropdown Menu** | Invoice card actions (edit, delete, flag), sort options | Low — standard dropdown |
+| shadcn/ui Component | Usage in RechnungsAI                                         | Customization Level                                        |
+| ------------------- | ------------------------------------------------------------ | ---------------------------------------------------------- |
+| **Button**          | Approve, export, navigation actions                          | Medium — larger touch targets, confidence-colored variants |
+| **Card**            | Base for invoice cards, stat cards, summary cards            | High — extended with confidence stripe, accordion behavior |
+| **Badge**           | Confidence indicators, pipeline stage counts, status labels  | Medium — custom color mapping to confidence system         |
+| **Toast**           | Session summaries, undo notifications, success confirmations | Low — mostly styling adjustments                           |
+| **Sheet**           | Mobile invoice detail view, source document viewer           | Medium — bottom sheet behavior for mobile                  |
+| **Dialog**          | Destructive action confirmations only (delete invoice)       | Low — minimal use per anti-pattern rules                   |
+| **Input**           | Manual field corrections, settings forms                     | Medium — numeric keypad variant, German locale formatting  |
+| **Select**          | SKR plan toggle, date range selection, filter options        | Low — standard usage                                       |
+| **Table**           | Desktop invoice list view, export history                    | Medium — sortable columns, inline status indicators        |
+| **Form**            | DATEV settings, company setup, onboarding fields             | Low — standard form patterns with smart defaults           |
+| **Skeleton**        | Processing states in pipeline                                | Medium — custom shimmer pattern for invoice cards          |
+| **Tooltip**         | AI reasoning explanations, field help text                   | Low — hover/long-press trigger                             |
+| **Tabs**            | Stats period toggle (weekly/monthly), pipeline stage filter  | Low — standard tab behavior                                |
+| **Separator**       | Section dividers between pipeline stages                     | None — use as-is                                           |
+| **Label**           | Form field labels, data field labels                         | None — use as-is                                           |
+| **Dropdown Menu**   | Invoice card actions (edit, delete, flag), sort options      | Low — standard dropdown                                    |
 
 **Gap Analysis — What we must build custom:**
 
@@ -1358,22 +1361,22 @@ Thomas can always make progress. No single issue locks the entire system.
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `stages` | `PipelineStage[]` | Array of stage objects with id, label, count, icon |
-| `activeStage` | `string` | Currently highlighted stage (auto-detected or user-selected) |
-| `onStageClick` | `(stageId: string) => void` | Scrolls dashboard to selected stage section |
-| `exportPeriod` | `string` | Current display period for export count (e.g., "Apr") |
+| Prop           | Type                        | Description                                                  |
+| -------------- | --------------------------- | ------------------------------------------------------------ |
+| `stages`       | `PipelineStage[]`           | Array of stage objects with id, label, count, icon           |
+| `activeStage`  | `string`                    | Currently highlighted stage (auto-detected or user-selected) |
+| `onStageClick` | `(stageId: string) => void` | Scrolls dashboard to selected stage section                  |
+| `exportPeriod` | `string`                    | Current display period for export count (e.g., "Apr")        |
 
 **States:**
 
-| State | Visual | Trigger |
-| --- | --- | --- |
-| **Default** | All stages visible, counts displayed, no emphasis | No invoices need attention |
-| **Attention** | "Bereit" stage count has bold text + subtle pulse animation | Invoices waiting for review (count > 0) |
-| **Processing** | "Verarbeitung" stage shows shimmer animation on count | AI actively processing invoices |
-| **Empty** | All counts show 0, muted text | No invoices in system (new user or all exported) |
-| **Tapped** | Tapped stage briefly scales up (105%) with haptic | User taps a stage to navigate |
+| State          | Visual                                                      | Trigger                                          |
+| -------------- | ----------------------------------------------------------- | ------------------------------------------------ |
+| **Default**    | All stages visible, counts displayed, no emphasis           | No invoices need attention                       |
+| **Attention**  | "Bereit" stage count has bold text + subtle pulse animation | Invoices waiting for review (count > 0)          |
+| **Processing** | "Verarbeitung" stage shows shimmer animation on count       | AI actively processing invoices                  |
+| **Empty**      | All counts show 0, muted text                               | No invoices in system (new user or all exported) |
+| **Tapped**     | Tapped stage briefly scales up (105%) with haptic           | User taps a stage to navigate                    |
 
 **Accessibility:**
 
@@ -1425,32 +1428,32 @@ Thomas can always make progress. No single issue locks the entire system.
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `invoice` | `Invoice` | Complete invoice data object |
-| `confidence` | `ConfidenceLevel` | Overall confidence (high/medium/low) |
-| `fields` | `ExtractedField[]` | Array of extracted fields with per-field confidence |
-| `supplierRecognized` | `boolean` | Whether supplier has been seen before |
-| `previousCount` | `number` | Number of previous invoices from this supplier |
-| `isExpanded` | `boolean` | Controlled expand/collapse state |
-| `onExpand` | `() => void` | Expand callback |
-| `onApprove` | `(invoiceId: string) => void` | Approve/swipe-right callback |
-| `onFlag` | `(invoiceId: string) => void` | Flag for review callback |
-| `onFieldCorrect` | `(fieldId: string, value: string) => void` | Field correction callback |
+| Prop                 | Type                                       | Description                                         |
+| -------------------- | ------------------------------------------ | --------------------------------------------------- |
+| `invoice`            | `Invoice`                                  | Complete invoice data object                        |
+| `confidence`         | `ConfidenceLevel`                          | Overall confidence (high/medium/low)                |
+| `fields`             | `ExtractedField[]`                         | Array of extracted fields with per-field confidence |
+| `supplierRecognized` | `boolean`                                  | Whether supplier has been seen before               |
+| `previousCount`      | `number`                                   | Number of previous invoices from this supplier      |
+| `isExpanded`         | `boolean`                                  | Controlled expand/collapse state                    |
+| `onExpand`           | `() => void`                               | Expand callback                                     |
+| `onApprove`          | `(invoiceId: string) => void`              | Approve/swipe-right callback                        |
+| `onFlag`             | `(invoiceId: string) => void`              | Flag for review callback                            |
+| `onFieldCorrect`     | `(fieldId: string, value: string) => void` | Field correction callback                           |
 
 **States:**
 
-| State | Visual | Trigger |
-| --- | --- | --- |
-| **Collapsed — Green** | Green left border (4px), supplier + amount, muted confidence dot | Default for high-confidence invoices |
-| **Collapsed — Amber** | Amber left border (4px), supplier + amount, amber dot with subtle pulse | Default for medium-confidence invoices |
-| **Collapsed — Red** | Red left border (4px), supplier + amount, red dot with action badge count | Default for low-confidence invoices |
-| **Expanded** | Full field list visible, action buttons at bottom | User taps collapsed card |
-| **Swiping Right** | Card tilts slightly right, green gradient overlay intensifies | User swipe gesture in progress |
-| **Swiping Left** | Card tilts slightly left, amber gradient overlay | User swipe gesture in progress |
-| **Approved** | Card slides off-screen right, green flash, haptic pulse | Swipe threshold reached or approve button tapped |
-| **Flagged** | Card gets amber highlight, stays in place with flag icon | Swipe left threshold or flag button tapped |
-| **Processing** | Skeleton shimmer on all fields | Invoice in "Verarbeitung" stage |
+| State                 | Visual                                                                    | Trigger                                          |
+| --------------------- | ------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Collapsed — Green** | Green left border (4px), supplier + amount, muted confidence dot          | Default for high-confidence invoices             |
+| **Collapsed — Amber** | Amber left border (4px), supplier + amount, amber dot with subtle pulse   | Default for medium-confidence invoices           |
+| **Collapsed — Red**   | Red left border (4px), supplier + amount, red dot with action badge count | Default for low-confidence invoices              |
+| **Expanded**          | Full field list visible, action buttons at bottom                         | User taps collapsed card                         |
+| **Swiping Right**     | Card tilts slightly right, green gradient overlay intensifies             | User swipe gesture in progress                   |
+| **Swiping Left**      | Card tilts slightly left, amber gradient overlay                          | User swipe gesture in progress                   |
+| **Approved**          | Card slides off-screen right, green flash, haptic pulse                   | Swipe threshold reached or approve button tapped |
+| **Flagged**           | Card gets amber highlight, stays in place with flag icon                  | Swipe left threshold or flag button tapped       |
+| **Processing**        | Skeleton shimmer on all fields                                            | Invoice in "Verarbeitung" stage                  |
 
 **Swipe Gesture Spec:**
 
@@ -1483,21 +1486,21 @@ Bar:        ████░░  (progress bar, used in detailed field view)
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `confidence` | `number` | 0–100 percentage value |
-| `variant` | `'dot' \| 'badge' \| 'bar'` | Visual variant |
-| `fieldName` | `string` | For accessibility label |
-| `explanation` | `string` | One-line explanation for amber/red (e.g., "Bildqualität war niedrig") |
-| `onTap` | `() => void` | Opens source document viewer for this field |
+| Prop          | Type                        | Description                                                           |
+| ------------- | --------------------------- | --------------------------------------------------------------------- |
+| `confidence`  | `number`                    | 0–100 percentage value                                                |
+| `variant`     | `'dot' \| 'badge' \| 'bar'` | Visual variant                                                        |
+| `fieldName`   | `string`                    | For accessibility label                                               |
+| `explanation` | `string`                    | One-line explanation for amber/red (e.g., "Bildqualität war niedrig") |
+| `onTap`       | `() => void`                | Opens source document viewer for this field                           |
 
 **States:**
 
-| Confidence Range | Color | Icon | Animation | Behavior |
-| --- | --- | --- | --- | --- |
-| **95–100%** | Emerald Green (#2ECC71) | ✓ checkmark | None — visually recessive | No action needed. Field is trustworthy. |
-| **70–94%** | Warm Amber (#F39C12) | ⚠ triangle | Gentle pulse (2s loop) | Tap to inspect. Explanation text visible. |
-| **0–69%** | Soft Red (#E74C3C) | ✕ cross | None — static attention | Action required. Guidance text visible. |
+| Confidence Range | Color                   | Icon        | Animation                 | Behavior                                  |
+| ---------------- | ----------------------- | ----------- | ------------------------- | ----------------------------------------- |
+| **95–100%**      | Emerald Green (#2ECC71) | ✓ checkmark | None — visually recessive | No action needed. Field is trustworthy.   |
+| **70–94%**       | Warm Amber (#F39C12)    | ⚠ triangle  | Gentle pulse (2s loop)    | Tap to inspect. Explanation text visible. |
+| **0–69%**        | Soft Red (#E74C3C)      | ✕ cross     | None — static attention   | Action required. Guidance text visible.   |
 
 **Accessibility:**
 
@@ -1535,24 +1538,24 @@ Bar:        ████░░  (progress bar, used in detailed field view)
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `onCapture` | `(image: File) => void` | Callback when photo is captured (auto or manual) |
-| `captureCount` | `number` | Number of invoices captured in current session |
-| `autoCapture` | `boolean` | Whether auto-detection capture is enabled |
-| `onDone` | `() => void` | "Fertig" — user finishes capture session |
-| `onGallery` | `() => void` | Open file picker for PDF/image upload |
+| Prop           | Type                    | Description                                      |
+| -------------- | ----------------------- | ------------------------------------------------ |
+| `onCapture`    | `(image: File) => void` | Callback when photo is captured (auto or manual) |
+| `captureCount` | `number`                | Number of invoices captured in current session   |
+| `autoCapture`  | `boolean`               | Whether auto-detection capture is enabled        |
+| `onDone`       | `() => void`            | "Fertig" — user finishes capture session         |
+| `onGallery`    | `() => void`            | Open file picker for PDF/image upload            |
 
 **States:**
 
-| State | Visual | Trigger |
-| --- | --- | --- |
-| **Scanning** | Viewfinder active, no overlay frame | Camera active, no document detected |
-| **Document Detected** | Green dashed border appears around document edges | Edge detection identifies invoice boundaries |
-| **Capturing** | Shutter animation (brief white flash) + haptic pulse | Auto-capture triggers or manual shutter tapped |
-| **Captured** | Counter badge increments with pop animation ("3 erfasst" → "4 erfasst") | Photo successfully queued |
-| **Offline Queue** | Amber badge: "Offline — wird synchronisiert" | No network connectivity |
-| **Error** | Brief amber toast: "Bild unscharf — bitte nochmal versuchen" | Image quality too low for processing |
+| State                 | Visual                                                                  | Trigger                                        |
+| --------------------- | ----------------------------------------------------------------------- | ---------------------------------------------- |
+| **Scanning**          | Viewfinder active, no overlay frame                                     | Camera active, no document detected            |
+| **Document Detected** | Green dashed border appears around document edges                       | Edge detection identifies invoice boundaries   |
+| **Capturing**         | Shutter animation (brief white flash) + haptic pulse                    | Auto-capture triggers or manual shutter tapped |
+| **Captured**          | Counter badge increments with pop animation ("3 erfasst" → "4 erfasst") | Photo successfully queued                      |
+| **Offline Queue**     | Amber badge: "Offline — wird synchronisiert"                            | No network connectivity                        |
+| **Error**             | Brief amber toast: "Bild unscharf — bitte nochmal versuchen"            | Image quality too low for processing           |
 
 **Technical Spec:**
 
@@ -1597,26 +1600,26 @@ Bar:        ████░░  (progress bar, used in detailed field view)
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `invoiceCount` | `number` | Invoices processed in this session |
-| `duration` | `number` | Session duration in seconds |
-| `estimatedTimeSaved` | `number` | Estimated manual processing time saved (minutes) |
-| `errorCount` | `number` | Fields that required correction |
-| `streakWeeks` | `number` | Consecutive weeks of processing |
-| `exportReady` | `number` | Total confirmed invoices ready for export |
-| `onExport` | `() => void` | Navigate to export flow |
-| `onDismiss` | `() => void` | Return to dashboard |
+| Prop                 | Type         | Description                                      |
+| -------------------- | ------------ | ------------------------------------------------ |
+| `invoiceCount`       | `number`     | Invoices processed in this session               |
+| `duration`           | `number`     | Session duration in seconds                      |
+| `estimatedTimeSaved` | `number`     | Estimated manual processing time saved (minutes) |
+| `errorCount`         | `number`     | Fields that required correction                  |
+| `streakWeeks`        | `number`     | Consecutive weeks of processing                  |
+| `exportReady`        | `number`     | Total confirmed invoices ready for export        |
+| `onExport`           | `() => void` | Navigate to export flow                          |
+| `onDismiss`          | `() => void` | Return to dashboard                              |
 
 **States:**
 
-| State | Visual |
-| --- | --- |
-| **Perfect Session** | Green header, "0 Fehler", full streak display |
-| **With Corrections** | Green header, "[X] Korrekturen", still positive tone |
-| **Streak Milestone** | Extra line: "4 Wochen in Folge — dein bestes Ergebnis!" |
-| **Export Prompt** | Additional CTA card when ≥10 invoices ready for export |
-| **First Session** | Special messaging: "Deine erste Sitzung! So schnell kann Buchhaltung sein." |
+| State                | Visual                                                                      |
+| -------------------- | --------------------------------------------------------------------------- |
+| **Perfect Session**  | Green header, "0 Fehler", full streak display                               |
+| **With Corrections** | Green header, "[X] Korrekturen", still positive tone                        |
+| **Streak Milestone** | Extra line: "4 Wochen in Folge — dein bestes Ergebnis!"                     |
+| **Export Prompt**    | Additional CTA card when ≥10 invoices ready for export                      |
+| **First Session**    | Special messaging: "Deine erste Sitzung! So schnell kann Buchhaltung sein." |
 
 #### 6. TrustBadgeBar
 
@@ -1659,33 +1662,33 @@ Exportiert: 18 (Apr)
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `readyCount` | `number` | Number of confirmed invoices ready for export |
-| `lastExportDate` | `Date \| null` | Date of last export |
-| `period` | `string` | Current export period (e.g., "April 2026") |
-| `onExport` | `() => void` | Navigate to export configuration flow |
+| Prop             | Type           | Description                                   |
+| ---------------- | -------------- | --------------------------------------------- |
+| `readyCount`     | `number`       | Number of confirmed invoices ready for export |
+| `lastExportDate` | `Date \| null` | Date of last export                           |
+| `period`         | `string`       | Current export period (e.g., "April 2026")    |
+| `onExport`       | `() => void`   | Navigate to export configuration flow         |
 
 **States:**
 
-| State | Visual | Trigger |
-| --- | --- | --- |
-| **Dormant** | Simple text count in pipeline "Exportiert" stage | readyCount === 0 |
-| **Available** | Subtle card with count, no emphasis | readyCount 1–9 |
-| **Prominent** | Card with Primary Light background, arrow icon, gentle pulse border | readyCount ≥ 10 |
-| **Month-End Urgent** | Card with stronger visual emphasis + "Monat endet in [X] Tagen" | Last 5 days of month + readyCount > 0 |
+| State                | Visual                                                              | Trigger                               |
+| -------------------- | ------------------------------------------------------------------- | ------------------------------------- |
+| **Dormant**          | Simple text count in pipeline "Exportiert" stage                    | readyCount === 0                      |
+| **Available**        | Subtle card with count, no emphasis                                 | readyCount 1–9                        |
+| **Prominent**        | Card with Primary Light background, arrow icon, gentle pulse border | readyCount ≥ 10                       |
+| **Month-End Urgent** | Card with stronger visual emphasis + "Monat endet in [X] Tagen"     | Last 5 days of month + readyCount > 0 |
 
 ### Custom Components — Post-MVP
 
 These components enhance the experience but are not required for the core "Capture → Review → Export" workflow.
 
-| # | Component | Purpose | Implementation Trigger | Key Considerations |
-| --- | --- | --- | --- | --- |
-| 1 | **WeeklyRecapCard** | Dashboard card showing weekly value summary (invoices processed, time saved, deductions accumulated). Delivered as push notification + in-app card. | Phase 2 — after retention metrics baseline is established | Must show personalized, quantified value. Numbers must be accurate and meaningful, not inflated. |
-| 2 | **SupplierInsightBadge** | Shows supplier recognition status on invoice cards. "Holz-Müller GmbH — erkannt. 7. Rechnung." Includes accuracy trend for this supplier. | Phase 2 — after enough supplier data is collected (~50 invoices) | Supplier recognition percentage must be real, not estimated. Only show when genuinely helpful. |
-| 3 | **StreakTracker** | Visual streak counter in dashboard stats. Shows consecutive weeks of invoice processing. Includes milestone celebrations. | Phase 2 — after basic gamification framework is validated | Tone must be professional — "4 Wochen in Folge", not "Amazing streak!" Milestones: week 4, 8, 12, 26, 52. |
-| 4 | **SourceDocumentViewer** | Full-screen document viewer with zoom, pan, and field highlight overlay. Opens when user taps an amber/red confidence field to inspect the source. | Phase 1.5 — needed shortly after MVP for edge cases | Pinch-to-zoom must be smooth (60fps). Field highlight overlay must align precisely with extracted data position. |
-| 5 | **CorrectionEmailComposer** | Pre-generated email for supplier invoice corrections. Shows specific issues (missing USt-IdNr., validation failures). One-tap send via system email client. | Phase 2 — after EN 16931 validation is fully implemented | Email must be formal German business correspondence. Body lists specific issues with regulatory references. |
+| #   | Component                   | Purpose                                                                                                                                                     | Implementation Trigger                                           | Key Considerations                                                                                               |
+| --- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 1   | **WeeklyRecapCard**         | Dashboard card showing weekly value summary (invoices processed, time saved, deductions accumulated). Delivered as push notification + in-app card.         | Phase 2 — after retention metrics baseline is established        | Must show personalized, quantified value. Numbers must be accurate and meaningful, not inflated.                 |
+| 2   | **SupplierInsightBadge**    | Shows supplier recognition status on invoice cards. "Holz-Müller GmbH — erkannt. 7. Rechnung." Includes accuracy trend for this supplier.                   | Phase 2 — after enough supplier data is collected (~50 invoices) | Supplier recognition percentage must be real, not estimated. Only show when genuinely helpful.                   |
+| 3   | **StreakTracker**           | Visual streak counter in dashboard stats. Shows consecutive weeks of invoice processing. Includes milestone celebrations.                                   | Phase 2 — after basic gamification framework is validated        | Tone must be professional — "4 Wochen in Folge", not "Amazing streak!" Milestones: week 4, 8, 12, 26, 52.        |
+| 4   | **SourceDocumentViewer**    | Full-screen document viewer with zoom, pan, and field highlight overlay. Opens when user taps an amber/red confidence field to inspect the source.          | Phase 1.5 — needed shortly after MVP for edge cases              | Pinch-to-zoom must be smooth (60fps). Field highlight overlay must align precisely with extracted data position. |
+| 5   | **CorrectionEmailComposer** | Pre-generated email for supplier invoice corrections. Shows specific issues (missing USt-IdNr., validation failures). One-tap send via system email client. | Phase 2 — after EN 16931 validation is fully implemented         | Email must be formal German business correspondence. Body lists specific issues with regulatory references.      |
 
 ### Component Implementation Strategy
 
@@ -1728,30 +1731,30 @@ All custom components inherit from the shared design token system:
 
 **Phase 1 — MVP Core (Weeks 1–4):**
 
-| Priority | Component | Dependency | Effort |
-| --- | --- | --- | --- |
-| P0 | **CameraCapture** | Camera API, edge detection | High — core "aha" moment |
-| P0 | **AccordionInvoiceCard** | Invoice data model, swipe library | High — most complex component |
-| P0 | **ConfidenceIndicator** | AI confidence scoring API | Medium — used inside AccordionInvoiceCard |
-| P0 | **PipelineHeader** | Invoice status state machine | Medium — dashboard backbone |
-| P1 | **TrustBadgeBar** | Static content | Low — simple layout component |
-| P1 | **ExportAction** | Export API, invoice count query | Medium — context-aware visibility logic |
-| P1 | **SessionSummary** | Session tracking, time calculation | Medium — appears after review flow |
+| Priority | Component                | Dependency                         | Effort                                    |
+| -------- | ------------------------ | ---------------------------------- | ----------------------------------------- |
+| P0       | **CameraCapture**        | Camera API, edge detection         | High — core "aha" moment                  |
+| P0       | **AccordionInvoiceCard** | Invoice data model, swipe library  | High — most complex component             |
+| P0       | **ConfidenceIndicator**  | AI confidence scoring API          | Medium — used inside AccordionInvoiceCard |
+| P0       | **PipelineHeader**       | Invoice status state machine       | Medium — dashboard backbone               |
+| P1       | **TrustBadgeBar**        | Static content                     | Low — simple layout component             |
+| P1       | **ExportAction**         | Export API, invoice count query    | Medium — context-aware visibility logic   |
+| P1       | **SessionSummary**       | Session tracking, time calculation | Medium — appears after review flow        |
 
 **Phase 1.5 — Edge Case Support (Weeks 5–6):**
 
-| Priority | Component | Trigger |
-| --- | --- | --- |
-| P2 | **SourceDocumentViewer** | First user reports needing to inspect source for amber field |
+| Priority | Component                | Trigger                                                      |
+| -------- | ------------------------ | ------------------------------------------------------------ |
+| P2       | **SourceDocumentViewer** | First user reports needing to inspect source for amber field |
 
 **Phase 2 — Engagement & Retention (Weeks 7–10):**
 
-| Priority | Component | Trigger |
-| --- | --- | --- |
-| P3 | **WeeklyRecapCard** | Retention baseline established |
-| P3 | **SupplierInsightBadge** | 50+ invoices processed across users |
-| P3 | **StreakTracker** | Gamification framework validated |
-| P3 | **CorrectionEmailComposer** | EN 16931 validation fully implemented |
+| Priority | Component                   | Trigger                               |
+| -------- | --------------------------- | ------------------------------------- |
+| P3       | **WeeklyRecapCard**         | Retention baseline established        |
+| P3       | **SupplierInsightBadge**    | 50+ invoices processed across users   |
+| P3       | **StreakTracker**           | Gamification framework validated      |
+| P3       | **CorrectionEmailComposer** | EN 16931 validation fully implemented |
 
 ## UX Consistency Patterns
 
@@ -1761,20 +1764,20 @@ All custom components inherit from the shared design token system:
 
 Every screen has a maximum of 3 visible action levels. No "wall of buttons" — ever.
 
-| Tier | Visual | Touch Target | Usage | Examples |
-| --- | --- | --- | --- | --- |
-| **Primary** | Filled, Primary color (#003153) or Success (#2ECC71) depending on context. Bold label. | 48px height, full-width on mobile | The ONE action Thomas should do next. Only one primary button per screen. | "Freigeben", "Export erstellen", "Weiter" |
-| **Secondary** | Outlined, border color Primary Light (#4682B4). Regular weight label. | 44px height | Alternative action that doesn't compete with primary. | "Flaggen", "Überspringen", "Später" |
-| **Tertiary** | Text-only, Slate Gray (#708090). No border, no background. | 44px height (invisible target area) | Low-priority actions, navigation links, "cancel" type actions. | "Abbrechen", "Mehr anzeigen", "Zurück" |
+| Tier          | Visual                                                                                 | Touch Target                        | Usage                                                                     | Examples                                  |
+| ------------- | -------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------- |
+| **Primary**   | Filled, Primary color (#003153) or Success (#2ECC71) depending on context. Bold label. | 48px height, full-width on mobile   | The ONE action Thomas should do next. Only one primary button per screen. | "Freigeben", "Export erstellen", "Weiter" |
+| **Secondary** | Outlined, border color Primary Light (#4682B4). Regular weight label.                  | 44px height                         | Alternative action that doesn't compete with primary.                     | "Flaggen", "Überspringen", "Später"       |
+| **Tertiary**  | Text-only, Slate Gray (#708090). No border, no background.                             | 44px height (invisible target area) | Low-priority actions, navigation links, "cancel" type actions.            | "Abbrechen", "Mehr anzeigen", "Zurück"    |
 
 **Context-Specific Button Colors:**
 
-| Context | Primary Button Color | Rationale |
-| --- | --- | --- |
-| **Approve/Confirm** | Emerald Green (#2ECC71) | Success action — "this is safe to do" |
-| **Navigate/Continue** | Prussian Blue (#003153) | Forward movement — "proceed to next step" |
-| **Destructive** | Soft Red (#E74C3C), outlined only (never filled) | Dangerous action must feel deliberate, not inviting |
-| **Export** | Prussian Blue (#003153) | Professional action — institutional trust |
+| Context               | Primary Button Color                             | Rationale                                           |
+| --------------------- | ------------------------------------------------ | --------------------------------------------------- |
+| **Approve/Confirm**   | Emerald Green (#2ECC71)                          | Success action — "this is safe to do"               |
+| **Navigate/Continue** | Prussian Blue (#003153)                          | Forward movement — "proceed to next step"           |
+| **Destructive**       | Soft Red (#E74C3C), outlined only (never filled) | Dangerous action must feel deliberate, not inviting |
+| **Export**            | Prussian Blue (#003153)                          | Professional action — institutional trust           |
 
 **Button Rules:**
 
@@ -1788,28 +1791,28 @@ Every screen has a maximum of 3 visible action levels. No "wall of buttons" — 
 
 **Success Feedback:**
 
-| Type | Visual | Duration | Example |
-| --- | --- | --- | --- |
-| **Inline success** | Green checkmark animation next to confirmed field | 1 second, then fades to static ✓ | Field correction confirmed |
-| **Action success** | Toast notification, bottom-center, green left border | 3 seconds auto-dismiss, swipe to dismiss | "Rechnung freigegeben" |
-| **Flow success** | Full SessionSummary card | Persistent until user dismisses | End of review session |
-| **Haptic success** | Single short vibration (50ms) | Instant | Invoice swipe-approved |
+| Type               | Visual                                               | Duration                                 | Example                    |
+| ------------------ | ---------------------------------------------------- | ---------------------------------------- | -------------------------- |
+| **Inline success** | Green checkmark animation next to confirmed field    | 1 second, then fades to static ✓         | Field correction confirmed |
+| **Action success** | Toast notification, bottom-center, green left border | 3 seconds auto-dismiss, swipe to dismiss | "Rechnung freigegeben"     |
+| **Flow success**   | Full SessionSummary card                             | Persistent until user dismisses          | End of review session      |
+| **Haptic success** | Single short vibration (50ms)                        | Instant                                  | Invoice swipe-approved     |
 
 **Warning Feedback:**
 
-| Type | Visual | Duration | Example |
-| --- | --- | --- | --- |
-| **Field warning** | Amber background tint + ⚠ icon + explanation text | Persistent until resolved | Low-confidence AI field |
-| **Action warning** | Amber toast with action button | Persistent until user acts or dismisses | "2 Rechnungen haben unvollständige Daten" |
-| **Preventive warning** | Inline amber banner at top of relevant section | Persistent until condition resolved | "USt-IdNr. fehlt — Vorsteuerabzug gefährdet" |
+| Type                   | Visual                                            | Duration                                | Example                                      |
+| ---------------------- | ------------------------------------------------- | --------------------------------------- | -------------------------------------------- |
+| **Field warning**      | Amber background tint + ⚠ icon + explanation text | Persistent until resolved               | Low-confidence AI field                      |
+| **Action warning**     | Amber toast with action button                    | Persistent until user acts or dismisses | "2 Rechnungen haben unvollständige Daten"    |
+| **Preventive warning** | Inline amber banner at top of relevant section    | Persistent until condition resolved     | "USt-IdNr. fehlt — Vorsteuerabzug gefährdet" |
 
 **Error Feedback:**
 
-| Type | Visual | Duration | Example |
-| --- | --- | --- | --- |
-| **Field error** | Red background tint + ✕ icon + guidance text | Persistent until corrected | Required field missing or validation failure |
-| **Action error** | Amber toast (NOT red modal) with retry option | Persistent until user acts | Export generation failed |
-| **System error** | Full-screen gentle error state with retry button and support contact | Persistent until resolved | Server unreachable, API timeout |
+| Type             | Visual                                                               | Duration                   | Example                                      |
+| ---------------- | -------------------------------------------------------------------- | -------------------------- | -------------------------------------------- |
+| **Field error**  | Red background tint + ✕ icon + guidance text                         | Persistent until corrected | Required field missing or validation failure |
+| **Action error** | Amber toast (NOT red modal) with retry option                        | Persistent until user acts | Export generation failed                     |
+| **System error** | Full-screen gentle error state with retry button and support contact | Persistent until resolved  | Server unreachable, API timeout              |
 
 **Feedback Rules:**
 
@@ -1850,15 +1853,15 @@ Every form field should have a sensible default or suggestion. Thomas should edi
 
 **Input Types by Context:**
 
-| Data Type | Input Component | Keyboard | Validation |
-| --- | --- | --- | --- |
-| **Invoice amount** | Number input with € prefix | Numeric keypad | Real-time format to German locale (1.234,56) |
-| **Tax ID (USt-IdNr.)** | Text input with "DE" prefix | Alphanumeric | Format check: DE + 9 digits |
-| **Date** | Date picker (native mobile, shadcn on desktop) | None — picker only | Range check: not in future |
-| **SKR code** | Searchable select with most-used codes at top | None — select only | Valid code from SKR03/04 set |
-| **Supplier name** | Text input with autocomplete from known suppliers | Text | None — free text |
-| **Berater-Nr / Mandanten-Nr** | Number input | Numeric keypad | Required for DATEV export, digits only |
-| **Email** | Email input | Email keyboard | Standard email validation |
+| Data Type                     | Input Component                                   | Keyboard           | Validation                                   |
+| ----------------------------- | ------------------------------------------------- | ------------------ | -------------------------------------------- |
+| **Invoice amount**            | Number input with € prefix                        | Numeric keypad     | Real-time format to German locale (1.234,56) |
+| **Tax ID (USt-IdNr.)**        | Text input with "DE" prefix                       | Alphanumeric       | Format check: DE + 9 digits                  |
+| **Date**                      | Date picker (native mobile, shadcn on desktop)    | None — picker only | Range check: not in future                   |
+| **SKR code**                  | Searchable select with most-used codes at top     | None — select only | Valid code from SKR03/04 set                 |
+| **Supplier name**             | Text input with autocomplete from known suppliers | Text               | None — free text                             |
+| **Berater-Nr / Mandanten-Nr** | Number input                                      | Numeric keypad     | Required for DATEV export, digits only       |
+| **Email**                     | Email input                                       | Email keyboard     | Standard email validation                    |
 
 **Inline Correction Pattern (for AI-extracted fields):**
 
@@ -1913,13 +1916,13 @@ When Thomas taps an amber field to correct it:
 
 **Philosophy:** Empty states are opportunities, not dead ends. Every empty state has a clear action and encouraging tone.
 
-| Context | Message | Action | Tone |
-| --- | --- | --- | --- |
-| **New user, no invoices** | "Noch keine Rechnungen? Das ändern wir jetzt!" | "Erste Rechnung fotografieren" button (primary green) | Inviting, encouraging |
-| **All invoices processed** | "Alles erledigt! Keine Rechnungen zu prüfen." | "Neue Rechnung erfassen" button (secondary) | Satisfied, calm |
-| **No invoices in pipeline stage** | "Keine Rechnungen in [Stage]" | No action needed — other stages have content | Neutral, informational |
-| **Empty archive search** | "Keine Ergebnisse für '[query]'" | "Filter anpassen" link + search suggestions | Helpful, guiding |
-| **No exports yet** | "Noch kein Export durchgeführt" | "Wenn Rechnungen bereit sind, erscheint hier der Export-Button" | Explanatory, patient |
+| Context                           | Message                                        | Action                                                          | Tone                   |
+| --------------------------------- | ---------------------------------------------- | --------------------------------------------------------------- | ---------------------- |
+| **New user, no invoices**         | "Noch keine Rechnungen? Das ändern wir jetzt!" | "Erste Rechnung fotografieren" button (primary green)           | Inviting, encouraging  |
+| **All invoices processed**        | "Alles erledigt! Keine Rechnungen zu prüfen."  | "Neue Rechnung erfassen" button (secondary)                     | Satisfied, calm        |
+| **No invoices in pipeline stage** | "Keine Rechnungen in [Stage]"                  | No action needed — other stages have content                    | Neutral, informational |
+| **Empty archive search**          | "Keine Ergebnisse für '[query]'"               | "Filter anpassen" link + search suggestions                     | Helpful, guiding       |
+| **No exports yet**                | "Noch kein Export durchgeführt"                | "Wenn Rechnungen bereit sind, erscheint hier der Export-Button" | Explanatory, patient   |
 
 **Empty State Visual:**
 
@@ -1934,13 +1937,13 @@ When Thomas taps an amber field to correct it:
 
 **Processing Pipeline:**
 
-| Context | Loading Pattern | Duration Expected |
-| --- | --- | --- |
-| **Invoice AI processing** | Skeleton shimmer on invoice card fields (cascade, top-to-bottom) | 2–5 seconds |
-| **Dashboard load** | Skeleton on stat cards + pipeline counts simultaneously | <2 seconds |
-| **DATEV export generation** | Three-step progress indicator: Validating → Formatting → Packaging | <10 seconds |
-| **Invoice list pagination** | Skeleton cards appended at bottom (infinite scroll) | <1 second |
-| **Image upload** | Progress bar on camera capture counter badge | 1–3 seconds |
+| Context                     | Loading Pattern                                                    | Duration Expected |
+| --------------------------- | ------------------------------------------------------------------ | ----------------- |
+| **Invoice AI processing**   | Skeleton shimmer on invoice card fields (cascade, top-to-bottom)   | 2–5 seconds       |
+| **Dashboard load**          | Skeleton on stat cards + pipeline counts simultaneously            | <2 seconds        |
+| **DATEV export generation** | Three-step progress indicator: Validating → Formatting → Packaging | <10 seconds       |
+| **Invoice list pagination** | Skeleton cards appended at bottom (infinite scroll)                | <1 second         |
+| **Image upload**            | Progress bar on camera capture counter badge                       | 1–3 seconds       |
 
 **Loading Rules:**
 
@@ -1954,14 +1957,14 @@ When Thomas taps an amber field to correct it:
 
 **Voice Rules for All UI Text:**
 
-| Rule | Example (Wrong) | Example (Right) |
-| --- | --- | --- |
-| **Conversational, not technical** | "OCR extraction completed" | "Rechnung wurde gelesen" |
-| **Imperative verbs for actions** | "Freigabe" (noun) | "Freigeben" (verb) |
-| **Specific, not vague** | "Ein Fehler ist aufgetreten" | "Die Steuernummer konnte nicht gelesen werden" |
-| **Encouraging, not neutral** | "0 Rechnungen" | "Noch keine Rechnungen — das ändern wir jetzt!" |
-| **Quantified, not abstract** | "Du sparst Zeit" | "~45 Minuten diese Woche gespart" |
-| **"Du" not "Sie"** | "Bitte überprüfen Sie..." | "Kannst du das kurz prüfen?" |
+| Rule                              | Example (Wrong)              | Example (Right)                                 |
+| --------------------------------- | ---------------------------- | ----------------------------------------------- |
+| **Conversational, not technical** | "OCR extraction completed"   | "Rechnung wurde gelesen"                        |
+| **Imperative verbs for actions**  | "Freigabe" (noun)            | "Freigeben" (verb)                              |
+| **Specific, not vague**           | "Ein Fehler ist aufgetreten" | "Die Steuernummer konnte nicht gelesen werden"  |
+| **Encouraging, not neutral**      | "0 Rechnungen"               | "Noch keine Rechnungen — das ändern wir jetzt!" |
+| **Quantified, not abstract**      | "Du sparst Zeit"             | "~45 Minuten diese Woche gespart"               |
+| **"Du" not "Sie"**                | "Bitte überprüfen Sie..."    | "Kannst du das kurz prüfen?"                    |
 
 **"Du" vs. "Sie" Decision:**
 
@@ -2025,11 +2028,11 @@ Desktop serves the review-and-export workflow — the Steuerberater's environmen
 
 **Layout Shift Rules:**
 
-| Breakpoint | Navigation | Invoice View | Pipeline Header |
-|---|---|---|---|
-| Mobile (<768px) | Bottom bar (3 items) | Full-width accordion | Vertical, compact stats |
-| Tablet (768–1023px) | Bottom bar (3 items) | Wider accordion cards | Vertical, expanded stats |
-| Desktop (1024px+) | Top horizontal nav | Split-view (list + detail) | Horizontal status bar |
+| Breakpoint          | Navigation           | Invoice View               | Pipeline Header          |
+| ------------------- | -------------------- | -------------------------- | ------------------------ |
+| Mobile (<768px)     | Bottom bar (3 items) | Full-width accordion       | Vertical, compact stats  |
+| Tablet (768–1023px) | Bottom bar (3 items) | Wider accordion cards      | Vertical, expanded stats |
+| Desktop (1024px+)   | Top horizontal nav   | Split-view (list + detail) | Horizontal status bar    |
 
 ### Accessibility Strategy
 

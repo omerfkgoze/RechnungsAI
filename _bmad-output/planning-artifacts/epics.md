@@ -216,38 +216,46 @@ FR51: Epic 1 - AI disclaimer acceptance logging
 ## Epic List
 
 ### Epic 1: Project Foundation and User Authentication
+
 Users can register, log in, and configure tenant settings. The secure session management and trust-building onboarding experience establishes confidence. Includes starter template setup, design token system, navigation, and responsive layout as the foundation for all subsequent epics.
 **FRs covered:** FR35, FR36, FR37, FR38, FR48, FR49, FR50, FR51
 **UX-DRs covered:** UX-DR6, UX-DR8, UX-DR9, UX-DR10, UX-DR12, UX-DR16, UX-DR17, UX-DR18, UX-DR19
 
 ### Epic 2: Invoice Capture and AI Data Extraction
+
 Users can upload invoices via photo capture, PDF, or XML and AI extracts structured data within seconds. Each extracted field displays a confidence score.
 **FRs covered:** FR1, FR2, FR3, FR4, FR5
 **UX-DRs covered:** UX-DR3, UX-DR4
 
 ### Epic 3: Invoice Review, Approval, and Dashboard
+
 Users can review AI-extracted data, correct errors, and approve invoices. Swipe-to-approve enables instant approval of high-confidence invoices while low-confidence items receive guided correction flows. The pipeline dashboard provides full invoice management.
 **FRs covered:** FR6, FR7, FR8, FR9, FR10, FR11, FR12, FR30, FR31, FR32, FR33, FR34, FR46
 **UX-DRs covered:** UX-DR1, UX-DR2, UX-DR5, UX-DR7, UX-DR11, UX-DR13, UX-DR15, UX-DR20
 
 ### Epic 4: GoBD-Compliant Archive and Audit Trail
+
 All user documents are automatically protected with immutable storage, SHA-256 hashing, 10-year retention, and a complete audit trail. Users can search and export archived documents for Finanzamt inspection.
 **FRs covered:** FR21, FR22, FR23, FR24, FR25
 
 ### Epic 5: DATEV Export
+
 Users can export approved invoices as DATEV CSV (Buchungsstapel EXTF format) and send to their Steuerberater. Correct Windows-1252 encoding, BU-Schlüssel mapping, and partial export support included.
 **FRs covered:** FR16, FR17, FR18, FR19, FR20
 **UX-DRs covered:** UX-DR14
 
 ### Epic 6: E-Invoice Validation
+
 Users can validate incoming XRechnung and ZUGFeRD invoices against EN 16931 business rules, view detailed error descriptions, and send correction emails to suppliers.
 **FRs covered:** FR13, FR14, FR15
 
 ### Epic 7: Verfahrensdokumentation
+
 Users can download an auto-generated Verfahrensdokumentation PDF based on tenant configuration, see its status on the dashboard, and receive automatic updates when settings change.
 **FRs covered:** FR26, FR27, FR28, FR29
 
 ### Epic 8: Subscription, Billing, and Notifications
+
 Users can start with a free tier, upgrade to paid plans via Stripe, view billing history, and receive weekly value recap emails with time saved and deduction summaries.
 **FRs covered:** FR39, FR40, FR41, FR42, FR43, FR44, FR45, FR47
 
@@ -1013,7 +1021,7 @@ So that I have the required GoBD documentation ready for the Finanzamt without w
 **Given** the user wants to download the Verfahrensdokumentation
 **When** they click the download button
 **Then** the PDF is served via a Route Handler as a binary download (FR28)
-**And** the filename follows the pattern: "Verfahrensdokumentation_[CompanyName]_[Date].pdf"
+**And** the filename follows the pattern: "Verfahrensdokumentation*[CompanyName]*[Date].pdf"
 **And** the download action is logged in the audit trail
 
 **Given** no tenant settings have been configured yet
