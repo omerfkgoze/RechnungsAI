@@ -1,6 +1,6 @@
 # Story 1.1: Monorepo and Next.js Project Initialization
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -23,72 +23,72 @@ So that all subsequent features can be built on a solid, consistent foundation.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Turborepo Monorepo Initialization (AC: #1)
-  - [ ] 1.1 Run `pnpm dlx create-turbo@latest rechnungsai --package-manager pnpm` in the project root
-  - [ ] 1.2 Verify `pnpm-workspace.yaml` includes `apps/*` and `packages/*`
-  - [ ] 1.3 Configure `turbo.json` with tasks: `build` (dependsOn: `^build`, outputs: `dist/**`, `.next/**`), `dev` (cache: false, persistent: true), `lint` (outputs: []), `check-types` (dependsOn: `^build`)
-  - [ ] 1.4 Add `test` task to `turbo.json` (outputs: `coverage/**`)
+- [x] Task 1: Turborepo Monorepo Initialization (AC: #1)
+  - [x] 1.1 Run `pnpm dlx create-turbo@latest rechnungsai --package-manager pnpm` in the project root
+  - [x] 1.2 Verify `pnpm-workspace.yaml` includes `apps/*` and `packages/*`
+  - [x] 1.3 Configure `turbo.json` with tasks: `build` (dependsOn: `^build`, outputs: `dist/**`, `.next/**`), `dev` (cache: false, persistent: true), `lint` (outputs: []), `check-types` (dependsOn: `^build`)
+  - [x] 1.4 Add `test` task to `turbo.json` (outputs: `coverage/**`)
 
-- [ ] Task 2: Next.js App Router Setup (AC: #2, #3)
-  - [ ] 2.1 Run `pnpm create next-app@latest web --typescript --tailwind --eslint --app --turbopack --no-src-dir` inside `apps/`
-  - [ ] 2.2 Verify TypeScript strict mode is enabled in `apps/web/tsconfig.json` (`"strict": true`)
-  - [ ] 2.3 Run `pnpm dlx shadcn@latest init` inside `apps/web`
-  - [ ] 2.4 Verify `components.json` is created with correct configuration
-  - [ ] 2.5 Confirm Tailwind CSS v4 is configured (check `globals.css` for `@import "tailwindcss"` syntax, NOT `@tailwind` directives — v4 uses CSS-native imports)
+- [x] Task 2: Next.js App Router Setup (AC: #2, #3)
+  - [x] 2.1 Run `pnpm create next-app@latest web --typescript --tailwind --eslint --app --turbopack --no-src-dir` inside `apps/`
+  - [x] 2.2 Verify TypeScript strict mode is enabled in `apps/web/tsconfig.json` (`"strict": true`)
+  - [x] 2.3 Run `pnpm dlx shadcn@latest init` inside `apps/web`
+  - [x] 2.4 Verify `components.json` is created with correct configuration
+  - [x] 2.5 Confirm Tailwind CSS v4 is configured (check `globals.css` for `@import "tailwindcss"` syntax, NOT `@tailwind` directives — v4 uses CSS-native imports)
 
-- [ ] Task 3: Workspace Packages Setup (AC: #4)
-  - [ ] 3.1 Create `packages/shared/` with `package.json` (name: `@rechnungsai/shared`), `tsconfig.json`, and `src/index.ts` barrel export
-  - [ ] 3.2 Create `packages/shared/src/schemas/` directory (future Zod schemas)
-  - [ ] 3.3 Create `packages/shared/src/types/` directory with `action-result.ts` containing `ActionResult<T>` type
-  - [ ] 3.4 Create `packages/shared/src/constants/` directory
-  - [ ] 3.5 Create `packages/ai/` with `package.json` (name: `@rechnungsai/ai`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
-  - [ ] 3.6 Create `packages/datev/` with `package.json` (name: `@rechnungsai/datev`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
-  - [ ] 3.7 Create `packages/validation/` with `package.json` (name: `@rechnungsai/validation`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
-  - [ ] 3.8 Create `packages/gobd/` with `package.json` (name: `@rechnungsai/gobd`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
-  - [ ] 3.9 Create `packages/pdf/` with `package.json` (name: `@rechnungsai/pdf`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
-  - [ ] 3.10 Create `packages/email/` with `package.json` (name: `@rechnungsai/email`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
-  - [ ] 3.11 Verify `packages/typescript-config/` exists (created by create-turbo) with `base.json` and `nextjs.json`
-  - [ ] 3.12 Verify `packages/eslint-config/` exists (created by create-turbo) with `base.js` and `nextjs.js`
-  - [ ] 3.13 All package `tsconfig.json` files must extend from `@rechnungsai/typescript-config`
+- [x] Task 3: Workspace Packages Setup (AC: #4)
+  - [x] 3.1 Create `packages/shared/` with `package.json` (name: `@rechnungsai/shared`), `tsconfig.json`, and `src/index.ts` barrel export
+  - [x] 3.2 Create `packages/shared/src/schemas/` directory (future Zod schemas)
+  - [x] 3.3 Create `packages/shared/src/types/` directory with `action-result.ts` containing `ActionResult<T>` type
+  - [x] 3.4 Create `packages/shared/src/constants/` directory
+  - [x] 3.5 Create `packages/ai/` with `package.json` (name: `@rechnungsai/ai`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
+  - [x] 3.6 Create `packages/datev/` with `package.json` (name: `@rechnungsai/datev`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
+  - [x] 3.7 Create `packages/validation/` with `package.json` (name: `@rechnungsai/validation`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
+  - [x] 3.8 Create `packages/gobd/` with `package.json` (name: `@rechnungsai/gobd`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
+  - [x] 3.9 Create `packages/pdf/` with `package.json` (name: `@rechnungsai/pdf`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
+  - [x] 3.10 Create `packages/email/` with `package.json` (name: `@rechnungsai/email`), `tsconfig.json`, `src/index.ts` — depends on `@rechnungsai/shared`
+  - [x] 3.11 Verify `packages/typescript-config/` exists (created by create-turbo) with `base.json` and `nextjs.json`
+  - [x] 3.12 Verify `packages/eslint-config/` exists (created by create-turbo) with `base.js` and `nextjs.js`
+  - [x] 3.13 All package `tsconfig.json` files must extend from `@rechnungsai/typescript-config`
 
-- [ ] Task 4: Supabase Local Development Setup (AC: #5, #7)
-  - [ ] 4.1 Run `supabase init` in the project root to create `supabase/` directory with `config.toml`
-  - [ ] 4.2 Create initial migration file `supabase/migrations/00000000000000_init.sql` (empty or with comment: `-- Initial migration placeholder`)
-  - [ ] 4.3 Create `supabase/seed.sql` with placeholder comment
-  - [ ] 4.4 Verify `supabase start` launches local instance (requires Docker running)
-  - [ ] 4.5 Add Supabase environment variables to `apps/web/.env.example`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- [x] Task 4: Supabase Local Development Setup (AC: #5, #7)
+  - [x] 4.1 Run `supabase init` in the project root to create `supabase/` directory with `config.toml`
+  - [x] 4.2 Create initial migration file `supabase/migrations/00000000000000_init.sql` (empty or with comment: `-- Initial migration placeholder`)
+  - [x] 4.3 Create `supabase/seed.sql` with placeholder comment
+  - [x] 4.4 Verify `supabase start` launches local instance (requires Docker running)
+  - [x] 4.5 Add Supabase environment variables to `apps/web/.env.example`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 
-- [ ] Task 5: ESLint Configuration (AC: #8)
-  - [ ] 5.1 Ensure shared ESLint config in `packages/eslint-config/` covers TypeScript strict rules
-  - [ ] 5.2 Verify `apps/web` extends the shared ESLint config
-  - [ ] 5.3 Run `pnpm lint` from root — must pass with zero errors
-  - [ ] 5.4 All workspace packages must have lint scripts configured
+- [x] Task 5: ESLint Configuration (AC: #8)
+  - [x] 5.1 Ensure shared ESLint config in `packages/eslint-config/` covers TypeScript strict rules
+  - [x] 5.2 Verify `apps/web` extends the shared ESLint config
+  - [x] 5.3 Run `pnpm lint` from root — must pass with zero errors
+  - [x] 5.4 All workspace packages must have lint scripts configured
 
-- [ ] Task 6: Dockerfile Multi-Stage Build (AC: #9)
-  - [ ] 6.1 Create `Dockerfile` at project root with multi-stage build
-  - [ ] 6.2 Stage 1 (builder): `FROM node:20-alpine`, install pnpm, copy workspace, run `turbo prune --scope=web --docker`
-  - [ ] 6.3 Stage 2 (installer): Install dependencies from pruned output, run `turbo run build --filter=web`
-  - [ ] 6.4 Stage 3 (runner): Minimal production image with standalone Next.js output
-  - [ ] 6.5 Create `.dockerignore` excluding `node_modules`, `.next`, `.git`, `supabase/`, `_bmad*`
+- [x] Task 6: Dockerfile Multi-Stage Build (AC: #9)
+  - [x] 6.1 Create `Dockerfile` at project root with multi-stage build
+  - [x] 6.2 Stage 1 (builder): `FROM node:20-alpine`, install pnpm, copy workspace, run `turbo prune --scope=web --docker`
+  - [x] 6.3 Stage 2 (installer): Install dependencies from pruned output, run `turbo run build --filter=web`
+  - [x] 6.4 Stage 3 (runner): Minimal production image with standalone Next.js output
+  - [x] 6.5 Create `.dockerignore` excluding `node_modules`, `.next`, `.git`, `supabase/`, `_bmad*`
 
-- [ ] Task 7: Package Dependency Enforcement (AC: #10)
-  - [ ] 7.1 All domain packages (`ai`, `datev`, `validation`, `gobd`, `pdf`, `email`) list only `@rechnungsai/shared` as workspace dependency
-  - [ ] 7.2 `packages/shared` has zero workspace dependencies (leaf node)
-  - [ ] 7.3 `apps/web` lists required workspace packages as dependencies using `workspace:*` protocol
-  - [ ] 7.4 Add a comment in root `package.json` documenting the dependency rule
+- [x] Task 7: Package Dependency Enforcement (AC: #10)
+  - [x] 7.1 All domain packages (`ai`, `datev`, `validation`, `gobd`, `pdf`, `email`) list only `@rechnungsai/shared` as workspace dependency
+  - [x] 7.2 `packages/shared` has zero workspace dependencies (leaf node)
+  - [x] 7.3 `apps/web` lists required workspace packages as dependencies using `workspace:*` protocol
+  - [x] 7.4 Add a comment in root `package.json` documenting the dependency rule
 
-- [ ] Task 8: Development Verification (AC: #6)
-  - [ ] 8.1 Run `pnpm install` from root — must resolve all workspace dependencies
-  - [ ] 8.2 Run `pnpm dev` — Next.js dev server must start without errors
-  - [ ] 8.3 Run `pnpm build` — all packages and web app must build successfully
-  - [ ] 8.4 Run `pnpm lint` — must pass across all workspaces
-  - [ ] 8.5 Verify `turbo.json` caching works (second build should hit cache)
+- [x] Task 8: Development Verification (AC: #6)
+  - [x] 8.1 Run `pnpm install` from root — must resolve all workspace dependencies
+  - [x] 8.2 Run `pnpm dev` — Next.js dev server must start without errors
+  - [x] 8.3 Run `pnpm build` — all packages and web app must build successfully
+  - [x] 8.4 Run `pnpm lint` — must pass across all workspaces
+  - [x] 8.5 Verify `turbo.json` caching works (second build should hit cache)
 
-- [ ] Task 9: Environment and Configuration Files
-  - [ ] 9.1 Create `apps/web/.env.example` with all required environment variables
-  - [ ] 9.2 Create `apps/web/.env.local` (gitignored) with local Supabase values from `supabase start` output
-  - [ ] 9.3 Verify `.gitignore` includes: `node_modules`, `.next`, `.env.local`, `.env*.local`, `.turbo`
-  - [ ] 9.4 Create `.npmrc` with `auto-install-peers=true` if not present
+- [x] Task 9: Environment and Configuration Files
+  - [x] 9.1 Create `apps/web/.env.example` with all required environment variables
+  - [x] 9.2 Create `apps/web/.env.local` (gitignored) with local Supabase values from `supabase start` output
+  - [x] 9.3 Verify `.gitignore` includes: `node_modules`, `.next`, `.env.local`, `.env*.local`, `.turbo`
+  - [x] 9.4 Create `.npmrc` with `auto-install-peers=true` if not present
 
 ## Dev Notes
 
@@ -268,9 +268,84 @@ Docker must be running before `supabase start`. The local instance includes Post
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6
 
 ### Debug Log References
 
+- Supabase port conflict resolved by stopping existing SubTrack instance before starting RechnungsAI instance
+- Removed stale `apps/web/pnpm-workspace.yaml` and `apps/web/pnpm-lock.yaml` created by create-next-app (caused Turbopack root detection warning)
+- Added `type: "module"` to all domain packages to resolve ESLint ES module warnings
+- Supabase skipped migration file named `init.sql` by design — rename to apply
+
 ### Completion Notes List
 
+- Turborepo monorepo initialized with pnpm@10.33.0 and turbo@2.9.6
+- Next.js 16.2.3 with App Router, Turbopack, TypeScript strict mode, Tailwind CSS v4, shadcn/ui
+- 8 workspace packages created: shared, ai, datev, validation, gobd, pdf, email + web app
+- Config packages (typescript-config, eslint-config) from create-turbo, renamed to @rechnungsai/* scope
+- Package dependency graph enforced: domain packages depend only on shared; shared has no workspace deps
+- Supabase local dev environment configured and verified (PostgreSQL, Auth, Storage, Realtime)
+- Multi-stage Dockerfile for production deployment with turbo prune
+- All verification gates passed: pnpm install, pnpm dev, pnpm build, pnpm lint, turbo caching (FULL TURBO)
+
 ### File List
+
+- package.json (new - root monorepo config)
+- pnpm-workspace.yaml (new - workspace definition)
+- pnpm-lock.yaml (new - lockfile)
+- turbo.json (new - Turborepo task config)
+- .gitignore (modified - added node_modules, .next, .env.local, .turbo, dist)
+- .npmrc (new - auto-install-peers)
+- .dockerignore (new)
+- Dockerfile (new - multi-stage build)
+- apps/web/ (new - Next.js 16 App Router application)
+- apps/web/package.json
+- apps/web/tsconfig.json
+- apps/web/next.config.ts
+- apps/web/eslint.config.mjs
+- apps/web/components.json
+- apps/web/app/globals.css
+- apps/web/app/layout.tsx
+- apps/web/app/page.tsx
+- apps/web/components/ui/button.tsx
+- apps/web/lib/utils.ts
+- apps/web/.env.example (new)
+- apps/web/.env.local (new - gitignored)
+- packages/shared/package.json (new)
+- packages/shared/tsconfig.json (new)
+- packages/shared/eslint.config.js (new)
+- packages/shared/src/index.ts (new)
+- packages/shared/src/types/action-result.ts (new)
+- packages/ai/package.json (new)
+- packages/ai/tsconfig.json (new)
+- packages/ai/eslint.config.js (new)
+- packages/ai/src/index.ts (new)
+- packages/datev/package.json (new)
+- packages/datev/tsconfig.json (new)
+- packages/datev/eslint.config.js (new)
+- packages/datev/src/index.ts (new)
+- packages/validation/package.json (new)
+- packages/validation/tsconfig.json (new)
+- packages/validation/eslint.config.js (new)
+- packages/validation/src/index.ts (new)
+- packages/gobd/package.json (new)
+- packages/gobd/tsconfig.json (new)
+- packages/gobd/eslint.config.js (new)
+- packages/gobd/src/index.ts (new)
+- packages/pdf/package.json (new)
+- packages/pdf/tsconfig.json (new)
+- packages/pdf/eslint.config.js (new)
+- packages/pdf/src/index.ts (new)
+- packages/email/package.json (new)
+- packages/email/tsconfig.json (new)
+- packages/email/eslint.config.js (new)
+- packages/email/src/index.ts (new)
+- packages/typescript-config/package.json (modified - renamed to @rechnungsai/typescript-config)
+- packages/eslint-config/package.json (modified - renamed to @rechnungsai/eslint-config)
+- supabase/config.toml (new)
+- supabase/migrations/00000000000000_init.sql (new)
+- supabase/seed.sql (new)
+
+### Change Log
+
+- 2026-04-11: Story 1.1 implemented — Turborepo monorepo with Next.js 16, Tailwind CSS v4, shadcn/ui, Supabase, 8 workspace packages, Dockerfile, ESLint

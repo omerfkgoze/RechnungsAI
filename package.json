@@ -1,0 +1,19 @@
+{
+  "name": "rechnungsai",
+  "private": true,
+  "//dependencyRules": "apps/web can import any package; domain packages (ai, datev, validation, gobd, pdf, email) only import from shared; no cross-package imports except shared",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "turbo": "^2.9.6",
+    "typescript": "5.9.2"
+  },
+  "packageManager": "pnpm@10.33.0"
+}
