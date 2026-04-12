@@ -51,6 +51,7 @@ export function MobileMenuSheet() {
             return (
               <SheetClose
                 key={href}
+                nativeButton={false}
                 render={
                   <Link
                     href={href}
