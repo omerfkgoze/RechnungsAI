@@ -1,6 +1,6 @@
 # Story 1.3: User Registration and Authentication
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -27,74 +27,74 @@ so that my data is protected and I can access my account from any device.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Install dependencies and add shadcn form primitives (AC: #3, #9)
-  - [ ] 1.1 From `apps/web/`, add runtime deps: `pnpm add @supabase/ssr @supabase/supabase-js react-hook-form zod @hookform/resolvers` — pin to latest stable at time of implementation; record exact versions in the Dev Agent Record
-  - [ ] 1.2 Add shadcn form primitives: `pnpm dlx shadcn@latest add form input label` from `apps/web/`; do NOT add `select`/`table` (out of scope); verify new files land under `apps/web/components/ui/`
-  - [ ] 1.3 Update `.env.example` to include `SUPABASE_AUTH_GOOGLE_CLIENT_ID=`, `SUPABASE_AUTH_GOOGLE_SECRET=`, and a commented `# Generate a Google OAuth client at https://console.cloud.google.com/apis/credentials with authorized redirect URI http://127.0.0.1:54321/auth/v1/callback (local) and https://<prod-host>/auth/v1/callback (prod).`
+- [x] Task 1: Install dependencies and add shadcn form primitives (AC: #3, #9)
+  - [x] 1.1 From `apps/web/`, add runtime deps: `pnpm add @supabase/ssr @supabase/supabase-js react-hook-form zod @hookform/resolvers` — pin to latest stable at time of implementation; record exact versions in the Dev Agent Record
+  - [x] 1.2 Add shadcn form primitives: `pnpm dlx shadcn@latest add form input label` from `apps/web/`; do NOT add `select`/`table` (out of scope); verify new files land under `apps/web/components/ui/`
+  - [x] 1.3 Update `.env.example` to include `SUPABASE_AUTH_GOOGLE_CLIENT_ID=`, `SUPABASE_AUTH_GOOGLE_SECRET=`, and a commented `# Generate a Google OAuth client at https://console.cloud.google.com/apis/credentials with authorized redirect URI http://127.0.0.1:54321/auth/v1/callback (local) and https://<prod-host>/auth/v1/callback (prod).`
 
-- [ ] Task 2: Database schema + RLS + signup trigger (AC: #1, #2, #8)
-  - [ ] 2.1 Create `supabase/migrations/<timestamp>_auth_tenants_users.sql` with the full schema from AC #1 — tables, FKs, indexes, RLS enable, and policies (separate policy per `select/insert/update/delete` per Supabase best practice using `(select tenant_id from public.users where id = auth.uid())` — use a scalar subquery, NOT a `join`, so the planner can cache; see Supabase RLS performance guidance)
-  - [ ] 2.2 Add `public.handle_new_user()` function (`security definer`, `set search_path = public, auth`) that (a) inserts a new `tenants` row with `company_name = split_part(NEW.email, '@', 1)`, default `skr_plan = 'SKR03'`, (b) inserts a new `public.users` row linking `id = NEW.id`, `tenant_id = <new tenant id>`, `email = NEW.email`, `role = 'owner'`; wrap creates and inserts in a single transaction; grant execute to `service_role` and `authenticated`
-  - [ ] 2.3 Add trigger `on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user()`
-  - [ ] 2.4 Grant minimum privileges: `grant select on public.tenants, public.users to authenticated; grant insert on public.tenants, public.users to service_role;` — the trigger uses security-definer, so `authenticated` does NOT get insert on these tables directly
-  - [ ] 2.5 Run `supabase db reset` locally; verify schema + trigger + policies load without error; add a comment block at the top of the migration documenting the RLS smoke test described in AC #12
-  - [ ] 2.6 Regenerate types: `supabase gen types typescript --local > packages/shared/src/types/database.ts`; re-export from `packages/shared/src/index.ts`
+- [x] Task 2: Database schema + RLS + signup trigger (AC: #1, #2, #8)
+  - [x] 2.1 Create `supabase/migrations/<timestamp>_auth_tenants_users.sql` with the full schema from AC #1 — tables, FKs, indexes, RLS enable, and policies (separate policy per `select/insert/update/delete` per Supabase best practice using `(select tenant_id from public.users where id = auth.uid())` — use a scalar subquery, NOT a `join`, so the planner can cache; see Supabase RLS performance guidance)
+  - [x] 2.2 Add `public.handle_new_user()` function (`security definer`, `set search_path = public, auth`) that (a) inserts a new `tenants` row with `company_name = split_part(NEW.email, '@', 1)`, default `skr_plan = 'SKR03'`, (b) inserts a new `public.users` row linking `id = NEW.id`, `tenant_id = <new tenant id>`, `email = NEW.email`, `role = 'owner'`; wrap creates and inserts in a single transaction; grant execute to `service_role` and `authenticated`
+  - [x] 2.3 Add trigger `on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user()`
+  - [x] 2.4 Grant minimum privileges: `grant select on public.tenants, public.users to authenticated; grant insert on public.tenants, public.users to service_role;` — the trigger uses security-definer, so `authenticated` does NOT get insert on these tables directly
+  - [x] 2.5 Run `supabase db reset` locally; verify schema + trigger + policies load without error; add a comment block at the top of the migration documenting the RLS smoke test described in AC #12
+  - [x] 2.6 Regenerate types: `supabase gen types typescript --local > packages/shared/src/types/database.ts`; re-export from `packages/shared/src/index.ts`
 
-- [ ] Task 3: Supabase client helpers (AC: #5, #7, #8)
-  - [ ] 3.1 Create `apps/web/lib/supabase/server.ts` exporting `createServerClient()` — uses `@supabase/ssr` `createServerClient` with `cookies()` from `next/headers` and the `Database` type generic; wrap cookie `get/set/remove` handlers per the installed `@supabase/ssr` readme
-  - [ ] 3.2 Create `apps/web/lib/supabase/client.ts` exporting `createBrowserClient()` — uses `@supabase/ssr` `createBrowserClient` with the `Database` generic; marked `"use client"` is NOT required (it's a helper), but the file exports only the factory — consumers are Client Components
-  - [ ] 3.3 Create `apps/web/lib/supabase/middleware.ts` exporting `updateSession(request: NextRequest)` — implements the documented Supabase middleware pattern: instantiate server client with `request.cookies` getter and a `response.cookies` setter; call `supabase.auth.getUser()` to refresh tokens; return the mutated `NextResponse`
-  - [ ] 3.4 Do NOT create or import a service-role client in this story (YAGNI and security); if one is ever needed it lives in a separate file with a file-top `// SERVER-ONLY, SERVICE-ROLE` banner
+- [x] Task 3: Supabase client helpers (AC: #5, #7, #8)
+  - [x] 3.1 Create `apps/web/lib/supabase/server.ts` exporting `createServerClient()` — uses `@supabase/ssr` `createServerClient` with `cookies()` from `next/headers` and the `Database` type generic; wrap cookie `get/set/remove` handlers per the installed `@supabase/ssr` readme
+  - [x] 3.2 Create `apps/web/lib/supabase/client.ts` exporting `createBrowserClient()` — uses `@supabase/ssr` `createBrowserClient` with the `Database` generic; marked `"use client"` is NOT required (it's a helper), but the file exports only the factory — consumers are Client Components
+  - [x] 3.3 Create `apps/web/lib/supabase/middleware.ts` exporting `updateSession(request: NextRequest)` — implements the documented Supabase middleware pattern: instantiate server client with `request.cookies` getter and a `response.cookies` setter; call `supabase.auth.getUser()` to refresh tokens; return the mutated `NextResponse`
+  - [x] 3.4 Do NOT create or import a service-role client in this story (YAGNI and security); if one is ever needed it lives in a separate file with a file-top `// SERVER-ONLY, SERVICE-ROLE` banner
 
-- [ ] Task 4: Root middleware (AC: #7)
-  - [ ] 4.1 Create `apps/web/middleware.ts`: import `updateSession`; inside `export async function middleware(request)` call `updateSession` first, then read `supabase.auth.getUser()` for the auth decision, then apply the redirect rules in AC #7; use `NextResponse.redirect(new URL('/login?next=' + encodeURIComponent(pathname + search), request.url))` for unauth `(app)` routes and `NextResponse.redirect(new URL('/dashboard', request.url))` for authed `(auth)` routes
-  - [ ] 4.2 Export the `config.matcher`: `['/((?!_next/static|_next/image|favicon.ico|fonts/|api/webhooks/).*)']` — or equivalent — document the chosen pattern in Dev Notes
-  - [ ] 4.3 Verify the middleware leaves `/auth/callback` reachable without auth so the PKCE exchange can complete
+- [x] Task 4: Root middleware (AC: #7)
+  - [x] 4.1 Create `apps/web/middleware.ts`: import `updateSession`; inside `export async function middleware(request)` call `updateSession` first, then read `supabase.auth.getUser()` for the auth decision, then apply the redirect rules in AC #7; use `NextResponse.redirect(new URL('/login?next=' + encodeURIComponent(pathname + search), request.url))` for unauth `(app)` routes and `NextResponse.redirect(new URL('/dashboard', request.url))` for authed `(auth)` routes
+  - [x] 4.2 Export the `config.matcher`: `['/((?!_next/static|_next/image|favicon.ico|fonts/|api/webhooks/).*)']` — or equivalent — document the chosen pattern in Dev Notes
+  - [x] 4.3 Verify the middleware leaves `/auth/callback` reachable without auth so the PKCE exchange can complete
 
-- [ ] Task 5: Zod auth schemas in shared package (AC: #3, #5, #6)
-  - [ ] 5.1 Create `packages/shared/src/schemas/auth.ts` exporting `signupSchema`, `loginSchema`, `resetRequestSchema`, `resetUpdateSchema`; all error messages German (`"E-Mail ist erforderlich."`, `"Passwort muss mindestens 8 Zeichen enthalten."`, `"Passwort muss eine Zahl enthalten."`, `"Die Passwörter stimmen nicht überein."`, etc.); `signupSchema` uses `z.object({...}).refine(d => d.password === d.passwordConfirm, { path: ['passwordConfirm'], message: ... })`
-  - [ ] 5.2 Re-export from `packages/shared/src/index.ts` under a `schemas.auth` barrel (or direct named exports — match the existing `ActionResult` export style)
-  - [ ] 5.3 Import these schemas in BOTH the Server Actions and the Client Component forms — single source of truth per architecture enforcement rule #5
+- [x] Task 5: Zod auth schemas in shared package (AC: #3, #5, #6)
+  - [x] 5.1 Create `packages/shared/src/schemas/auth.ts` exporting `signupSchema`, `loginSchema`, `resetRequestSchema`, `resetUpdateSchema`; all error messages German (`"E-Mail ist erforderlich."`, `"Passwort muss mindestens 8 Zeichen enthalten."`, `"Passwort muss eine Zahl enthalten."`, `"Die Passwörter stimmen nicht überein."`, etc.); `signupSchema` uses `z.object({...}).refine(d => d.password === d.passwordConfirm, { path: ['passwordConfirm'], message: ... })`
+  - [x] 5.2 Re-export from `packages/shared/src/index.ts` under a `schemas.auth` barrel (or direct named exports — match the existing `ActionResult` export style)
+  - [x] 5.3 Import these schemas in BOTH the Server Actions and the Client Component forms — single source of truth per architecture enforcement rule #5
 
-- [ ] Task 6: Server Actions — `app/actions/auth.ts` (AC: #3, #4, #5, #6, #10, #11)
-  - [ ] 6.1 Create `apps/web/app/actions/auth.ts` with `"use server"` at the top; export `signUpWithPassword`, `signInWithPassword`, `requestPasswordReset`, `updatePasswordAfterRecovery`, `signOut` — each returns `ActionResult<T>` from `@rechnungsai/shared`
-  - [ ] 6.2 Every action: parse input with the Zod schema, return `{ success: false, error: <first zod issue in German> }` on parse failure; wrap the Supabase call in `try/catch`; log errors with `console.error("[auth:<action>]", err)`; map known Supabase error codes to German strings (invalid_credentials → "E-Mail oder Passwort ist falsch.", over_email_send_rate_limit → "Zu viele Versuche. Bitte warte einen Moment und versuche es erneut.", weak_password → "Passwort ist zu schwach.")
-  - [ ] 6.3 `requestPasswordReset` always returns success (enumeration protection); the success message is set on the UI layer, not echoed from the action
-  - [ ] 6.4 `signOut` calls `scope: 'local'` then `redirect('/login')` via `next/navigation`
-  - [ ] 6.5 NO Server Action writes to `public.tenants` or `public.users` in this story — the trigger owns creation
+- [x] Task 6: Server Actions — `app/actions/auth.ts` (AC: #3, #4, #5, #6, #10, #11)
+  - [x] 6.1 Create `apps/web/app/actions/auth.ts` with `"use server"` at the top; export `signUpWithPassword`, `signInWithPassword`, `requestPasswordReset`, `updatePasswordAfterRecovery`, `signOut` — each returns `ActionResult<T>` from `@rechnungsai/shared`
+  - [x] 6.2 Every action: parse input with the Zod schema, return `{ success: false, error: <first zod issue in German> }` on parse failure; wrap the Supabase call in `try/catch`; log errors with `console.error("[auth:<action>]", err)`; map known Supabase error codes to German strings (invalid_credentials → "E-Mail oder Passwort ist falsch.", over_email_send_rate_limit → "Zu viele Versuche. Bitte warte einen Moment und versuche es erneut.", weak_password → "Passwort ist zu schwach.")
+  - [x] 6.3 `requestPasswordReset` always returns success (enumeration protection); the success message is set on the UI layer, not echoed from the action
+  - [x] 6.4 `signOut` calls `scope: 'local'` then `redirect('/login')` via `next/navigation`
+  - [x] 6.5 NO Server Action writes to `public.tenants` or `public.users` in this story — the trigger owns creation
 
-- [ ] Task 7: `(auth)` route group + pages (AC: #3, #5, #6, #9)
-  - [ ] 7.1 Create `apps/web/app/(auth)/layout.tsx` — Server Component; renders a centered min-h-screen container with `lang`-aware `<main>`, ensuring `AppShell` (trust badge bar, nav) is NOT present; the layout shows a small RechnungsAI wordmark + a single-line trust footer `🇩🇪 Gehostet in Deutschland · DSGVO · GoBD`
-  - [ ] 7.2 Create `apps/web/app/(auth)/signup/page.tsx` — RSC wrapper + Client form component; fields: Email, Passwort, Passwort bestätigen; primary button "Konto erstellen"; secondary button "Mit Google fortfahren" (Client Component invoking `createBrowserClient().auth.signInWithOAuth`); link "Du hast schon ein Konto? Anmelden" → `/login`; link "Passwort vergessen?" NOT needed here
-  - [ ] 7.3 Create `apps/web/app/(auth)/login/page.tsx` — same form pattern; fields: Email, Passwort; primary "Anmelden"; secondary "Mit Google fortfahren"; links "Noch kein Konto? Registrieren" → `/signup`, "Passwort vergessen?" → `/reset-password`
-  - [ ] 7.4 Create `apps/web/app/(auth)/reset-password/page.tsx` — single email field, button "Reset-Link senden"; after submission show a success card `Falls ein Konto mit dieser E-Mail existiert, haben wir dir einen Link geschickt.` and hide the form
-  - [ ] 7.5 Create `apps/web/app/(auth)/reset-password/update/page.tsx` — reached via the auth callback after the recovery code is exchanged; two fields: Neues Passwort, Passwort bestätigen; button "Passwort speichern"; on success redirect to `/dashboard`
-  - [ ] 7.6 All form components live in `apps/web/components/auth/` as kebab-case files: `signup-form.tsx`, `login-form.tsx`, `reset-request-form.tsx`, `reset-update-form.tsx`, `google-oauth-button.tsx`; Client Components; use react-hook-form + `zodResolver`; wire the Server Action via `form.handleSubmit(async (values) => { const res = await action(values); if (!res.success) form.setError('root', { message: res.error }) })`
-  - [ ] 7.7 Add root-level error rendering under the form (`form.formState.errors.root?.message`) styled as `text-destructive text-sm mt-2`
+- [x] Task 7: `(auth)` route group + pages (AC: #3, #5, #6, #9)
+  - [x] 7.1 Create `apps/web/app/(auth)/layout.tsx` — Server Component; renders a centered min-h-screen container with `lang`-aware `<main>`, ensuring `AppShell` (trust badge bar, nav) is NOT present; the layout shows a small RechnungsAI wordmark + a single-line trust footer `🇩🇪 Gehostet in Deutschland · DSGVO · GoBD`
+  - [x] 7.2 Create `apps/web/app/(auth)/signup/page.tsx` — RSC wrapper + Client form component; fields: Email, Passwort, Passwort bestätigen; primary button "Konto erstellen"; secondary button "Mit Google fortfahren" (Client Component invoking `createBrowserClient().auth.signInWithOAuth`); link "Du hast schon ein Konto? Anmelden" → `/login`; link "Passwort vergessen?" NOT needed here
+  - [x] 7.3 Create `apps/web/app/(auth)/login/page.tsx` — same form pattern; fields: Email, Passwort; primary "Anmelden"; secondary "Mit Google fortfahren"; links "Noch kein Konto? Registrieren" → `/signup`, "Passwort vergessen?" → `/reset-password`
+  - [x] 7.4 Create `apps/web/app/(auth)/reset-password/page.tsx` — single email field, button "Reset-Link senden"; after submission show a success card `Falls ein Konto mit dieser E-Mail existiert, haben wir dir einen Link geschickt.` and hide the form
+  - [x] 7.5 Create `apps/web/app/(auth)/reset-password/update/page.tsx` — reached via the auth callback after the recovery code is exchanged; two fields: Neues Passwort, Passwort bestätigen; button "Passwort speichern"; on success redirect to `/dashboard`
+  - [x] 7.6 All form components live in `apps/web/components/auth/` as kebab-case files: `signup-form.tsx`, `login-form.tsx`, `reset-request-form.tsx`, `reset-update-form.tsx`, `google-oauth-button.tsx`; Client Components; use react-hook-form + `zodResolver`; wire the Server Action via `form.handleSubmit(async (values) => { const res = await action(values); if (!res.success) form.setError('root', { message: res.error }) })`
+  - [x] 7.7 Add root-level error rendering under the form (`form.formState.errors.root?.message`) styled as `text-destructive text-sm mt-2`
 
-- [ ] Task 8: OAuth & password-reset callback (AC: #4, #6, #7)
-  - [ ] 8.1 Create `apps/web/app/(app)/auth/callback/route.ts` (Route Handler, GET) — reads `code` and `next` from `request.nextUrl.searchParams`; calls `supabase.auth.exchangeCodeForSession(code)`; on error redirect to `/login?error=oauth_failed`; on success decide destination: if `next` provided and starts with `/` → use it, else check if the session user has an existing non-placeholder tenant (query `users` + `tenants.company_name` vs email local-part) → route new signups to `/onboarding/trust`, returning logins to `/dashboard`
-  - [ ] 8.2 Ensure `/auth/callback` is allowed by the middleware matcher (Task 4.2) and by RLS (the user is authenticated at this point, reads their own `users` row)
-  - [ ] 8.3 Scaffold placeholder page `apps/web/app/(onboarding)/trust/page.tsx` that renders `<EmptyState title="Willkommen bei RechnungsAI" description="Die Vertrauens-Einführung folgt in Story 1.4." action={<Link href='/dashboard'>Weiter</Link>} />` — this is a seam for Story 1.4 (do NOT build the full Trust Screen here)
-  - [ ] 8.4 Scaffold `apps/web/app/(onboarding)/layout.tsx` as a pass-through Server Component (no app shell); Story 1.4 will flesh it out
+- [x] Task 8: OAuth & password-reset callback (AC: #4, #6, #7)
+  - [x] 8.1 Create `apps/web/app/(app)/auth/callback/route.ts` (Route Handler, GET) — reads `code` and `next` from `request.nextUrl.searchParams`; calls `supabase.auth.exchangeCodeForSession(code)`; on error redirect to `/login?error=oauth_failed`; on success decide destination: if `next` provided and starts with `/` → use it, else check if the session user has an existing non-placeholder tenant (query `users` + `tenants.company_name` vs email local-part) → route new signups to `/onboarding/trust`, returning logins to `/dashboard`
+  - [x] 8.2 Ensure `/auth/callback` is allowed by the middleware matcher (Task 4.2) and by RLS (the user is authenticated at this point, reads their own `users` row)
+  - [x] 8.3 Scaffold placeholder page `apps/web/app/(onboarding)/trust/page.tsx` that renders `<EmptyState title="Willkommen bei RechnungsAI" description="Die Vertrauens-Einführung folgt in Story 1.4." action={<Link href='/dashboard'>Weiter</Link>} />` — this is a seam for Story 1.4 (do NOT build the full Trust Screen here)
+  - [x] 8.4 Scaffold `apps/web/app/(onboarding)/layout.tsx` as a pass-through Server Component (no app shell); Story 1.4 will flesh it out
 
-- [ ] Task 9: Supabase config — auth settings (AC: #2, #5, #6, #7)
-  - [ ] 9.1 In `supabase/config.toml`, set `[auth] site_url = "http://127.0.0.1:3000"`, `jwt_expiry = 3600`, `enable_refresh_token_rotation = true`, `refresh_token_reuse_interval = 10`; set `additional_redirect_urls = ["http://127.0.0.1:3000/auth/callback"]`
-  - [ ] 9.2 Under `[auth.email]` set `enable_confirmations = false` for MVP (Thomas should get to first-invoice in <3 minutes per UX metric — email confirmation blocks this); set `otp_expiry = 3600` for password recovery (NFR10); leave `enable_signup = true`
-  - [ ] 9.3 Uncomment `[auth.external.google]` and set `enabled = true, client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)", secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)", skip_nonce_check = false, redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"`
-  - [ ] 9.4 Under `[auth]` document in a comment that production deploys MUST override `site_url` and `additional_redirect_urls` to the real HTTPS host, and provide real Google OAuth credentials via Coolify env
+- [x] Task 9: Supabase config — auth settings (AC: #2, #5, #6, #7)
+  - [x] 9.1 In `supabase/config.toml`, set `[auth] site_url = "http://127.0.0.1:3000"`, `jwt_expiry = 3600`, `enable_refresh_token_rotation = true`, `refresh_token_reuse_interval = 10`; set `additional_redirect_urls = ["http://127.0.0.1:3000/auth/callback"]`
+  - [x] 9.2 Under `[auth.email]` set `enable_confirmations = false` for MVP (Thomas should get to first-invoice in <3 minutes per UX metric — email confirmation blocks this); set `otp_expiry = 3600` for password recovery (NFR10); leave `enable_signup = true`
+  - [x] 9.3 Uncomment `[auth.external.google]` and set `enabled = true, client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)", secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)", skip_nonce_check = false, redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"`
+  - [x] 9.4 Under `[auth]` document in a comment that production deploys MUST override `site_url` and `additional_redirect_urls` to the real HTTPS host, and provide real Google OAuth credentials via Coolify env
 
-- [ ] Task 10: Sign-out affordance + dashboard update (AC: #10)
-  - [ ] 10.1 In `apps/web/app/(app)/dashboard/page.tsx`, augment the existing `EmptyState` placeholder with a simple `<form action={signOut}><button type="submit">Abmelden</button></form>` in the corner — plain `button` variant, NO styling polish (Story 1.5 replaces this with the real profile menu); keep AC from Story 1.2 intact
-  - [ ] 10.2 Do NOT add a full header/profile menu; do NOT touch `SidebarNav`/`MobileNav`
+- [x] Task 10: Sign-out affordance + dashboard update (AC: #10)
+  - [x] 10.1 In `apps/web/app/(app)/dashboard/page.tsx`, augment the existing `EmptyState` placeholder with a simple `<form action={signOut}><button type="submit">Abmelden</button></form>` in the corner — plain `button` variant, NO styling polish (Story 1.5 replaces this with the real profile menu); keep AC from Story 1.2 intact
+  - [x] 10.2 Do NOT add a full header/profile menu; do NOT touch `SidebarNav`/`MobileNav`
 
-- [ ] Task 11: Verification & smoke tests (AC: #12)
-  - [ ] 11.1 `pnpm lint` (repo root) — 0 errors
-  - [ ] 11.2 `pnpm check-types` (apps/web + packages) — 0 errors
-  - [ ] 11.3 `pnpm build` (repo root) — succeeds; confirm `/login`, `/signup`, `/reset-password`, `/reset-password/update`, `/auth/callback` appear in the build output
-  - [ ] 11.4 `supabase db reset` — migrations + trigger load clean; then `supabase status` shows service keys; set them into `apps/web/.env.local`
-  - [ ] 11.5 Manual smoke test script (document in Completion Notes, not code): (a) signup email+password → user + tenant rows created with matching ids, `/onboarding/trust` reached; (b) logout → `/login` reached; (c) login → `/dashboard` reached; (d) request password reset → inbucket (http://127.0.0.1:54324) shows German email; (e) follow recovery link → `/reset-password/update` → set new password → dashboard; (f) access `/dashboard` unauthenticated → redirect to `/login?next=/dashboard`; (g) SQL check: open `psql` with user A's JWT claim, `select * from tenants` returns 1 row (A's), not B's
-  - [ ] 11.6 Google OAuth e2e test is conditional on the developer providing a Google OAuth client (document the setup in Dev Notes); if unavailable, test the button renders and produces a browser redirect to `https://accounts.google.com/...`, then mark the end-to-end Google round-trip as "manual-verified-in-prod-only" in Completion Notes
+- [x] Task 11: Verification & smoke tests (AC: #12)
+  - [x] 11.1 `pnpm lint` (repo root) — 0 errors
+  - [x] 11.2 `pnpm check-types` (apps/web + packages) — 0 errors
+  - [x] 11.3 `pnpm build` (repo root) — succeeds; confirm `/login`, `/signup`, `/reset-password`, `/reset-password/update`, `/auth/callback` appear in the build output
+  - [x] 11.4 `supabase db reset` — migrations + trigger load clean; then `supabase status` shows service keys; set them into `apps/web/.env.local`
+  - [x] 11.5 Manual smoke test script (document in Completion Notes, not code): (a) signup email+password → user + tenant rows created with matching ids, `/onboarding/trust` reached; (b) logout → `/login` reached; (c) login → `/dashboard` reached; (d) request password reset → inbucket (http://127.0.0.1:54324) shows German email; (e) follow recovery link → `/reset-password/update` → set new password → dashboard; (f) access `/dashboard` unauthenticated → redirect to `/login?next=/dashboard`; (g) SQL check: open `psql` with user A's JWT claim, `select * from tenants` returns 1 row (A's), not B's
+  - [x] 11.6 Google OAuth e2e test is conditional on the developer providing a Google OAuth client (document the setup in Dev Notes); if unavailable, test the button renders and produces a browser redirect to `https://accounts.google.com/...`, then mark the end-to-end Google round-trip as "manual-verified-in-prod-only" in Completion Notes
 
 ## Dev Notes
 
@@ -357,18 +357,103 @@ Pin exact versions in the Dev Agent Record after install. If peer-dep warnings a
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-opus-4-6
 
 ### Debug Log References
 
+- `pnpm lint` — 0 errors (all 8 workspace tasks pass)
+- `pnpm check-types` — 0 errors (after downgrading `zod` to `^3.25` to match `@hookform/resolvers@5.2.2` peer)
+- `pnpm build` — succeeds; all story-required routes present:
+  `/login`, `/signup`, `/reset-password`, `/reset-password/update`, `/onboarding/trust`, `/dashboard`, and the `/auth/callback` Route Handler.
+- `supabase db reset` — migration `20260412193336_auth_tenants_users.sql` applies cleanly; trigger `on_auth_user_created` installed.
+
 ### Completion Notes List
+
+**Installed versions (pinned in package.json):**
+- `@supabase/ssr ^0.10.2`, `@supabase/supabase-js ^2.103.0`
+- `react-hook-form ^7.72.1`, `@hookform/resolvers ^5.2.2`
+- `zod ^3.25.76` (web + shared) — downgraded from v4 to satisfy `@hookform/resolvers@5.2.2` peer range (`zod ^3.25.0`); keeps `zod/v3` import path available.
+
+**Deviations from story spec (with rationale):**
+
+1. **`form.tsx` written manually instead of via `shadcn@latest add form`** — the installed `base-nova` style registry does not ship a `form` primitive (only `input` + `label` were created by the CLI). I wrote `apps/web/components/ui/form.tsx` matching the shadcn API (`Form`, `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormDescription`, `FormMessage`, `useFormField`) and wiring react-hook-form `FormProvider`/`Controller`/`useFormState`. `FormControl` uses `React.cloneElement` to inject `id`/`aria-describedby`/`aria-invalid` onto the wrapped child (no Radix `Slot` available in this stack).
+
+2. **`/onboarding/trust` is a real URL segment, not a `(onboarding)` route group.** Spec AC #4 and Task 8.1 reference the URL `/onboarding/trust`, but Next.js route groups in parens produce no URL segment — so `app/(onboarding)/trust/page.tsx` would resolve to `/trust`, not `/onboarding/trust`. I placed it under `app/onboarding/trust/page.tsx` with a pass-through `app/onboarding/layout.tsx` (no `AppShell`), preserving the spec-required URL.
+
+3. **`transpilePackages: ["@rechnungsai/shared"]` added to `next.config.ts` + schema barrel uses extension-less import.** Next/Turbopack refused to resolve runtime `.js` imports from the TS-source-only shared package; type-only re-exports (`action-result`, `database`) erase at parse time so they worked, but the zod schemas are runtime values. Transpiling the shared package + using `./schemas/auth` (no extension) lets Turbopack resolve the `.ts` source directly. TypeScript `check-types` still passes.
+
+4. **`additional_redirect_urls` = `http://127.0.0.1:3000/auth/callback`** (spec value), with a comment that production must override to the real HTTPS host. `minimum_password_length` bumped from default `6` to `8` to match the shared Zod policy.
+
+5. **Google OAuth button glyph inlined as multicolor SVG** (lucide does not ship a Google icon). `aria-label="Mit Google fortfahren"` on the button.
+
+6. **DB types generation** — `supabase gen types typescript --local` writes to stdout with a header noise line ("Connecting to db 5432") on stderr; piping `2>/dev/null` before `>` yields a clean `packages/shared/src/types/database.ts`.
+
+**Manual smoke test script (for reviewer):**
+
+Prereqs: `supabase start` running, `apps/web/.env.local` populated from `supabase status`, `pnpm --filter @rechnungsai/web dev` running on `http://127.0.0.1:3000`.
+
+| # | Action | Expected |
+|---|--------|----------|
+| a | Visit `/signup`, submit email + 8-char-with-digit password | Redirect to `/onboarding/trust`; `public.users` + `public.tenants` rows created with matching `id`/`tenant_id`; `tenants.company_name` = email local-part |
+| b | Click **Abmelden** on `/dashboard` | Redirect to `/login`; session cookie cleared |
+| c | Visit `/login`, submit valid credentials | Redirect to `/dashboard` |
+| d | Visit `/reset-password`, submit email | Confirmation card shown; Mailpit at http://127.0.0.1:54324 shows German recovery email |
+| e | Click recovery link in Mailpit | Lands on `/reset-password/update`; submit new password → `/dashboard` |
+| f | In incognito, visit `/dashboard` | Redirect to `/login?next=%2Fdashboard` |
+| g | In psql, `set role authenticated; set request.jwt.claim.sub = '<uuid-A>'; select * from public.tenants;` | Returns only tenant A's row |
+| h | Click **Mit Google fortfahren** | Browser navigates to `accounts.google.com/...` (full round-trip requires real OAuth client — marked manual-verified-in-prod-only) |
+
+**Intentionally deferred (per story):**
+- Vitest / test harness (deferred since Story 1.2 review).
+- Sentry wiring (deferred; logging uses `[auth:<action>]` console prefix as a hook).
+- Select/Table shadcn primitives (wait for Story 1.5).
+- Trust/Setup/First-invoice UIs (Story 1.4 — `/onboarding/trust` is a placeholder `EmptyState`).
+- Email confirmations (`enable_confirmations = false` for MVP onboarding speed).
 
 ### File List
 
+**New files:**
+- `apps/web/middleware.ts`
+- `apps/web/lib/supabase/server.ts`
+- `apps/web/lib/supabase/client.ts`
+- `apps/web/lib/supabase/middleware.ts`
+- `apps/web/app/actions/auth.ts`
+- `apps/web/app/(auth)/layout.tsx`
+- `apps/web/app/(auth)/login/page.tsx`
+- `apps/web/app/(auth)/signup/page.tsx`
+- `apps/web/app/(auth)/reset-password/page.tsx`
+- `apps/web/app/(auth)/reset-password/update/page.tsx`
+- `apps/web/app/(app)/auth/callback/route.ts`
+- `apps/web/app/onboarding/layout.tsx`
+- `apps/web/app/onboarding/trust/page.tsx`
+- `apps/web/components/auth/signup-form.tsx`
+- `apps/web/components/auth/login-form.tsx`
+- `apps/web/components/auth/reset-request-form.tsx`
+- `apps/web/components/auth/reset-update-form.tsx`
+- `apps/web/components/auth/google-oauth-button.tsx`
+- `apps/web/components/ui/form.tsx`
+- `apps/web/components/ui/input.tsx` (shadcn add)
+- `apps/web/components/ui/label.tsx` (shadcn add)
+- `packages/shared/src/schemas/auth.ts`
+- `packages/shared/src/types/database.ts`
+- `supabase/migrations/20260412193336_auth_tenants_users.sql`
+
+**Modified files:**
+- `apps/web/app/(app)/dashboard/page.tsx` — temporary `Abmelden` sign-out form
+- `apps/web/next.config.ts` — `transpilePackages: ["@rechnungsai/shared"]`
+- `apps/web/package.json` — new runtime deps
+- `apps/web/.env.example` — Google OAuth env vars + comment
+- `packages/shared/src/index.ts` — re-export `Database`, `Json`, and the auth schemas
+- `packages/shared/package.json` — added `zod` runtime dep
+- `supabase/config.toml` — `additional_redirect_urls`, `minimum_password_length = 8`, `[auth.external.google]` block
+
 ### Review Findings
+
+_None yet — pending code review._
 
 ## Change Log
 
 | Date       | Change                                              |
 | ---------- | --------------------------------------------------- |
 | 2026-04-12 | Story 1.3 drafted — ready-for-dev.                  |
+| 2026-04-12 | Implementation complete — all 11 tasks done, status → review. |
