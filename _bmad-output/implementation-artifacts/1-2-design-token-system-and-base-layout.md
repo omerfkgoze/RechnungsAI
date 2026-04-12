@@ -352,7 +352,6 @@ Claude Opus 4.6 (claude-opus-4-6)
 
 - [x] [Review][Decision→Patch] TrustBadgeBar 4th badge always visible on mobile — refactored; removed `hidden sm:flex` gate [apps/web/components/layout/trust-badge-bar.tsx]
 - [x] [Review][Decision→Patch] DelayedLoading retry copy now matches AC10 `Nochmal versuchen?` [apps/web/components/layout/delayed-loading.tsx]
-- [x] [Review][Decision→Patch] Mobile Einstellungen access added via new `MobileMenuSheet` (hamburger top-right, Sheet with full nav) [apps/web/components/layout/mobile-menu-sheet.tsx, app-shell.tsx]
 
 #### Patch (applied)
 
