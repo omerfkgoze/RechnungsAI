@@ -1,6 +1,6 @@
 # Story 1.2: Design Token System and Base Layout
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -344,9 +344,49 @@ Claude Opus 4.6 (claude-opus-4-6)
 - `apps/web/app/not-found.tsx`
 - `apps/web/app/error.tsx`
 
+### Review Findings
+
+**Code review run:** 2026-04-12 — 3 reviewers (Blind Hunter, Edge Case Hunter, Acceptance Auditor).
+
+#### Decision Needed (resolved)
+
+- [x] [Review][Decision→Patch] TrustBadgeBar 4th badge always visible on mobile — refactored; removed `hidden sm:flex` gate [apps/web/components/layout/trust-badge-bar.tsx]
+- [x] [Review][Decision→Patch] DelayedLoading retry copy now matches AC10 `Nochmal versuchen?` [apps/web/components/layout/delayed-loading.tsx]
+- [x] [Review][Decision→Patch] Mobile Einstellungen access added via new `MobileMenuSheet` (hamburger top-right, Sheet with full nav) [apps/web/components/layout/mobile-menu-sheet.tsx, app-shell.tsx]
+
+#### Patch (applied)
+
+- [x] [Review][Dismiss] error.tsx `unstable_retry` is the correct Next.js 16 API per installed docs — reviewers' claim was false positive
+- [x] [Review][Patch] `@theme inline` radius self-reference fixed — literals moved into theme block, removed from `:root` duplicate [apps/web/app/globals.css]
+- [x] [Review][Patch] `--font-sans` self-reference fixed — next/font variable renamed to `--font-inter`, `@theme inline --font-sans: var(--font-inter)` [apps/web/app/layout.tsx, globals.css]
+- [x] [Review][Patch] Sidebar now reads `--trust-bar-height` CSS var (set dynamically by TrustBadgeBarClient) for `top` and `height` — no more 8px gap on collapse [apps/web/components/layout/sidebar-nav.tsx, trust-badge-bar-client.tsx]
+- [x] [Review][Patch] SidebarNav uses `mounted` flag; `transition-[width]` only applies after hydration → no width-snap flash on reload [apps/web/components/layout/sidebar-nav.tsx]
+- [x] [Review][Patch] SidebarNav write-effect guarded on `mounted`; single read-then-write ordering via `hasHydrated` ref [apps/web/components/layout/sidebar-nav.tsx]
+- [x] [Review][Patch] Nav active-state uses `isActive(pathname, href)` helper with exact/boundary check (both sidebar + mobile) [apps/web/components/layout/sidebar-nav.tsx, mobile-nav.tsx]
+- [x] [Review][Patch] MobileNav labels now use `text-caption` (12px) utility [apps/web/components/layout/mobile-nav.tsx]
+- [x] [Review][Patch] Erfassen FAB: `aria-label="Erfassen"` matches visible text; label moved inside the link (no more external absolute `<p>`) [apps/web/components/layout/mobile-nav.tsx]
+- [x] [Review][Patch] Badge `rounded-4xl` → `rounded-full` [apps/web/components/ui/badge.tsx]
+- [x] [Review][Dismiss] Badge `"use client"` — shadcn/Base UI pattern without directive is verified working for Button (Story 1.1); same pattern for Badge
+- [x] [Review][Patch] TrustBadgeBarClient seeds initial `collapsed` from `window.scrollY` on mount [apps/web/components/layout/trust-badge-bar-client.tsx]
+- [x] [Review][Patch] TrustBadgeBarClient subscribes to `prefers-reduced-motion` `change` events; listener attaches/detaches dynamically [apps/web/components/layout/trust-badge-bar-client.tsx]
+- [x] [Review][Patch] TrustBadgeBar `role="status"` removed; retains `aria-label="Vertrauenskennzeichen"` [apps/web/components/layout/trust-badge-bar.tsx]
+- [x] [Review][Patch] TrustBadgeBar 320px overflow: `overflow-hidden`, `gap-2 sm:gap-4`, smaller text at base, `truncate` on first label [apps/web/components/layout/trust-badge-bar.tsx]
+- [x] [Review][Patch] Sidebar collapsed+active conflict resolved by branching classes on `active && collapsed` [apps/web/components/layout/sidebar-nav.tsx]
+
+#### Deferred
+
+- [x] [Review][Defer] `.dark` theme tokens removed but `dark:` variants remain in shadcn primitives (badge, sheet, dropdown-menu) — latent dead code, no runtime impact while `.dark` class is never applied [apps/web/components/ui/*] — deferred, not introduced by this story's core scope
+- [x] [Review][Defer] `next/font/local` lacks `adjustFontFallback` — CLS when Inter swaps in [apps/web/app/layout.tsx] — deferred, optimization not in AC
+- [x] [Review][Defer] Four weight-specific Inter woff2 files with `preload: true` — ~400-500KB critical-path; variable font would be smaller [apps/web/app/layout.tsx] — deferred, payload optimization
+- [x] [Review][Defer] `font-feature-settings: "cv11", "ss01"` on body may silently no-op if subsetted woff2 lacks feature tables [apps/web/app/globals.css:~437] — deferred, cosmetic OpenType feature
+- [x] [Review][Defer] DelayedLoading `aria-busy="true"` never transitions to `false` — screen readers remain "busy" indefinitely on stuck loads [apps/web/components/layout/delayed-loading.tsx] — deferred, minor AT UX
+- [x] [Review][Defer] Skeleton loading provides no initial "Lädt…" SR announcement until 5s delay fires — silent for first 5s [apps/web/components/layout/delayed-loading.tsx] — deferred, minor AT UX
+
 ## Change Log
 
 | Date       | Change                                                                 |
 | ---------- | ---------------------------------------------------------------------- |
 | 2026-04-12 | Story 1.2 implemented — design tokens, Inter font, layout shell, (app) route group, German error/404 pages. All validation gates (types/lint/build) pass. |
+| 2026-04-12 | Code review executed — 3 decision-needed, 16 patch, 6 deferred, 7 dismissed. |
+| 2026-04-12 | Review fixes applied — all 3 decisions resolved, 14 patches applied, 2 dismissed (Next.js 16 API correct, Badge SSR pattern verified). Build/lint/types pass. Status → done. |
 

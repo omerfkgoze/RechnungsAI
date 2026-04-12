@@ -42,7 +42,7 @@ export function DelayedLoading({ children }: DelayedLoadingProps) {
             size="sm"
             onClick={() => router.refresh()}
           >
-            Nochmal versuchen
+            Nochmal versuchen?
           </Button>
         </div>
       )}

@@ -9,12 +9,17 @@ export function TrustBadgeBarClient() {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    if (reduceMotion) return;
+    document.documentElement.style.setProperty(
+      "--trust-bar-height",
+      collapsed ? "28px" : "36px",
+    );
+  }, [collapsed]);
 
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
     let ticking = false;
+    let detach: (() => void) | null = null;
+
     const onScroll = () => {
       if (ticking) return;
       ticking = true;
@@ -23,8 +28,30 @@ export function TrustBadgeBarClient() {
         ticking = false;
       });
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+
+    const attach = () => {
+      setCollapsed(window.scrollY > SCROLL_THRESHOLD);
+      window.addEventListener("scroll", onScroll, { passive: true });
+      detach = () => window.removeEventListener("scroll", onScroll);
+    };
+
+    const sync = () => {
+      if (mql.matches) {
+        detach?.();
+        detach = null;
+        setCollapsed(false);
+      } else if (!detach) {
+        attach();
+      }
+    };
+
+    sync();
+    mql.addEventListener("change", sync);
+
+    return () => {
+      mql.removeEventListener("change", sync);
+      detach?.();
+    };
   }, []);
 
   return (

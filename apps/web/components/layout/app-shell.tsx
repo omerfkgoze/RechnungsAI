@@ -1,11 +1,13 @@
 import { TrustBadgeBarClient } from "./trust-badge-bar-client";
 import { MobileNav } from "./mobile-nav";
+import { MobileMenuSheet } from "./mobile-menu-sheet";
 import { SidebarNav } from "./sidebar-nav";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <TrustBadgeBarClient />
+      <MobileMenuSheet />
       <div className="flex flex-1">
         <SidebarNav />
         <main className="flex-1 pb-20 lg:pb-6">

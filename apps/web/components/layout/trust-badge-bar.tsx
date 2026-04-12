@@ -8,17 +8,16 @@ type TrustBadgeBarProps = {
 export function TrustBadgeBar({ collapsed = false }: TrustBadgeBarProps) {
   return (
     <div
-      role="status"
       aria-label="Vertrauenskennzeichen"
       className={cn(
         "w-full bg-primary/5 text-primary transition-[height] duration-[var(--animation-normal)]",
         collapsed ? "h-7" : "h-9",
       )}
     >
-      <div className="mx-auto flex h-full max-w-[1280px] items-center gap-4 px-4 text-xs lg:px-6">
-        <span className="flex items-center gap-1.5">
+      <div className="mx-auto flex h-full max-w-[1280px] items-center gap-2 overflow-hidden px-3 text-[11px] sm:gap-4 sm:px-4 sm:text-xs lg:px-6">
+        <span className="flex min-w-0 items-center gap-1.5">
           <span aria-hidden="true">🇩🇪</span>
-          {!collapsed && <span>Gehostet in Deutschland</span>}
+          {!collapsed && <span className="truncate">Gehostet in Deutschland</span>}
         </span>
         <span aria-hidden="true" className="text-primary/30">
           ·
@@ -34,10 +33,10 @@ export function TrustBadgeBar({ collapsed = false }: TrustBadgeBarProps) {
           <Lock className="size-3.5" aria-hidden="true" />
           {!collapsed && <span>DSGVO</span>}
         </span>
-        <span aria-hidden="true" className="text-primary/30 hidden sm:inline">
+        <span aria-hidden="true" className="text-primary/30">
           ·
         </span>
-        <span className="hidden sm:flex items-center gap-1.5">
+        <span className="flex items-center gap-1.5">
           <Server className="size-3.5" aria-hidden="true" />
           {!collapsed && <span>Hetzner DE</span>}
         </span>

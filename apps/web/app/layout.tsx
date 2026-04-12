@@ -9,7 +9,7 @@ const inter = localFont({
     { path: "../public/fonts/Inter-SemiBold.woff2", weight: "600", style: "normal" },
     { path: "../public/fonts/Inter-Bold.woff2", weight: "700", style: "normal" },
   ],
-  variable: "--font-sans",
+  variable: "--font-inter",
   display: "swap",
   preload: true,
   fallback: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
