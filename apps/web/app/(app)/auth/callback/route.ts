@@ -48,7 +48,19 @@ export async function GET(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile || profile.onboarded_at === null) {
+    if (!profile) {
+      // No `public.users` row — the signup trigger failed (e.g., constraint
+      // violation). Surface this distinctly rather than routing into the
+      // onboarding flow, which would then fail under RLS with no row to read.
+      console.error(
+        "[auth:callback] missing users row for authenticated user",
+        { userId: user.id },
+      );
+      return NextResponse.redirect(
+        new URL("/login?error=account_setup_failed", origin),
+      );
+    }
+    if (profile.onboarded_at === null) {
       destination = "/onboarding/trust";
     }
   }

@@ -23,6 +23,7 @@ create table public.tenants (
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   NEW.updated_at = now();
@@ -38,7 +39,7 @@ create trigger tenants_set_updated_at
 create table public.users (
   id uuid primary key references auth.users(id) on delete cascade,
   tenant_id uuid not null references public.tenants(id) on delete cascade,
-  email text not null unique,
+  email text not null,
   role text not null default 'owner' check (role in ('owner', 'member', 'viewer')),
   onboarded_at timestamptz,
   created_at timestamptz not null default now(),
@@ -90,15 +91,15 @@ create policy "users_select_tenant_members"
   to authenticated
   using ( tenant_id = (select tenant_id from public.users where id = auth.uid()) );
 
+-- Column-level grants below restrict UPDATE to specific columns; this policy
+-- gates row visibility to the user's own row. tenant_id reassignment is
+-- prevented by NOT granting UPDATE on the tenant_id column.
 create policy "users_update_self"
   on public.users
   for update
   to authenticated
   using ( id = auth.uid() )
-  with check (
-    id = auth.uid()
-    and tenant_id = (select tenant_id from public.users where id = auth.uid())
-  );
+  with check ( id = auth.uid() );
 
 create policy "users_insert_none"
   on public.users
@@ -121,13 +122,15 @@ set search_path = public, auth
 as $$
 declare
   new_tenant_id uuid;
+  normalized_email text := lower(coalesce(NEW.email, ''));
+  derived_company text := nullif(split_part(normalized_email, '@', 1), '');
 begin
   insert into public.tenants (company_name, skr_plan)
-  values ('Mein Unternehmen', 'SKR03')
+  values (coalesce(derived_company, 'Mein Unternehmen'), 'SKR03')
   returning id into new_tenant_id;
 
   insert into public.users (id, tenant_id, email, role)
-  values (NEW.id, new_tenant_id, coalesce(NEW.email, ''), 'owner');
+  values (NEW.id, new_tenant_id, normalized_email, 'owner');
 
   return NEW;
 end;
@@ -145,5 +148,8 @@ create trigger on_auth_user_created
 -- (clients must not set it directly — `tenants_set_updated_at` owns the column).
 grant select on public.tenants, public.users to authenticated;
 grant update (company_name, skr_plan, steuerberater_name) on public.tenants to authenticated;
-grant update (onboarded_at) on public.users to authenticated;
+-- `onboarded_at` is intentionally NOT granted to authenticated; Story 1.4 owns
+-- the onboarding write path via a Server Action that uses service_role-scoped
+-- logic. Granting it here would let a client self-mark as onboarded via the
+-- Supabase SDK and bypass the trust flow (Task 6.5).
 grant insert on public.tenants, public.users to service_role;

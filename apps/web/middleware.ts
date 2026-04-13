@@ -46,6 +46,6 @@ export async function middleware(request: NextRequest) {
 // `/kunden/mueller.de`), which would let a dotted tenant slug bypass auth.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|fonts/|images/|assets/|api/webhooks/|robots.txt|sitemap.xml).*)",
+    "/((?!_next/static|_next/image|favicon.ico|fonts/|images/|assets/|api/webhooks/|\\.well-known/|robots.txt|sitemap.xml|manifest.webmanifest|apple-touch-icon.*\\.png|sw\\.js|og-image\\.png).*)",
   ],
 };

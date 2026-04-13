@@ -29,12 +29,15 @@ export function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  // Reject protocol-relative (`//evil.com`) and backslash-tricks (`/\evil.com`)
-  // so the `?next=` param cannot be used to bounce off-origin after login.
+  // Reject protocol-relative (`//evil.com`), backslash-tricks (`/\evil.com`),
+  // and control-char prefixes (`/\t//evil.com`) — some URL parsers strip
+  // whitespace and reinterpret the result as protocol-relative.
   function isSafeNext(path: string | null): path is string {
     if (!path) return false;
-    if (!path.startsWith("/")) return false;
-    if (path.startsWith("//") || path.startsWith("/\\")) return false;
+    // eslint-disable-next-line no-control-regex
+    const cleaned = path.replace(/[\u0000-\u001f\u007f]/g, "");
+    if (!cleaned.startsWith("/")) return false;
+    if (cleaned.startsWith("//") || cleaned.startsWith("/\\")) return false;
     return true;
   }
 

@@ -47,15 +47,20 @@ const FormItemContext = React.createContext<FormItemContextValue>(
 );
 
 function useFormField() {
+  // All hooks must be called unconditionally before any throw so the hook
+  // count stays stable across renders (Rules of Hooks). `fieldContext.name`
+  // may be undefined here when used outside <FormField> — `useFormState`
+  // tolerates an undefined name (subscribes to the whole form state) and we
+  // throw afterwards.
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
   const { getFieldState } = useFormContext();
+  const formState = useFormState({ name: fieldContext?.name });
 
   if (!fieldContext || !fieldContext.name) {
     throw new Error("useFormField must be used within <FormField>");
   }
 
-  const formState = useFormState({ name: fieldContext.name });
   const fieldState = getFieldState(fieldContext.name, formState);
 
   const { id } = itemContext;

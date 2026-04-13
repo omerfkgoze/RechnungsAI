@@ -43,7 +43,10 @@ function mapSupabaseError(code: string | undefined, fallback: string): string {
 async function getSiteUrl(): Promise<string> {
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (envUrl) return envUrl.replace(/\/$/, "");
-  if (process.env.NODE_ENV === "production") {
+  // Vercel preview/build envs expose VERCEL_URL (host only, no scheme).
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) return `https://${vercelUrl}`;
+  if (process.env.VERCEL_ENV === "production") {
     throw new Error(
       "[auth] NEXT_PUBLIC_SITE_URL must be set in production to prevent host-header injection on auth redirects.",
     );
@@ -58,7 +61,10 @@ function decodeAmr(accessToken: string): Array<{ method?: string }> | null {
   try {
     const payloadSegment = accessToken.split(".")[1];
     if (!payloadSegment) return null;
-    const padded = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
+    // base64url → base64 + restore "=" padding so Buffer decoder doesn't
+    // silently truncate trailing bytes on payloads whose length isn't %4 == 0.
+    const swapped = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = swapped + "=".repeat((4 - (swapped.length % 4)) % 4);
     const json = Buffer.from(padded, "base64").toString("utf8");
     const parsed = JSON.parse(json) as { amr?: Array<{ method?: string }> };
     return parsed.amr ?? null;
@@ -89,6 +95,13 @@ export async function signUpWithPassword(
       // Enumeration protection: treat "email already exists" as a generic
       // "check your inbox" path so attackers cannot probe which emails are registered.
       if (error.code === "user_already_exists" || error.code === "email_exists") {
+        // Always claim "we sent a confirmation" regardless of project config.
+        // With email confirmations off in Supabase, real new signups will
+        // include `data.session !== null` and short-circuit below; this
+        // duplicate-email path never reaches that check, so we deliberately
+        // return `needsEmailConfirmation: true` to keep the response shape
+        // identical to a fresh signup-needs-confirmation case (enumeration
+        // protection — attackers cannot tell registered vs unregistered).
         return { success: true, data: { needsEmailConfirmation: true } };
       }
       return {
@@ -191,6 +204,16 @@ export async function updatePasswordAfterRecovery(
 
     // Gate the update on a recovery-grade session — a normal authenticated
     // session must NOT be allowed to change the password via this action.
+    // Use getUser() (server-verified) rather than getSession() (cookie-only) so
+    // we never trust unverified JWT claims on the SSR side.
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userData.user) {
+      return {
+        success: false,
+        error:
+          "Der Link ist abgelaufen. Bitte fordere einen neuen Reset-Link an.",
+      };
+    }
     const { data: sessionData } = await supabase.auth.getSession();
     const session = sessionData.session;
     if (!session) {

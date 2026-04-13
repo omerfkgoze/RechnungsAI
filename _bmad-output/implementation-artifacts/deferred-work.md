@@ -13,6 +13,14 @@
 
 - [ ] `public.users.updated_at` column missing while `users_update_self` policy allows mutation — add column + trigger for audit-trail consistency with `tenants`.
 - [ ] Redundant `unique (tenant_id, id)` on `public.users` — `id` is already PK; cosmetic cleanup.
+
+## Deferred from: code review of 1-3-user-registration-and-authentication (2026-04-13, second pass)
+
+- [ ] Browser Supabase client singleton survives `signOut` — stale auth state on rapid account-switch in same tab; rare scenario. [apps/web/lib/supabase/client.ts]
+- [ ] `decodeAmr` literal `"recovery"` AMR check may not match actual Supabase recovery tokens (could be `"otp"`); needs token-shape verification with real Supabase recovery flow before patching. [apps/web/app/actions/auth.ts:324-336]
+- [ ] `reset-update-form` does not call `signOut` after password change — recovery session becomes implicit login; AC #6 unspecified.
+- [ ] `form.formState.errors.root` rendering not added to login-form / reset-update-form — server-action throws may be invisible.
+- [ ] `set_updated_at` trigger column-grant interaction — verify with manual `UPDATE tenants` as authenticated role before patching.
 - [ ] `transpilePackages: ["@rechnungsai/shared"]` + extensionless imports (`./schemas/auth`) rely on Turbopack source resolution — add a build step to `@rechnungsai/shared` before any non-Next consumer (tests, tooling, other apps).
 - [ ] `FormControl` `React.cloneElement` silently overwrites child `id`/`aria-describedby`/`aria-invalid` — merge rather than overwrite, or warn when a child sets them.
 - [ ] Dashboard `Abmelden` button has no error-path UX — relies on redirect even when `signOut` fails (cookie still valid → middleware bounces back). Dashboard is replaced in Story 1.5; revisit then.
