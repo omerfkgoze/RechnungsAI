@@ -16,11 +16,13 @@ export function FirstInvoicePrompt() {
       <div className="flex w-full flex-col gap-3">
         {/* TODO: Epic 2 Story 2.1 implements /capture — until then this link will 404 in dev; dashboard fallback is primary. */}
         <Button
+          nativeButton={false}
           render={<Link href="/capture">Rechnung aufnehmen</Link>}
           size="lg"
           className="w-full"
         />
         <Button
+          nativeButton={false}
           render={<Link href="/dashboard">Das mache ich später</Link>}
           variant="link"
           className="w-full"
