@@ -31,5 +31,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return { response, user };
+  // Return the cookie-bound `supabase` client so the root middleware can
+  // reuse it for the onboarded_at probe without instantiating a second client.
+  return { response, user, supabase };
 }

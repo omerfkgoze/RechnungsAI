@@ -16,8 +16,12 @@ function isPublic(pathname: string) {
   return PUBLIC_EXACT.has(pathname);
 }
 
+function isOnboardingRoute(pathname: string) {
+  return pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+}
+
 export async function middleware(request: NextRequest) {
-  const { response, user } = await updateSession(request);
+  const { response, user, supabase } = await updateSession(request);
   const { pathname, search } = request.nextUrl;
 
   if (isPublic(pathname)) {
@@ -36,6 +40,39 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(
       new URL(`/login?next=${next}`, request.url),
     );
+  }
+
+  // Authenticated gate: probe `onboarded_at` once per navigation. Single
+  // scalar column lookup on the `users` PK, reusing the cookie-bound
+  // supabase client returned by updateSession (no extra client).
+  const { data: profile, error: profileError } = await supabase
+    .from("users")
+    .select("onboarded_at")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    // DB probe failure is best-effort — don't lock users out on transient
+    // errors. RLS still enforces data isolation on downstream queries.
+    console.error("[middleware:onboarding-probe]", profileError);
+    return response;
+  }
+
+  if (!profile) {
+    // Signup trigger failed for this auth user — mirror the callback path.
+    return NextResponse.redirect(
+      new URL("/login?error=account_setup_failed", request.url),
+    );
+  }
+
+  if (profile.onboarded_at === null && !isOnboardingRoute(pathname)) {
+    return NextResponse.redirect(
+      new URL("/onboarding/trust", request.url),
+    );
+  }
+
+  if (profile.onboarded_at !== null && isOnboardingRoute(pathname)) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return response;

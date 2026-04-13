@@ -63,6 +63,7 @@ export type Database = {
       }
       users: {
         Row: {
+          ai_disclaimer_accepted_at: string | null
           created_at: string
           email: string
           id: string
@@ -71,6 +72,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          ai_disclaimer_accepted_at?: string | null
           created_at?: string
           email: string
           id: string
@@ -79,6 +81,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          ai_disclaimer_accepted_at?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -101,7 +104,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      complete_onboarding: {
+        Args: {
+          p_company_name: string
+          p_skr_plan: string
+          p_steuerberater_name: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
