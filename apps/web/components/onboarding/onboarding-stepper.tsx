@@ -13,7 +13,7 @@ export function OnboardingStepper({ current }: { current: Step }) {
     <ol
       role="list"
       aria-label="Onboarding Fortschritt"
-      className="mb-6 flex items-center justify-center gap-2"
+      className="mb-6 flex items-center justify-center gap-1.5"
     >
       {STEPS.map((step) => {
         const isActive = step.key === current;
@@ -23,7 +23,7 @@ export function OnboardingStepper({ current }: { current: Step }) {
             role="listitem"
             aria-current={isActive ? "step" : undefined}
             className={cn(
-              "rounded-full px-3 py-1 text-body-sm",
+              "whitespace-nowrap rounded-full px-2.5 py-1 text-body-sm",
               isActive
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground",
