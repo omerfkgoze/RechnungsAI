@@ -1,6 +1,6 @@
 # Story 1.3: User Registration and Authentication
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -449,7 +449,55 @@ Prereqs: `supabase start` running, `apps/web/.env.local` populated from `supabas
 
 ### Review Findings
 
-_None yet — pending code review._
+_Reviewed 2026-04-13 via bmad-code-review (Blind Hunter + Edge Case Hunter + Acceptance Auditor)._
+
+**Decisions resolved (2026-04-13):** converted to patches below — D1 `onboarded_at` column; D2 keep `scope: "local"`; D3 generic placeholder "Mein Unternehmen"; D4 require recovery/AAL check; D5 generic message on signup; D6 explicit INSERT/DELETE RLS policies.
+
+**Patch (unambiguous fixes):**
+
+- [ ] [Review][Patch] Add `public.users.onboarded_at timestamptz null` column + migrate callback routing to `onboarded_at IS NULL` check, replacing the `company_name === emailLocalPart` heuristic [supabase/migrations, apps/web/app/(app)/auth/callback/route.ts].
+- [ ] [Review][Patch] `tenants.company_name` default → use generic placeholder `'Mein Unternehmen'` instead of `split_part(NEW.email, '@', 1)` [supabase/migrations/20260412193336_auth_tenants_users.sql:70-71] (supersedes the earlier NULL-safe coalesce patch).
+- [ ] [Review][Patch] `updatePasswordAfterRecovery` must verify the session is a recovery/AAL-appropriate session — reject when the session is a normal authenticated session [apps/web/app/actions/auth.ts:671-704].
+- [ ] [Review][Patch] Signup duplicate-email mapping must return the same generic message as reset flow to close enumeration — replace `"Ein Konto mit dieser E-Mail existiert bereits."` with the generic success message [apps/web/app/actions/auth.ts `mapSupabaseError`].
+- [ ] [Review][Patch] Add explicit INSERT and DELETE RLS policies on `public.tenants` and `public.users` (tenant-scoped `with check`) per AC #1(d) [supabase/migrations/20260412193336_auth_tenants_users.sql].
+- [ ] [Review][Patch] Keep `signOut` `scope: "local"` (decision D2) — no code change required, but document the trade-off in the action's JSDoc [apps/web/app/actions/auth.ts:706-714].
+
+- [ ] [Review][Patch] **CRITICAL**: RLS `users_update_self` allows tenant_id reassignment = cross-tenant privilege escalation [supabase/migrations/20260412193336_auth_tenants_users.sql:52-57] — add `with check (id = auth.uid() AND tenant_id = (select tenant_id from public.users where id = auth.uid()))` or column-scope the grant.
+- [ ] [Review][Patch] Open-redirect via `next` param (`startsWith("/")` allows `//evil.com`) [apps/web/app/(app)/auth/callback/route.ts:334, apps/web/components/auth/login-form.tsx:884] — also reject paths starting with `//` or `/\`.
+- [ ] [Review][Patch] `handle_new_user` breaks on NULL email (OAuth w/o email scope) — `split_part(NULL, '@', 1)` violates NOT NULL [supabase/migrations/20260412193336_auth_tenants_users.sql:70-71] — wrap with `coalesce(..., 'Mein Unternehmen')`.
+- [ ] [Review][Patch] Middleware matcher `.*\\..*` skips auth on any dotted path (e.g. `/kunden/mueller.de`) [apps/web/middleware.ts matcher] — replace with an explicit static-asset allowlist.
+- [ ] [Review][Patch] Middleware `isPublic` prefix match allows `/auth/callbackfoo` [apps/web/middleware.ts:1774] — use exact match or `=== "/auth/callback"`.
+- [ ] [Review][Patch] `getSiteUrl()` trusts `x-forwarded-host`/`x-forwarded-proto` → host-header injection on reset links [apps/web/app/actions/auth.ts:559-566] — allowlist trusted hosts or require `NEXT_PUBLIC_SITE_URL` in prod.
+- [ ] [Review][Patch] `tenants.updated_at` has no update trigger; column-level update grant to `authenticated` allows clients to write timestamps [supabase/migrations/20260412193336_auth_tenants_users.sql] — add `BEFORE UPDATE` trigger, remove `updated_at` from column-level grants.
+- [ ] [Review][Patch] `public.users.email` has no UNIQUE constraint — duplicates possible via provider linking races [supabase/migrations/20260412193336_auth_tenants_users.sql:32-42] — add `unique (email)`.
+- [ ] [Review][Patch] Signup form ignores `needsEmailConfirmation` — always pushes to `/onboarding/trust` even when confirmation required, leading to login-bounce loop [apps/web/components/auth/signup-form.tsx:1229-1237] — branch on flag and show "Prüfe deinen Posteingang" message.
+- [ ] [Review][Patch] Zod schemas have no max length on email/password [packages/shared/src/schemas/auth.ts:1885-1895] — add `.max(254)` on email, `.max(72)` on password (bcrypt truncation boundary).
+- [ ] [Review][Patch] Email case not normalized in schema [packages/shared/src/schemas/auth.ts:1885] — add `.toLowerCase()` transform.
+- [ ] [Review][Patch] Submit buttons are sticky on all viewports, AC #9 requires mobile-only [apps/web/components/auth/*-form.tsx] — replace `sticky bottom-0` with `sticky bottom-0 md:static`.
+- [ ] [Review][Patch] `requestPasswordReset` swallows all errors silently, hiding rate-limits and config errors from observability [apps/web/app/actions/auth.ts:643-669] — log at error severity (ready for Sentry hookup) while keeping generic user response.
+- [ ] [Review][Patch] Google OAuth forces `prompt: "consent"` every login — UX friction for returning users [apps/web/components/auth/google-oauth-button.tsx:774-777] — drop `prompt` and `access_type` unless offline refresh is actually used.
+- [ ] [Review][Patch] Env vars use non-null assertions with no boot-time validation — cryptic failures when missing [apps/web/lib/supabase/{client,server,middleware}.ts] — validate with zod at module boot.
+- [ ] [Review][Patch] `createBrowserClient` allocates new client per call — should be memoized singleton [apps/web/lib/supabase/client.ts].
+- [ ] [Review][Patch] `zod` declared as runtime dep in `packages/shared` and `apps/web` independently → dual-package hazard for `instanceof ZodError` [packages/shared/package.json] — move `zod` to `peerDependencies` in shared.
+- [ ] [Review][Patch] `pgcrypto` extension created in default schema, not `extensions` — breaks Supabase convention [supabase/migrations/20260412193336_auth_tenants_users.sql] — `create extension if not exists "pgcrypto" with schema extensions;`.
+- [ ] [Review][Patch] `useFormField` dereferences `fieldContext.name` before null-check [apps/web/components/ui/form.tsx] — reorder so the guard throws first.
+- [ ] [Review][Patch] Form `onSubmit` handlers have no try/catch — unhandled action rejections leave the form stuck [apps/web/components/auth/{login,signup,reset-update,reset-request}-form.tsx] — wrap server-action call in try/catch with user-visible fallback error.
+- [ ] [Review][Patch] `signOut` returns `Promise<void>` instead of `ActionResult<T>`, breaking the uniform contract in AC #11 / Task 6.1 [apps/web/app/actions/auth.ts:706-714] — return `ActionResult<void>` on failure, still `redirect` on success.
+
+**Deferred (pre-existing / tracked separately):**
+
+- [x] [Review][Defer] `users.updated_at` missing — schema inconsistency, not a bug; tracked.
+- [x] [Review][Defer] Redundant `unique (tenant_id, id)` on `users` — cosmetic.
+- [x] [Review][Defer] `transpilePackages` + extensionless shared imports — architectural; add build step to `@rechnungsai/shared` post-1.x.
+- [x] [Review][Defer] `FormControl` `cloneElement` drops child `id`/`aria-*` — upstream shadcn behavior, low impact.
+- [x] [Review][Defer] Dashboard `Abmelden` error handling — dashboard placeholder replaced in Story 1.5.
+- [x] [Review][Defer] `signOut` Server Action lacks explicit CSRF/auth check — Next.js default origin protection covers the common case.
+- [x] [Review][Defer] No automated tests — Vitest harness deferred since Story 1.2; add when harness lands.
+- [x] [Review][Defer] Trust page doesn't persist onboarding state — Story 1.4 owns onboarding persistence.
+- [x] [Review][Defer] Middleware `/auth/callback` cookie-set race with `updateSession` — low-probability edge; revisit if auth bugs surface.
+- [x] [Review][Defer] `createServerClient` silently swallows cookie-set failures in Server Actions — follow Supabase SSR reference pattern; revisit with telemetry.
+- [x] [Review][Defer] Reset flow hides rate-limit errors from the user (by design for enumeration protection) — accept; monitor via logs.
+- [x] [Review][Defer] Multiple `owner` roles per tenant possible — invite flow lands in Story 1.5; constrain then.
 
 ## Change Log
 
