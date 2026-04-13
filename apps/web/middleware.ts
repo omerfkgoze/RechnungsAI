@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const AUTH_ROUTES = ["/login", "/signup", "/reset-password"];
-const PUBLIC_EXACT = ["/", "/auth/callback"];
+const PUBLIC_EXACT = new Set(["/", "/auth/callback"]);
 
 function isAuthRoute(pathname: string) {
   return AUTH_ROUTES.some(
@@ -11,9 +11,9 @@ function isAuthRoute(pathname: string) {
 }
 
 function isPublic(pathname: string) {
-  if (PUBLIC_EXACT.includes(pathname)) return true;
-  if (pathname.startsWith("/auth/callback")) return true;
-  return false;
+  // Exact match only — `startsWith("/auth/callback")` would falsely match
+  // `/auth/callbackfoo` and bypass auth.
+  return PUBLIC_EXACT.has(pathname);
 }
 
 export async function middleware(request: NextRequest) {
@@ -41,8 +41,11 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+// Explicit static-asset / infra allowlist. The previous `.*\..*` terminator
+// silently disabled the middleware on any path containing a dot (e.g.
+// `/kunden/mueller.de`), which would let a dotted tenant slug bypass auth.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|fonts/|api/webhooks/|.*\\..*).*)",
+    "/((?!_next/static|_next/image|favicon.ico|fonts/|images/|assets/|api/webhooks/|robots.txt|sitemap.xml).*)",
   ],
 };

@@ -13,9 +13,10 @@
     "@rechnungsai/eslint-config": "workspace:*",
     "@rechnungsai/typescript-config": "workspace:*",
     "eslint": "^9.39.1",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "zod": "^3.25.76"
   },
-  "dependencies": {
+  "peerDependencies": {
     "zod": "^3.25.76"
   }
 }

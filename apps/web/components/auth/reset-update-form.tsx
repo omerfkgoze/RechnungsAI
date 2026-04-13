@@ -30,12 +30,19 @@ export function ResetUpdateForm() {
 
   async function onSubmit(values: ResetUpdateInput) {
     form.clearErrors("root");
-    const res = await updatePasswordAfterRecovery(values);
-    if (!res.success) {
-      form.setError("root", { message: res.error });
-      return;
+    try {
+      const res = await updatePasswordAfterRecovery(values);
+      if (!res.success) {
+        form.setError("root", { message: res.error });
+        return;
+      }
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("[reset-update-form]", err);
+      form.setError("root", {
+        message: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      });
     }
-    router.push("/dashboard");
   }
 
   return (
@@ -96,7 +103,7 @@ export function ResetUpdateForm() {
         <Button
           type="submit"
           size="lg"
-          className="sticky bottom-0 w-full"
+          className="sticky bottom-0 w-full md:static"
           disabled={form.formState.isSubmitting}
         >
           Passwort speichern

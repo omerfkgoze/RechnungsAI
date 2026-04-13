@@ -1,6 +1,6 @@
 # Story 1.3: User Registration and Authentication
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -403,6 +403,37 @@ Prereqs: `supabase start` running, `apps/web/.env.local` populated from `supabas
 | g | In psql, `set role authenticated; set request.jwt.claim.sub = '<uuid-A>'; select * from public.tenants;` | Returns only tenant A's row |
 | h | Click **Mit Google fortfahren** | Browser navigates to `accounts.google.com/...` (full round-trip requires real OAuth client — marked manual-verified-in-prod-only) |
 
+**Review follow-up (2026-04-13) — 28 patches applied:**
+
+- ✅ Resolved review finding [High]: Added `public.users.onboarded_at timestamptz null`; callback routes on `onboarded_at IS NULL` instead of `company_name` heuristic.
+- ✅ Resolved review finding [Med]: `tenants.company_name` default now `'Mein Unternehmen'` generic placeholder.
+- ✅ Resolved review finding [High]: `updatePasswordAfterRecovery` decodes the access-token `amr` claim and rejects non-recovery sessions.
+- ✅ Resolved review finding [High]: Signup duplicate-email now returns `{success:true, needsEmailConfirmation:true}` (enumeration-safe).
+- ✅ Resolved review finding [Med]: Explicit `*_insert_none` / `*_delete_none` RLS policies added on `tenants` and `users`.
+- ✅ Resolved review finding [Low]: `signOut` JSDoc documents scope `"local"` decision D2.
+- ✅ Resolved review finding [**Critical**]: `users_update_self` `with check` now pins both `id = auth.uid()` AND `tenant_id = (select tenant_id ...)` — prevents cross-tenant privilege escalation.
+- ✅ Resolved review finding [High]: Callback + login-form `next` param reject `//` and `/\` (protocol-relative + backslash tricks).
+- ✅ Resolved review finding [High]: `handle_new_user` wraps email with `coalesce(NEW.email, '')` + uses generic company name — OAuth without email-scope no longer breaks.
+- ✅ Resolved review finding [High]: Middleware matcher replaced `.*\..*` with explicit static-asset allowlist (`_next/static|_next/image|favicon.ico|fonts/|images/|assets/|api/webhooks/|robots.txt|sitemap.xml`).
+- ✅ Resolved review finding [Med]: Middleware `isPublic` uses exact match via `Set` — `/auth/callbackfoo` no longer bypasses auth.
+- ✅ Resolved review finding [High]: `getSiteUrl()` throws in production unless `NEXT_PUBLIC_SITE_URL` is set; dev fallback uses only `host` header (not `x-forwarded-*`).
+- ✅ Resolved review finding [Med]: `tenants_set_updated_at` BEFORE UPDATE trigger added; `updated_at` removed from column-level update grants.
+- ✅ Resolved review finding [Med]: `public.users.email` column now `UNIQUE`.
+- ✅ Resolved review finding [High]: Signup form branches on `needsEmailConfirmation` — shows "Prüfe deinen Posteingang" card instead of bouncing to `/onboarding/trust`.
+- ✅ Resolved review finding [Med]: Zod schemas add `.max(254)` on email, `.max(72)` on password (bcrypt boundary).
+- ✅ Resolved review finding [Low]: Zod email field adds `.toLowerCase()` transform.
+- ✅ Resolved review finding [Low]: Submit buttons use `sticky bottom-0 w-full md:static` — mobile-only sticky per AC #9.
+- ✅ Resolved review finding [Med]: `requestPasswordReset` logs errors at error severity (ready-for-Sentry) while keeping enumeration-safe user response.
+- ✅ Resolved review finding [Low]: Google OAuth button drops `prompt: "consent"` + `access_type: "offline"` — returning users no longer see the consent screen every login.
+- ✅ Resolved review finding [Med]: New `apps/web/lib/supabase/env.ts` validates `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` with zod at module boot; removes non-null assertions from client/server/middleware.
+- ✅ Resolved review finding [Low]: `createBrowserClient()` memoizes a singleton.
+- ✅ Resolved review finding [Med]: `zod` moved to `peerDependencies` in `packages/shared` (kept in devDependencies for local check-types).
+- ✅ Resolved review finding [Low]: `pgcrypto` extension created in `extensions` schema (`gen_random_uuid` called as `extensions.gen_random_uuid()`).
+- ✅ Resolved review finding [Low]: `useFormField` throws on missing `fieldContext.name` before dereferencing (hook ordering now safe).
+- ✅ Resolved review finding [Med]: All four auth form `onSubmit` handlers wrap the server-action call in `try/catch` with a German fallback error; the user is never left with a silently stuck form.
+- ✅ Resolved review finding [Low]: `signOut` returns `ActionResult<void>` on failure (redirect on success); dashboard `<form action={...}>` gets a `signOutFormAction` shim that adapts the return type.
+- ✅ Resolved review finding [Low]: `packages/shared/tsconfig.json` switched to `moduleResolution: Bundler` so extension-less runtime re-export (`export * from "./schemas/auth"`) passes both tsc and Turbopack without the fragile dual-extension game.
+
 **Intentionally deferred (per story):**
 - Vitest / test harness (deferred since Story 1.2 review).
 - Sentry wiring (deferred; logging uses `[auth:<action>]` console prefix as a hook).
@@ -417,6 +448,7 @@ Prereqs: `supabase start` running, `apps/web/.env.local` populated from `supabas
 - `apps/web/lib/supabase/server.ts`
 - `apps/web/lib/supabase/client.ts`
 - `apps/web/lib/supabase/middleware.ts`
+- `apps/web/lib/supabase/env.ts` — zod-validated Supabase env singleton (review 2026-04-13)
 - `apps/web/app/actions/auth.ts`
 - `apps/web/app/(auth)/layout.tsx`
 - `apps/web/app/(auth)/login/page.tsx`
@@ -444,8 +476,10 @@ Prereqs: `supabase start` running, `apps/web/.env.local` populated from `supabas
 - `apps/web/package.json` — new runtime deps
 - `apps/web/.env.example` — Google OAuth env vars + comment
 - `packages/shared/src/index.ts` — re-export `Database`, `Json`, and the auth schemas
-- `packages/shared/package.json` — added `zod` runtime dep
+- `packages/shared/package.json` — `zod` moved to `peerDependencies` (review 2026-04-13)
+- `packages/shared/tsconfig.json` — `moduleResolution: Bundler` (review 2026-04-13)
 - `supabase/config.toml` — `additional_redirect_urls`, `minimum_password_length = 8`, `[auth.external.google]` block
+- `turbo.json` — declared `NODE_ENV` on `lint` task (review 2026-04-13)
 
 ### Review Findings
 
@@ -455,34 +489,34 @@ _Reviewed 2026-04-13 via bmad-code-review (Blind Hunter + Edge Case Hunter + Acc
 
 **Patch (unambiguous fixes):**
 
-- [ ] [Review][Patch] Add `public.users.onboarded_at timestamptz null` column + migrate callback routing to `onboarded_at IS NULL` check, replacing the `company_name === emailLocalPart` heuristic [supabase/migrations, apps/web/app/(app)/auth/callback/route.ts].
-- [ ] [Review][Patch] `tenants.company_name` default → use generic placeholder `'Mein Unternehmen'` instead of `split_part(NEW.email, '@', 1)` [supabase/migrations/20260412193336_auth_tenants_users.sql:70-71] (supersedes the earlier NULL-safe coalesce patch).
-- [ ] [Review][Patch] `updatePasswordAfterRecovery` must verify the session is a recovery/AAL-appropriate session — reject when the session is a normal authenticated session [apps/web/app/actions/auth.ts:671-704].
-- [ ] [Review][Patch] Signup duplicate-email mapping must return the same generic message as reset flow to close enumeration — replace `"Ein Konto mit dieser E-Mail existiert bereits."` with the generic success message [apps/web/app/actions/auth.ts `mapSupabaseError`].
-- [ ] [Review][Patch] Add explicit INSERT and DELETE RLS policies on `public.tenants` and `public.users` (tenant-scoped `with check`) per AC #1(d) [supabase/migrations/20260412193336_auth_tenants_users.sql].
-- [ ] [Review][Patch] Keep `signOut` `scope: "local"` (decision D2) — no code change required, but document the trade-off in the action's JSDoc [apps/web/app/actions/auth.ts:706-714].
+- [x] [Review][Patch] Add `public.users.onboarded_at timestamptz null` column + migrate callback routing to `onboarded_at IS NULL` check, replacing the `company_name === emailLocalPart` heuristic [supabase/migrations, apps/web/app/(app)/auth/callback/route.ts].
+- [x] [Review][Patch] `tenants.company_name` default → use generic placeholder `'Mein Unternehmen'` instead of `split_part(NEW.email, '@', 1)` [supabase/migrations/20260412193336_auth_tenants_users.sql:70-71] (supersedes the earlier NULL-safe coalesce patch).
+- [x] [Review][Patch] `updatePasswordAfterRecovery` must verify the session is a recovery/AAL-appropriate session — reject when the session is a normal authenticated session [apps/web/app/actions/auth.ts:671-704].
+- [x] [Review][Patch] Signup duplicate-email mapping must return the same generic message as reset flow to close enumeration — replace `"Ein Konto mit dieser E-Mail existiert bereits."` with the generic success message [apps/web/app/actions/auth.ts `mapSupabaseError`].
+- [x] [Review][Patch] Add explicit INSERT and DELETE RLS policies on `public.tenants` and `public.users` (tenant-scoped `with check`) per AC #1(d) [supabase/migrations/20260412193336_auth_tenants_users.sql].
+- [x] [Review][Patch] Keep `signOut` `scope: "local"` (decision D2) — no code change required, but document the trade-off in the action's JSDoc [apps/web/app/actions/auth.ts:706-714].
 
-- [ ] [Review][Patch] **CRITICAL**: RLS `users_update_self` allows tenant_id reassignment = cross-tenant privilege escalation [supabase/migrations/20260412193336_auth_tenants_users.sql:52-57] — add `with check (id = auth.uid() AND tenant_id = (select tenant_id from public.users where id = auth.uid()))` or column-scope the grant.
-- [ ] [Review][Patch] Open-redirect via `next` param (`startsWith("/")` allows `//evil.com`) [apps/web/app/(app)/auth/callback/route.ts:334, apps/web/components/auth/login-form.tsx:884] — also reject paths starting with `//` or `/\`.
-- [ ] [Review][Patch] `handle_new_user` breaks on NULL email (OAuth w/o email scope) — `split_part(NULL, '@', 1)` violates NOT NULL [supabase/migrations/20260412193336_auth_tenants_users.sql:70-71] — wrap with `coalesce(..., 'Mein Unternehmen')`.
-- [ ] [Review][Patch] Middleware matcher `.*\\..*` skips auth on any dotted path (e.g. `/kunden/mueller.de`) [apps/web/middleware.ts matcher] — replace with an explicit static-asset allowlist.
-- [ ] [Review][Patch] Middleware `isPublic` prefix match allows `/auth/callbackfoo` [apps/web/middleware.ts:1774] — use exact match or `=== "/auth/callback"`.
-- [ ] [Review][Patch] `getSiteUrl()` trusts `x-forwarded-host`/`x-forwarded-proto` → host-header injection on reset links [apps/web/app/actions/auth.ts:559-566] — allowlist trusted hosts or require `NEXT_PUBLIC_SITE_URL` in prod.
-- [ ] [Review][Patch] `tenants.updated_at` has no update trigger; column-level update grant to `authenticated` allows clients to write timestamps [supabase/migrations/20260412193336_auth_tenants_users.sql] — add `BEFORE UPDATE` trigger, remove `updated_at` from column-level grants.
-- [ ] [Review][Patch] `public.users.email` has no UNIQUE constraint — duplicates possible via provider linking races [supabase/migrations/20260412193336_auth_tenants_users.sql:32-42] — add `unique (email)`.
-- [ ] [Review][Patch] Signup form ignores `needsEmailConfirmation` — always pushes to `/onboarding/trust` even when confirmation required, leading to login-bounce loop [apps/web/components/auth/signup-form.tsx:1229-1237] — branch on flag and show "Prüfe deinen Posteingang" message.
-- [ ] [Review][Patch] Zod schemas have no max length on email/password [packages/shared/src/schemas/auth.ts:1885-1895] — add `.max(254)` on email, `.max(72)` on password (bcrypt truncation boundary).
-- [ ] [Review][Patch] Email case not normalized in schema [packages/shared/src/schemas/auth.ts:1885] — add `.toLowerCase()` transform.
-- [ ] [Review][Patch] Submit buttons are sticky on all viewports, AC #9 requires mobile-only [apps/web/components/auth/*-form.tsx] — replace `sticky bottom-0` with `sticky bottom-0 md:static`.
-- [ ] [Review][Patch] `requestPasswordReset` swallows all errors silently, hiding rate-limits and config errors from observability [apps/web/app/actions/auth.ts:643-669] — log at error severity (ready for Sentry hookup) while keeping generic user response.
-- [ ] [Review][Patch] Google OAuth forces `prompt: "consent"` every login — UX friction for returning users [apps/web/components/auth/google-oauth-button.tsx:774-777] — drop `prompt` and `access_type` unless offline refresh is actually used.
-- [ ] [Review][Patch] Env vars use non-null assertions with no boot-time validation — cryptic failures when missing [apps/web/lib/supabase/{client,server,middleware}.ts] — validate with zod at module boot.
-- [ ] [Review][Patch] `createBrowserClient` allocates new client per call — should be memoized singleton [apps/web/lib/supabase/client.ts].
-- [ ] [Review][Patch] `zod` declared as runtime dep in `packages/shared` and `apps/web` independently → dual-package hazard for `instanceof ZodError` [packages/shared/package.json] — move `zod` to `peerDependencies` in shared.
-- [ ] [Review][Patch] `pgcrypto` extension created in default schema, not `extensions` — breaks Supabase convention [supabase/migrations/20260412193336_auth_tenants_users.sql] — `create extension if not exists "pgcrypto" with schema extensions;`.
-- [ ] [Review][Patch] `useFormField` dereferences `fieldContext.name` before null-check [apps/web/components/ui/form.tsx] — reorder so the guard throws first.
-- [ ] [Review][Patch] Form `onSubmit` handlers have no try/catch — unhandled action rejections leave the form stuck [apps/web/components/auth/{login,signup,reset-update,reset-request}-form.tsx] — wrap server-action call in try/catch with user-visible fallback error.
-- [ ] [Review][Patch] `signOut` returns `Promise<void>` instead of `ActionResult<T>`, breaking the uniform contract in AC #11 / Task 6.1 [apps/web/app/actions/auth.ts:706-714] — return `ActionResult<void>` on failure, still `redirect` on success.
+- [x] [Review][Patch] **CRITICAL**: RLS `users_update_self` allows tenant_id reassignment = cross-tenant privilege escalation [supabase/migrations/20260412193336_auth_tenants_users.sql:52-57] — add `with check (id = auth.uid() AND tenant_id = (select tenant_id from public.users where id = auth.uid()))` or column-scope the grant.
+- [x] [Review][Patch] Open-redirect via `next` param (`startsWith("/")` allows `//evil.com`) [apps/web/app/(app)/auth/callback/route.ts:334, apps/web/components/auth/login-form.tsx:884] — also reject paths starting with `//` or `/\`.
+- [x] [Review][Patch] `handle_new_user` breaks on NULL email (OAuth w/o email scope) — `split_part(NULL, '@', 1)` violates NOT NULL [supabase/migrations/20260412193336_auth_tenants_users.sql:70-71] — wrap with `coalesce(..., 'Mein Unternehmen')`.
+- [x] [Review][Patch] Middleware matcher `.*\\..*` skips auth on any dotted path (e.g. `/kunden/mueller.de`) [apps/web/middleware.ts matcher] — replace with an explicit static-asset allowlist.
+- [x] [Review][Patch] Middleware `isPublic` prefix match allows `/auth/callbackfoo` [apps/web/middleware.ts:1774] — use exact match or `=== "/auth/callback"`.
+- [x] [Review][Patch] `getSiteUrl()` trusts `x-forwarded-host`/`x-forwarded-proto` → host-header injection on reset links [apps/web/app/actions/auth.ts:559-566] — allowlist trusted hosts or require `NEXT_PUBLIC_SITE_URL` in prod.
+- [x] [Review][Patch] `tenants.updated_at` has no update trigger; column-level update grant to `authenticated` allows clients to write timestamps [supabase/migrations/20260412193336_auth_tenants_users.sql] — add `BEFORE UPDATE` trigger, remove `updated_at` from column-level grants.
+- [x] [Review][Patch] `public.users.email` has no UNIQUE constraint — duplicates possible via provider linking races [supabase/migrations/20260412193336_auth_tenants_users.sql:32-42] — add `unique (email)`.
+- [x] [Review][Patch] Signup form ignores `needsEmailConfirmation` — always pushes to `/onboarding/trust` even when confirmation required, leading to login-bounce loop [apps/web/components/auth/signup-form.tsx:1229-1237] — branch on flag and show "Prüfe deinen Posteingang" message.
+- [x] [Review][Patch] Zod schemas have no max length on email/password [packages/shared/src/schemas/auth.ts:1885-1895] — add `.max(254)` on email, `.max(72)` on password (bcrypt truncation boundary).
+- [x] [Review][Patch] Email case not normalized in schema [packages/shared/src/schemas/auth.ts:1885] — add `.toLowerCase()` transform.
+- [x] [Review][Patch] Submit buttons are sticky on all viewports, AC #9 requires mobile-only [apps/web/components/auth/*-form.tsx] — replace `sticky bottom-0` with `sticky bottom-0 md:static`.
+- [x] [Review][Patch] `requestPasswordReset` swallows all errors silently, hiding rate-limits and config errors from observability [apps/web/app/actions/auth.ts:643-669] — log at error severity (ready for Sentry hookup) while keeping generic user response.
+- [x] [Review][Patch] Google OAuth forces `prompt: "consent"` every login — UX friction for returning users [apps/web/components/auth/google-oauth-button.tsx:774-777] — drop `prompt` and `access_type` unless offline refresh is actually used.
+- [x] [Review][Patch] Env vars use non-null assertions with no boot-time validation — cryptic failures when missing [apps/web/lib/supabase/{client,server,middleware}.ts] — validate with zod at module boot.
+- [x] [Review][Patch] `createBrowserClient` allocates new client per call — should be memoized singleton [apps/web/lib/supabase/client.ts].
+- [x] [Review][Patch] `zod` declared as runtime dep in `packages/shared` and `apps/web` independently → dual-package hazard for `instanceof ZodError` [packages/shared/package.json] — move `zod` to `peerDependencies` in shared.
+- [x] [Review][Patch] `pgcrypto` extension created in default schema, not `extensions` — breaks Supabase convention [supabase/migrations/20260412193336_auth_tenants_users.sql] — `create extension if not exists "pgcrypto" with schema extensions;`.
+- [x] [Review][Patch] `useFormField` dereferences `fieldContext.name` before null-check [apps/web/components/ui/form.tsx] — reorder so the guard throws first.
+- [x] [Review][Patch] Form `onSubmit` handlers have no try/catch — unhandled action rejections leave the form stuck [apps/web/components/auth/{login,signup,reset-update,reset-request}-form.tsx] — wrap server-action call in try/catch with user-visible fallback error.
+- [x] [Review][Patch] `signOut` returns `Promise<void>` instead of `ActionResult<T>`, breaking the uniform contract in AC #11 / Task 6.1 [apps/web/app/actions/auth.ts:706-714] — return `ActionResult<void>` on failure, still `redirect` on success.
 
 **Deferred (pre-existing / tracked separately):**
 
@@ -505,3 +539,4 @@ _Reviewed 2026-04-13 via bmad-code-review (Blind Hunter + Edge Case Hunter + Acc
 | ---------- | --------------------------------------------------- |
 | 2026-04-12 | Story 1.3 drafted — ready-for-dev.                  |
 | 2026-04-12 | Implementation complete — all 11 tasks done, status → review. |
+| 2026-04-13 | Addressed code review findings — 28 items resolved, status → review. |

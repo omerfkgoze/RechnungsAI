@@ -3,12 +3,17 @@ import { z } from "zod";
 const emailField = z
   .string({ required_error: "E-Mail ist erforderlich." })
   .trim()
+  .toLowerCase()
   .min(1, { message: "E-Mail ist erforderlich." })
+  .max(254, { message: "E-Mail ist zu lang." })
   .email({ message: "Bitte gib eine gültige E-Mail ein." });
 
 const passwordField = z
   .string({ required_error: "Passwort ist erforderlich." })
   .min(8, { message: "Passwort muss mindestens 8 Zeichen enthalten." })
+  // bcrypt truncates silently at 72 bytes — enforce the boundary so users
+  // don't set a long passphrase whose tail is effectively ignored.
+  .max(72, { message: "Passwort darf höchstens 72 Zeichen enthalten." })
   .regex(/[0-9]/, { message: "Passwort muss eine Zahl enthalten." });
 
 export const signupSchema = z

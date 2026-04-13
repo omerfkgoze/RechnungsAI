@@ -33,9 +33,6 @@ function mapSupabaseError(code: string | undefined, fallback: string): string {
       return "Zu viele Versuche. Bitte warte einen Moment und versuche es erneut.";
     case "weak_password":
       return "Passwort ist zu schwach.";
-    case "user_already_exists":
-    case "email_exists":
-      return "Ein Konto mit dieser E-Mail existiert bereits.";
     case "email_not_confirmed":
       return "Bitte bestätige zuerst deine E-Mail.";
     default:
@@ -46,10 +43,28 @@ function mapSupabaseError(code: string | undefined, fallback: string): string {
 async function getSiteUrl(): Promise<string> {
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (envUrl) return envUrl.replace(/\/$/, "");
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[auth] NEXT_PUBLIC_SITE_URL must be set in production to prevent host-header injection on auth redirects.",
+    );
+  }
+  // Dev-only fallback: trust the `host` header (not x-forwarded-*, which are attacker-controlled at the edge).
   const hdrs = await headers();
-  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
-  const proto = hdrs.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}`;
+  const host = hdrs.get("host") ?? "127.0.0.1:3000";
+  return `http://${host}`;
+}
+
+function decodeAmr(accessToken: string): Array<{ method?: string }> | null {
+  try {
+    const payloadSegment = accessToken.split(".")[1];
+    if (!payloadSegment) return null;
+    const padded = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
+    const json = Buffer.from(padded, "base64").toString("utf8");
+    const parsed = JSON.parse(json) as { amr?: Array<{ method?: string }> };
+    return parsed.amr ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function signUpWithPassword(
@@ -71,6 +86,11 @@ export async function signUpWithPassword(
 
     if (error) {
       console.error("[auth:signup]", error);
+      // Enumeration protection: treat "email already exists" as a generic
+      // "check your inbox" path so attackers cannot probe which emails are registered.
+      if (error.code === "user_already_exists" || error.code === "email_exists") {
+        return { success: true, data: { needsEmailConfirmation: true } };
+      }
       return {
         success: false,
         error: mapSupabaseError(
@@ -146,6 +166,9 @@ export async function requestPasswordReset(
     );
 
     if (error) {
+      // Enumeration protection: UI response stays generic, but we log at error
+      // severity so rate-limit / config failures are visible in observability
+      // (Sentry wiring lands with the telemetry story; prefix kept stable).
       console.error("[auth:reset-request]", error);
     }
   } catch (err) {
@@ -165,6 +188,32 @@ export async function updatePasswordAfterRecovery(
 
   try {
     const supabase = await createServerClient();
+
+    // Gate the update on a recovery-grade session — a normal authenticated
+    // session must NOT be allowed to change the password via this action.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData.session;
+    if (!session) {
+      return {
+        success: false,
+        error:
+          "Der Link ist abgelaufen. Bitte fordere einen neuen Reset-Link an.",
+      };
+    }
+    const amr = decodeAmr(session.access_token);
+    const isRecoverySession =
+      amr?.some((entry) => entry.method === "recovery") ?? false;
+    if (!isRecoverySession) {
+      console.error(
+        "[auth:reset-update] non-recovery session attempted password update",
+      );
+      return {
+        success: false,
+        error:
+          "Dieser Link ist nicht mehr gültig. Bitte fordere einen neuen Reset-Link an.",
+      };
+    }
+
     const { error } = await supabase.auth.updateUser({
       password: parsed.data.password,
     });
@@ -190,12 +239,35 @@ export async function updatePasswordAfterRecovery(
   }
 }
 
-export async function signOut(): Promise<void> {
+/**
+ * Sign the user out on THIS device only (`scope: "local"`) and redirect to /login.
+ *
+ * Decision D2 (review 2026-04-13): we intentionally keep `scope: "local"` rather
+ * than `"global"`. Global sign-out revokes every refresh token across all of the
+ * user's devices, which is disruptive when the common case is "I'm stepping away
+ * from this laptop." Users who need a global wipe will get that from the
+ * Settings / Security screen in Story 1.5.
+ *
+ * On failure, returns `ActionResult<void>` so the caller can surface an error;
+ * on success, redirect() throws a `NEXT_REDIRECT` signal and never returns.
+ */
+export async function signOut(): Promise<ActionResult<void>> {
   try {
     const supabase = await createServerClient();
-    await supabase.auth.signOut({ scope: "local" });
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) {
+      console.error("[auth:signout]", error);
+      return {
+        success: false,
+        error: "Abmelden fehlgeschlagen. Bitte versuche es erneut.",
+      };
+    }
   } catch (err) {
     console.error("[auth:signout]", err);
+    return {
+      success: false,
+      error: "Abmelden fehlgeschlagen. Bitte versuche es erneut.",
+    };
   }
   redirect("/login");
 }

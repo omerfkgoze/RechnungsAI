@@ -30,8 +30,16 @@ export function ResetRequestForm() {
   });
 
   async function onSubmit(values: ResetRequestInput) {
-    await requestPasswordReset(values);
-    setSubmitted(true);
+    form.clearErrors("root");
+    try {
+      await requestPasswordReset(values);
+      setSubmitted(true);
+    } catch (err) {
+      console.error("[reset-request-form]", err);
+      form.setError("root", {
+        message: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      });
+    }
   }
 
   if (submitted) {
@@ -80,10 +88,16 @@ export function ResetRequestForm() {
           )}
         />
 
+        {form.formState.errors.root?.message && (
+          <p className="text-destructive text-sm">
+            {form.formState.errors.root.message}
+          </p>
+        )}
+
         <Button
           type="submit"
           size="lg"
-          className="sticky bottom-0 w-full"
+          className="sticky bottom-0 w-full md:static"
           disabled={form.formState.isSubmitting}
         >
           Reset-Link senden

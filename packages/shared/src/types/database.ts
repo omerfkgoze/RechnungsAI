@@ -66,6 +66,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          onboarded_at: string | null
           role: string
           tenant_id: string
         }
@@ -73,6 +74,7 @@ export type Database = {
           created_at?: string
           email: string
           id: string
+          onboarded_at?: string | null
           role?: string
           tenant_id: string
         }
@@ -80,6 +82,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          onboarded_at?: string | null
           role?: string
           tenant_id?: string
         }

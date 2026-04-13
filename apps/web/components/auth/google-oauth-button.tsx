@@ -13,14 +13,13 @@ export function GoogleOAuthButton() {
     setLoading(true);
     try {
       const supabase = createBrowserClient();
+      // We don't use offline refresh tokens server-side, so `access_type: "offline"`
+      // + `prompt: "consent"` just force a consent screen every login — annoying
+      // UX with no benefit. Drop both and let Google's default behavior run.
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
         },
       });
       if (oauthError) {

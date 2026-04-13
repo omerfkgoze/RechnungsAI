@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -21,6 +22,7 @@ import { GoogleOAuthButton } from "@/components/auth/google-oauth-button";
 
 export function SignupForm() {
   const router = useRouter();
+  const [confirmationNotice, setConfirmationNotice] = useState(false);
   const form = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
     mode: "onBlur",
@@ -29,12 +31,41 @@ export function SignupForm() {
 
   async function onSubmit(values: SignupInput) {
     form.clearErrors("root");
-    const res = await signUpWithPassword(values);
-    if (!res.success) {
-      form.setError("root", { message: res.error });
-      return;
+    try {
+      const res = await signUpWithPassword(values);
+      if (!res.success) {
+        form.setError("root", { message: res.error });
+        return;
+      }
+      if (res.data.needsEmailConfirmation) {
+        setConfirmationNotice(true);
+        return;
+      }
+      router.push("/onboarding/trust");
+    } catch (err) {
+      console.error("[signup-form]", err);
+      form.setError("root", {
+        message: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      });
     }
-    router.push("/onboarding/trust");
+  }
+
+  if (confirmationNotice) {
+    return (
+      <div className="grid gap-4 rounded-xl border border-border bg-card p-6 text-center">
+        <h2 className="text-h3 text-foreground">Prüfe deinen Posteingang</h2>
+        <p className="text-body-sm text-muted-foreground">
+          Falls ein Konto mit dieser E-Mail existiert oder neu angelegt wurde,
+          haben wir dir einen Bestätigungs-Link geschickt.
+        </p>
+        <Link
+          href="/login"
+          className="text-body-sm text-primary hover:underline"
+        >
+          Zurück zur Anmeldung
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -115,7 +146,7 @@ export function SignupForm() {
         <Button
           type="submit"
           size="lg"
-          className="sticky bottom-0 w-full"
+          className="sticky bottom-0 w-full md:static"
           disabled={form.formState.isSubmitting}
         >
           Konto erstellen

@@ -29,15 +29,31 @@ export function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
+  // Reject protocol-relative (`//evil.com`) and backslash-tricks (`/\evil.com`)
+  // so the `?next=` param cannot be used to bounce off-origin after login.
+  function isSafeNext(path: string | null): path is string {
+    if (!path) return false;
+    if (!path.startsWith("/")) return false;
+    if (path.startsWith("//") || path.startsWith("/\\")) return false;
+    return true;
+  }
+
   async function onSubmit(values: LoginInput) {
     form.clearErrors("root");
-    const res = await signInWithPassword(values);
-    if (!res.success) {
-      form.setError("root", { message: res.error });
-      return;
+    try {
+      const res = await signInWithPassword(values);
+      if (!res.success) {
+        form.setError("root", { message: res.error });
+        return;
+      }
+      const target = isSafeNext(next) ? next : "/dashboard";
+      router.push(target);
+    } catch (err) {
+      console.error("[login-form]", err);
+      form.setError("root", {
+        message: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      });
     }
-    const target = next && next.startsWith("/") ? next : "/dashboard";
-    router.push(target);
   }
 
   return (
@@ -104,7 +120,7 @@ export function LoginForm() {
         <Button
           type="submit"
           size="lg"
-          className="sticky bottom-0 w-full"
+          className="sticky bottom-0 w-full md:static"
           disabled={form.formState.isSubmitting}
         >
           Anmelden

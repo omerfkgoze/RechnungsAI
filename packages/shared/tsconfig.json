@@ -2,7 +2,9 @@
   "extends": "@rechnungsai/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "moduleResolution": "Bundler",
+    "module": "ESNext"
   },
   "include": ["src"]
 }

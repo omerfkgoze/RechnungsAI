@@ -1,13 +1,14 @@
 import { createServerClient as createSSRClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@rechnungsai/shared";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase/env";
 
 export async function createServerClient() {
   const cookieStore = await cookies();
 
   return createSSRClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
