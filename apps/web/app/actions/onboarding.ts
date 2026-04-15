@@ -15,6 +15,24 @@ function firstZodError(error: z.ZodError): string {
   );
 }
 
+function mapRpcError(error: { code?: string; message?: string }): string {
+  if (error.code === "42501") {
+    return "Bitte melde dich erneut an.";
+  }
+  if (error.code === "23514") {
+    return "Ungültige Eingabe. Bitte überprüfe deine Daten.";
+  }
+  if (error.code === "P0001") {
+    if (error.message?.includes("disclaimer_required")) {
+      return "Bitte bestätige zuerst den Hinweis zur KI-Nutzung auf der vorherigen Seite.";
+    }
+    if (error.message?.includes("already_completed")) {
+      return "Das Onboarding wurde bereits abgeschlossen.";
+    }
+  }
+  return "Etwas ist schiefgelaufen. Bitte versuche es erneut.";
+}
+
 export async function completeOnboarding(
   input: OnboardingSetupInput,
 ): Promise<ActionResult<{ redirectTo: string }>> {
@@ -26,6 +44,7 @@ export async function completeOnboarding(
   try {
     const supabase = await createServerClient();
     const { error } = await supabase.rpc("complete_onboarding", {
+      p_disclaimer_accepted: parsed.data.disclaimer_accepted,
       p_company_name: parsed.data.company_name,
       p_skr_plan: parsed.data.skr_plan,
       p_steuerberater_name: parsed.data.steuerberater_name ?? "",
@@ -33,21 +52,7 @@ export async function completeOnboarding(
 
     if (error) {
       console.error("[onboarding:complete]", error);
-      // 42501 = insufficient_privilege → re-auth. 23514 = check_violation →
-      // generic validation. Anything else → opaque German fallback.
-      if (error.code === "42501") {
-        return { success: false, error: "Bitte melde dich erneut an." };
-      }
-      if (error.code === "23514") {
-        return {
-          success: false,
-          error: "Ungültige Eingabe. Bitte überprüfe deine Daten.",
-        };
-      }
-      return {
-        success: false,
-        error: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
-      };
+      return { success: false, error: mapRpcError(error) };
     }
 
     return {
@@ -56,6 +61,28 @@ export async function completeOnboarding(
     };
   } catch (err) {
     console.error("[onboarding:complete]", err);
+    return {
+      success: false,
+      error: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+    };
+  }
+}
+
+export async function completeFirstInvoiceStep(
+  nextPath: "/capture" | "/dashboard",
+): Promise<ActionResult<{ redirectTo: string }>> {
+  try {
+    const supabase = await createServerClient();
+    const { error } = await supabase.rpc("complete_first_invoice_step");
+
+    if (error) {
+      console.error("[onboarding:first-invoice]", error);
+      return { success: false, error: mapRpcError(error) };
+    }
+
+    return { success: true, data: { redirectTo: nextPath } };
+  } catch (err) {
+    console.error("[onboarding:first-invoice]", err);
     return {
       success: false,
       error: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",

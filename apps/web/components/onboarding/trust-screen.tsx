@@ -30,18 +30,22 @@ const PILLARS: Array<{
 const DISCLAIMER_TEXT =
   "Die von der KI vorgeschlagenen Daten müssen überprüft werden. Die endgültige Verantwortung liegt beim Nutzer.";
 
+// Session-scoped carry so the setup form can forward the user's consent to the
+// server. The authoritative acceptance record is written by the
+// `complete_onboarding` RPC, which raises `disclaimer_required` if the flag is
+// false — so tampering with sessionStorage cannot forge consent.
+export const DISCLAIMER_SESSION_KEY = "rechnungsai:ai_disclaimer_accepted";
+
 export function TrustScreen() {
   const router = useRouter();
   const [accepted, setAccepted] = useState(false);
 
   function onContinue() {
-    // `sessionStorage` is a UX carry so the user doesn't re-tick on
-    // back-navigation. The authoritative acceptance is written by the
-    // `complete_onboarding` RPC when setup submits.
     try {
-      sessionStorage.setItem("rechnungsai:ai_disclaimer_accepted", "1");
+      sessionStorage.setItem(DISCLAIMER_SESSION_KEY, "1");
     } catch {
-      // sessionStorage may be unavailable (private mode, SSR); non-fatal.
+      // sessionStorage may be unavailable (private mode, SSR); non-fatal —
+      // the setup form will detect the missing flag and redirect back here.
     }
     router.push("/onboarding/setup");
   }
@@ -91,7 +95,7 @@ export function TrustScreen() {
         <span>Ich habe den Hinweis gelesen und akzeptiere ihn.</span>
       </label>
 
-      <div className="sticky bottom-0 w-full bg-background pt-2 pb-4 md:static md:pt-0 md:pb-0">
+      <div className="sticky bottom-0 w-full bg-background pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:static md:pt-0 md:pb-0">
         <Button
           type="button"
           onClick={onContinue}

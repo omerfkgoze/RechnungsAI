@@ -3,24 +3,44 @@ import { z } from "zod";
 export const SKR_PLANS = ["SKR03", "SKR04"] as const;
 export type SkrPlan = (typeof SKR_PLANS)[number];
 
+// Strip zero-width and bidi-override characters that would pass a naive trim
+// but render invisible / spoofable content downstream (invoices, exports).
+const ZERO_WIDTH_AND_BIDI = /[\u200B-\u200D\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+const normalizeName = (value: string) =>
+  value.replace(ZERO_WIDTH_AND_BIDI, "").trim();
+
 export const onboardingSetupSchema = z.object({
+  disclaimer_accepted: z.literal(true, {
+    errorMap: () => ({
+      message:
+        "Bitte bestätige zuerst den Hinweis zur KI-Nutzung auf der vorherigen Seite.",
+    }),
+  }),
   company_name: z
-    .string({ required_error: "Firmenname ist erforderlich." })
-    .trim()
-    .min(2, { message: "Firmenname ist zu kurz." })
-    .max(100, { message: "Firmenname ist zu lang." }),
+    .string()
+    .transform(normalizeName)
+    .pipe(
+      z
+        .string()
+        .min(2, { message: "Firmenname ist zu kurz." })
+        .max(100, { message: "Firmenname ist zu lang." }),
+    ),
   skr_plan: z.enum(SKR_PLANS, {
     errorMap: () => ({ message: "Bitte wähle SKR03 oder SKR04." }),
   }),
-  // Optional steuerberater — treat empty string as "not provided" so the
-  // empty-from-empty-input case stays legal without forcing the client to
-  // convert to undefined.
   steuerberater_name: z
     .string()
-    .trim()
-    .max(100, { message: "Name ist zu lang." })
-    .optional()
-    .or(z.literal("")),
+    .transform((v) => {
+      const cleaned = normalizeName(v);
+      return cleaned.length === 0 ? null : cleaned;
+    })
+    .pipe(
+      z
+        .string()
+        .max(100, { message: "Name ist zu lang." })
+        .nullable(),
+    ),
 });
 
-export type OnboardingSetupInput = z.infer<typeof onboardingSetupSchema>;
+export type OnboardingSetupInput = z.input<typeof onboardingSetupSchema>;
+export type OnboardingSetupOutput = z.output<typeof onboardingSetupSchema>;

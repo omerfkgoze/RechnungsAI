@@ -31,3 +31,17 @@
 - [ ] `createServerClient` silently swallows cookie-set failures in Server Actions (not just Server Components). Surface these with telemetry once Sentry is wired.
 - [ ] `requestPasswordReset` returns success even on legitimate rate-limit errors (by design for enumeration protection) — add observability/log severity instead of silent pass.
 - [ ] Multiple `owner` roles per tenant possible after invite flow lands — constrain with `unique (tenant_id) where role = 'owner'` partial index in Story 1.5.
+
+## Deferred from: code review of 1-4-trust-building-onboarding-flow (2026-04-15)
+
+- [ ] Race between `handle_new_user` trigger and middleware `public.users` row probe — first post-callback navigation may read null row and force `/login?error=account_setup_failed`. Needs retry/backoff or grace period. [apps/web/middleware.ts]
+- [ ] Middleware does not preserve deep-link destination via `?next=` on onboarding redirect. UX polish. [apps/web/middleware.ts]
+- [ ] `Button` + `nativeButton={false}` + `render={<Link>}` nested pattern fragile; recurring fix history. Affects prior stories. [apps/web/components/onboarding/first-invoice-prompt.tsx]
+- [ ] No automated tests for middleware redirect logic, RPC consent semantics, or zod schema edges. Test harness is Epic-level. FR51 legal exposure implies risk. [root]
+- [ ] No `aria-invalid` wiring on shadcn `Input` components. Shared across all forms. [apps/web/components/onboarding/setup-form.tsx]
+- [ ] No `onboarding/error.tsx` — uncaught errors bubble to root boundary, dropping stepper/layout. Boundary UX polish. [apps/web/app/onboarding/]
+- [ ] Stepper lacks back-navigation affordance. MVP scope. [apps/web/components/onboarding/onboarding-stepper.tsx]
+- [ ] Browser back button + bfcache restores stale setup form to already-onboarded user before middleware redirect fires. Transient UI glitch. [apps/web/components/onboarding/setup-form.tsx]
+- [ ] `Functions.complete_onboarding.Returns: undefined` in generated types (should be `null` for void SQL). Re-run `supabase gen types`. [packages/shared/src/types/database.ts]
+- [ ] Server Action lacks explicit CSRF/origin check beyond Next.js built-in Action origin enforcement. Defensive hardening. [apps/web/app/actions/onboarding.ts]
+- [ ] "Später ergänzen" placeholder `"Mein Unternehmen"` — after skip sets `onboarded_at`, user is locked out of `/onboarding/setup`. Add re-onboarding / edit-company path when settings UI Epic lands. [apps/web/components/onboarding/setup-form.tsx]

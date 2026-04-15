@@ -106,10 +106,15 @@ export type Database = {
     Functions: {
       complete_onboarding: {
         Args: {
+          p_disclaimer_accepted: boolean
           p_company_name: string
           p_skr_plan: string
           p_steuerberater_name: string
         }
+        Returns: undefined
+      }
+      complete_first_invoice_step: {
+        Args: Record<string, never>
         Returns: undefined
       }
     }

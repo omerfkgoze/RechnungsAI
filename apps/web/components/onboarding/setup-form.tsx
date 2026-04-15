@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +9,7 @@ import {
   type OnboardingSetupInput,
 } from "@rechnungsai/shared";
 import { completeOnboarding } from "@/app/actions/onboarding";
+import { DISCLAIMER_SESSION_KEY } from "./trust-screen";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -23,10 +25,28 @@ import { cn } from "@/lib/utils";
 
 export function SetupForm() {
   const router = useRouter();
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState<boolean | null>(
+    null,
+  );
+  const [isSkipping, setIsSkipping] = useState(false);
+
+  useEffect(() => {
+    try {
+      setDisclaimerAccepted(
+        sessionStorage.getItem(DISCLAIMER_SESSION_KEY) === "1",
+      );
+    } catch {
+      setDisclaimerAccepted(false);
+    }
+  }, []);
+
   const form = useForm<OnboardingSetupInput>({
-    resolver: zodResolver(onboardingSetupSchema),
+    resolver: zodResolver(onboardingSetupSchema) as unknown as import(
+      "react-hook-form"
+    ).Resolver<OnboardingSetupInput>,
     mode: "onBlur",
     defaultValues: {
+      disclaimer_accepted: true,
       company_name: "",
       skr_plan: "SKR03",
       steuerberater_name: "",
@@ -34,12 +54,24 @@ export function SetupForm() {
   });
 
   const skrValue = form.watch("skr_plan");
-  const isSubmitting = form.formState.isSubmitting;
+  const isSubmitting = form.formState.isSubmitting || isSkipping;
+
+  // If the user landed here without going through the Trust Screen, bounce
+  // back — they must tick the disclaimer. The RPC enforces this server-side
+  // too; this is the UX path.
+  useEffect(() => {
+    if (disclaimerAccepted === false) {
+      router.replace("/onboarding/trust");
+    }
+  }, [disclaimerAccepted, router]);
 
   async function submit(values: OnboardingSetupInput) {
     form.clearErrors("root");
     try {
-      const res = await completeOnboarding(values);
+      const res = await completeOnboarding({
+        ...values,
+        disclaimer_accepted: true,
+      });
       if (!res.success) {
         form.setError("root", { message: res.error });
         return;
@@ -54,11 +86,17 @@ export function SetupForm() {
   }
 
   async function skip() {
+    if (isSubmitting) return;
+    setIsSkipping(true);
     form.clearErrors("root");
     try {
+      // Preserve whatever the user already typed rather than silently
+      // overwriting with a placeholder.
+      const typed = form.getValues("company_name").trim();
       const res = await completeOnboarding({
-        company_name: "Mein Unternehmen",
-        skr_plan: "SKR03",
+        disclaimer_accepted: true,
+        company_name: typed.length >= 2 ? typed : "Mein Unternehmen",
+        skr_plan: form.getValues("skr_plan") ?? "SKR03",
         steuerberater_name: "",
       });
       if (!res.success) {
@@ -71,7 +109,14 @@ export function SetupForm() {
       form.setError("root", {
         message: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
       });
+    } finally {
+      setIsSkipping(false);
     }
+  }
+
+  // Avoid rendering the form while we're still hydrating the disclaimer flag.
+  if (disclaimerAccepted === null) {
+    return null;
   }
 
   return (
@@ -124,8 +169,6 @@ export function SetupForm() {
                       <button
                         key={value}
                         type="button"
-                        role="radio"
-                        aria-checked={pressed}
                         aria-pressed={pressed}
                         onClick={() =>
                           form.setValue("skr_plan", value, {
@@ -178,7 +221,7 @@ export function SetupForm() {
             </p>
           ) : null}
 
-          <div className="sticky bottom-0 w-full bg-background pt-2 pb-4 md:static md:pt-0 md:pb-0">
+          <div className="sticky bottom-0 w-full bg-background pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:static md:pt-0 md:pb-0">
             <Button
               type="submit"
               disabled={isSubmitting}

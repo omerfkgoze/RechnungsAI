@@ -17,7 +17,7 @@ function isPublic(pathname: string) {
 }
 
 function isOnboardingRoute(pathname: string) {
-  return pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+  return pathname.startsWith("/onboarding/");
 }
 
 export async function middleware(request: NextRequest) {
@@ -42,6 +42,14 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  // Normalize bare `/onboarding` to the trust-screen entry point so it doesn't
+  // 404 for non-onboarded users who typed the URL directly.
+  if (pathname === "/onboarding") {
+    return NextResponse.redirect(
+      new URL("/onboarding/trust", request.url),
+    );
+  }
+
   // Authenticated gate: probe `onboarded_at` once per navigation. Single
   // scalar column lookup on the `users` PK, reusing the cookie-bound
   // supabase client returned by updateSession (no extra client).
@@ -52,10 +60,14 @@ export async function middleware(request: NextRequest) {
     .maybeSingle();
 
   if (profileError) {
-    // DB probe failure is best-effort — don't lock users out on transient
-    // errors. RLS still enforces data isolation on downstream queries.
+    // Fail closed: a transient DB error must not let a non-onboarded user
+    // reach app routes. Surface the same recovery path as a missing row so
+    // the client sees a consistent, bounded failure mode (FR48: Trust Screen
+    // is NOT skippable).
     console.error("[middleware:onboarding-probe]", profileError);
-    return response;
+    return NextResponse.redirect(
+      new URL("/login?error=account_setup_failed", request.url),
+    );
   }
 
   if (!profile) {

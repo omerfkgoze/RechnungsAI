@@ -1,8 +1,29 @@
-import Link from "next/link";
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Camera } from "lucide-react";
+import { completeFirstInvoiceStep } from "@/app/actions/onboarding";
 import { Button } from "@/components/ui/button";
 
 export function FirstInvoicePrompt() {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function ack(next: "/capture" | "/dashboard") {
+    if (isPending) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await completeFirstInvoiceStep(next);
+      if (!res.success) {
+        setError(res.error);
+        return;
+      }
+      router.push(res.data.redirectTo);
+    });
+  }
+
   return (
     <section className="flex min-h-[80vh] flex-col items-center justify-center gap-6 text-center">
       <Camera aria-hidden="true" className="size-24 text-primary" />
@@ -16,17 +37,26 @@ export function FirstInvoicePrompt() {
       <div className="flex w-full flex-col gap-3">
         {/* TODO: Epic 2 Story 2.1 implements /capture — until then this link will 404 in dev; dashboard fallback is primary. */}
         <Button
-          nativeButton={false}
-          render={<Link href="/capture">Rechnung aufnehmen</Link>}
+          type="button"
+          onClick={() => ack("/capture")}
+          disabled={isPending}
           size="lg"
           className="w-full"
-        />
+        >
+          Rechnung aufnehmen
+        </Button>
         <Button
-          nativeButton={false}
-          render={<Link href="/dashboard">Das mache ich später</Link>}
+          type="button"
+          onClick={() => ack("/dashboard")}
+          disabled={isPending}
           variant="link"
           className="w-full"
-        />
+        >
+          Das mache ich später
+        </Button>
+        {error ? (
+          <p className="text-body-sm text-destructive mt-1">{error}</p>
+        ) : null}
       </div>
     </section>
   );
