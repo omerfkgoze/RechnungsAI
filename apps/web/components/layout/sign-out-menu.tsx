@@ -14,26 +14,16 @@ async function signOutFormAction(): Promise<void> {
   }
 }
 
-/**
- * Renders a sign-out form button.
- * Mounted in SidebarNav footer (desktop) and MobileNav overflow (mobile).
- * Accepts an optional `collapsed` prop so the sidebar can hide the label
- * when the sidebar is collapsed.
- */
-export function SignOutMenu({ collapsed = false }: { collapsed?: boolean }) {
+export function SignOutMenu() {
   return (
     <form action={signOutFormAction}>
       <button
         type="submit"
         aria-label="Abmelden"
-        className={
-          collapsed
-            ? "flex h-10 w-full items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary-light))]"
-            : "flex h-10 w-full items-center gap-3 rounded-md px-3 text-body-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary-light))]"
-        }
+        className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-body-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary-light))]"
       >
         <LogOut className="size-4 shrink-0" aria-hidden="true" />
-        {!collapsed && <span>Abmelden</span>}
+        <span>Abmelden</span>
       </button>
     </form>
   );

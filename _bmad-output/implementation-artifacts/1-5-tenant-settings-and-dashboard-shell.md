@@ -1,6 +1,6 @@
 # Story 1.5: Tenant Settings and Dashboard Shell
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -250,3 +250,25 @@ claude-sonnet-4-6
 ## Change Log
 
 - 2026-04-15: Story 1.5 implemented by claude-sonnet-4-6. Added tenant settings columns + DATEV config migration, tenant-settings Zod schema, updateTenantSettings server action, /einstellungen settings page + form, dashboard shell refactor (3-card placeholder layout), sign-out menu extracted to SidebarNav footer, AiDisclaimer component created (not yet mounted), KeyboardShortcutsHelp overlay with native dialog.
+
+### Review Findings
+
+- [x] [Review][Defer] Mobile sign-out path absent — desktop-only `SidebarNav` footer ships; MobileNav 3-col grid has no 4th slot. Deferred to Epic 3 nav refactor; users can sign out via browser session in the meantime [apps/web/components/layout/sign-out-menu.tsx]
+
+- [x] [Review][Patch] zodResolver double-cast via `unknown` hides type mismatch [apps/web/components/settings/tenant-settings-form.tsx:40-42]
+- [x] [Review][Patch] Success feedback missing relative-time suffix — use static "Gespeichert · gerade eben" (no date-fns needed) [apps/web/components/settings/tenant-settings-form.tsx:312-320]
+- [x] [Review][Patch] Form state stale after save — server-normalized values (uppercased tax_id, stripped whitespace) not reflected; call `form.reset(parsed.data)` on success [apps/web/components/settings/tenant-settings-form.tsx:54-68]
+- [x] [Review][Patch] `<dialog>.showModal()` can throw when already open (React strict mode double effects); guard with `if (!dialog.open)` + try/catch [apps/web/components/layout/keyboard-shortcuts-help.tsx:56-63]
+- [x] [Review][Patch] `?` key handler ignores IME composition — add `if (e.isComposing || e.keyCode === 229) return;` guard [apps/web/components/layout/keyboard-shortcuts-help.tsx:31-44]
+- [x] [Review][Patch] Backdrop click detection via `getBoundingClientRect` closes on child clicks near edges and on 0-size pre-paint rect; check `e.target === dialogRef.current` instead [apps/web/components/layout/keyboard-shortcuts-help.tsx:63-80]
+- [x] [Review][Patch] `tax_id` normalize does not strip internal whitespace — "DE 123 456 789" paste fails; extend transform to `.replace(/\s+/g, "")` [packages/shared/src/schemas/tenant-settings.ts:22-41]
+- [x] [Review][Patch] Session-expired error (42501 / auth null) shows inline message but user has no CTA; redirect to `/login?returnTo=/einstellungen` instead [apps/web/app/actions/tenant.ts:21-26]
+- [x] [Review][Patch] `<EmptyState title="" ...>` renders empty title DOM — provide meaningful title or omit prop [apps/web/app/(app)/dashboard/page.tsx PipelineSection/ProcessingStatsSection]
+- [x] [Review][Patch] `SignOutMenu` has `collapsed` prop defined but never passed from AppShell — remove dead param [apps/web/components/layout/sign-out-menu.tsx]
+- [x] [Review][Patch] `skr_plan` unchecked cast from DB string `(tenant.skr_plan as "SKR03" | "SKR04") ?? "SKR03"` silently allows drift; validate against `SKR_PLANS` [apps/web/app/(app)/einstellungen/page.tsx:41-44]
+
+- [x] [Review][Defer] Full-row update without optimistic concurrency (last-write-wins on concurrent edits) [apps/web/app/actions/tenant.ts:44-50] — deferred, not in story scope
+- [x] [Review][Defer] Migration constraint `add constraint` not idempotent + no down migration / REVOKE rollback [supabase/migrations/20260415100000_tenant_settings.sql] — deferred, project convention forward-only
+- [x] [Review][Defer] Sign-out form action does not prompt on unsaved settings edits [apps/web/components/layout/sign-out-menu.tsx] — deferred, beforeunload UX needs cross-app design
+- [x] [Review][Defer] `skr_plan` two-button `role="radiogroup"` + `aria-pressed` pattern lacks arrow-key nav [apps/web/components/settings/tenant-settings-form.tsx:101-127] — deferred, pre-existing pattern from Story 1.4 setup-form
+- [x] [Review][Defer] `complete_onboarding` typing reordered + `my_tenant_id` appears in regenerated types with no SQL in this diff [packages/shared/src/types/database.ts] — deferred, likely carryover from prior story's migration

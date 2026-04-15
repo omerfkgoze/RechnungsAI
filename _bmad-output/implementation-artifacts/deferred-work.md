@@ -45,3 +45,11 @@
 - [ ] `Functions.complete_onboarding.Returns: undefined` in generated types (should be `null` for void SQL). Re-run `supabase gen types`. [packages/shared/src/types/database.ts]
 - [ ] Server Action lacks explicit CSRF/origin check beyond Next.js built-in Action origin enforcement. Defensive hardening. [apps/web/app/actions/onboarding.ts]
 - [ ] "Später ergänzen" placeholder `"Mein Unternehmen"` — after skip sets `onboarded_at`, user is locked out of `/onboarding/setup`. Add re-onboarding / edit-company path when settings UI Epic lands. [apps/web/components/onboarding/setup-form.tsx]
+## Deferred from: code review of 1-5-tenant-settings-and-dashboard-shell (2026-04-16)
+
+- Mobile sign-out affordance missing — desktop-only `SidebarNav` footer ships; MobileNav 3-col grid has no 4th slot. Revisit in Epic 3 nav refactor (`apps/web/components/layout/sign-out-menu.tsx`)
+- Full-row update without optimistic concurrency on `updateTenantSettings` — concurrent edits silently overwrite; add `updated_at` check or narrow update payload to changed fields (`apps/web/app/actions/tenant.ts:44-50`)
+- Migration `add constraint` clauses not idempotent and no down/rollback for `revoke update on public.tenants` — partial failure or rollback requires manual recovery (`supabase/migrations/20260415100000_tenant_settings.sql`)
+- Sign-out form discards unsaved settings form edits without `beforeunload` prompt — cross-app UX decision (`apps/web/components/layout/sign-out-menu.tsx`)
+- SKR plan two-button `role="radiogroup"` + `aria-pressed` pattern lacks arrow-key navigation; inherited from Story 1.4 setup-form — fix in shared component (`apps/web/components/settings/tenant-settings-form.tsx:101-127`)
+- Regenerated `database.ts` surfaces `my_tenant_id` and reordered `complete_onboarding` args with no migration in this diff — verify no missing migration (`packages/shared/src/types/database.ts`)

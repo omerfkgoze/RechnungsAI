@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SKR_PLANS, type SkrPlan } from "@rechnungsai/shared";
 import { createServerClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/layout/empty-state";
 import { TenantSettingsForm } from "@/components/settings/tenant-settings-form";
@@ -40,7 +41,9 @@ export default async function EinstellungenPage() {
           company_name: tenant.company_name ?? "",
           company_address: tenant.company_address ?? "",
           tax_id: tenant.tax_id ?? "",
-          skr_plan: (tenant.skr_plan as "SKR03" | "SKR04") ?? "SKR03",
+          skr_plan: (SKR_PLANS as readonly string[]).includes(tenant.skr_plan)
+            ? (tenant.skr_plan as SkrPlan)
+            : "SKR03",
           steuerberater_name: tenant.steuerberater_name ?? "",
           datev_berater_nr: tenant.datev_berater_nr ?? "",
           datev_mandanten_nr: tenant.datev_mandanten_nr ?? "",

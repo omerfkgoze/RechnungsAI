@@ -30,6 +30,9 @@ export function KeyboardShortcutsHelp() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Ignore IME composition (keyCode 229 is the legacy IME signal)
+      if (e.isComposing || e.keyCode === 229) return;
+
       // Ignore on mobile viewports
       if (!window.matchMedia("(min-width: 1024px)").matches) return;
 
@@ -59,9 +62,14 @@ export function KeyboardShortcutsHelp() {
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    if (open) {
-      dialog.showModal();
-    } else {
+    if (open && !dialog.open) {
+      try {
+        dialog.showModal();
+      } catch {
+        // showModal can throw InvalidStateError under strict-mode double-invoke;
+        // a subsequent effect pass will re-sync state, so swallow safely.
+      }
+    } else if (!open && dialog.open) {
       dialog.close();
     }
   }, [open]);
@@ -70,17 +78,11 @@ export function KeyboardShortcutsHelp() {
     setOpen(false);
   }
 
-  // Click outside (backdrop click) dismisses the dialog
+  // Click outside (backdrop click) dismisses the dialog.
+  // Only treat clicks whose target IS the dialog itself as backdrop clicks —
+  // clicks on interactive children bubble with a different target.
   function handleDialogClick(e: React.MouseEvent<HTMLDialogElement>) {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const rect = dialog.getBoundingClientRect();
-    const clickedOutside =
-      e.clientX < rect.left ||
-      e.clientX > rect.right ||
-      e.clientY < rect.top ||
-      e.clientY > rect.bottom;
-    if (clickedOutside) setOpen(false);
+    if (e.target === dialogRef.current) setOpen(false);
   }
 
   return (

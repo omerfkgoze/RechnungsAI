@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { Resolver } from "react-hook-form";
 import {
   tenantSettingsSchema,
   type TenantSettingsInput,
@@ -42,10 +43,12 @@ type Props = {
 export function TenantSettingsForm({ defaultValues }: Props) {
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
+  // zodResolver's inferred type does not line up with TenantSettingsInput because
+  // the schema uses z.coerce.number() + transforms (input is string, output is
+  // number/null). Cast to Resolver<TenantSettingsInput> once, explicitly — the
+  // runtime behavior is correct and tested via the submit path.
   const form = useForm<TenantSettingsInput>({
-    resolver: zodResolver(tenantSettingsSchema) as unknown as import(
-      "react-hook-form"
-    ).Resolver<TenantSettingsInput>,
+    resolver: zodResolver(tenantSettingsSchema) as Resolver<TenantSettingsInput>,
     mode: "onBlur",
     reValidateMode: "onChange",
     defaultValues,
@@ -62,7 +65,26 @@ export function TenantSettingsForm({ defaultValues }: Props) {
       form.setError("root", { message: res.error });
       return;
     }
-    // TODO: date-fns relative time upgrade — show "vor X Sekunden" when date-fns is added as dep
+    // Re-seed the form with the schema-normalized values so subsequent edits
+    // compare against what is actually persisted (uppercased tax_id,
+    // whitespace-stripped VAT ID, trimmed company_name).
+    const parsed = tenantSettingsSchema.safeParse(values);
+    if (parsed.success) {
+      form.reset(
+        {
+          company_name: parsed.data.company_name,
+          skr_plan: parsed.data.skr_plan,
+          company_address: parsed.data.company_address ?? "",
+          tax_id: parsed.data.tax_id ?? "",
+          steuerberater_name: parsed.data.steuerberater_name ?? "",
+          datev_berater_nr: parsed.data.datev_berater_nr ?? "",
+          datev_mandanten_nr: parsed.data.datev_mandanten_nr ?? "",
+          datev_sachkontenlaenge: parsed.data.datev_sachkontenlaenge,
+          datev_fiscal_year_start: parsed.data.datev_fiscal_year_start,
+        },
+        { keepDirty: false, keepErrors: false },
+      );
+    }
     setSavedAt(res.data.updatedAt);
   }
 
@@ -306,8 +328,7 @@ export function TenantSettingsForm({ defaultValues }: Props) {
         {/* Success feedback */}
         {savedAt && !form.formState.errors.root && (
           <p className="text-body-sm text-muted-foreground mt-1">
-            {/* TODO: date-fns relative time upgrade — show "vor X Sekunden" when date-fns is added as dep */}
-            Gespeichert
+            Gespeichert · gerade eben
           </p>
         )}
 

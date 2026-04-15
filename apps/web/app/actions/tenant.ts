@@ -6,6 +6,7 @@ import {
   type TenantSettingsInput,
 } from "@rechnungsai/shared";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { firstZodError } from "@/lib/zod-error";
 
@@ -26,7 +27,7 @@ export async function updateTenantSettings(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { success: false, error: "Bitte melde dich erneut an." };
+      redirect("/login?returnTo=/einstellungen");
     }
 
     const { data: userRow, error: userError } = await supabase
@@ -37,7 +38,7 @@ export async function updateTenantSettings(
 
     if (userError || !userRow) {
       console.error("[settings:update]", userError);
-      return { success: false, error: "Bitte melde dich erneut an." };
+      redirect("/login?returnTo=/einstellungen");
     }
 
     const { data: tenantRow, error: tenantError } = await supabase
@@ -57,7 +58,7 @@ export async function updateTenantSettings(
         };
       }
       if (tenantError.code === "42501") {
-        return { success: false, error: "Bitte melde dich erneut an." };
+        redirect("/login?returnTo=/einstellungen");
       }
       return {
         success: false,
@@ -68,6 +69,14 @@ export async function updateTenantSettings(
     revalidatePath("/einstellungen");
     return { success: true, data: { updatedAt: tenantRow.updated_at } };
   } catch (err) {
+    // Re-throw Next.js redirect signals (they use a `digest` starting with "NEXT_REDIRECT").
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
     console.error("[settings:update]", err);
     // TODO: @sentry/nextjs wiring — Epic 1 retrospective
     return {

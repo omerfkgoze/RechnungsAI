@@ -18,7 +18,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <EmptyState
-              title=""
+              title="Noch keine Rechnungen"
               description="Hier erscheinen deine Rechnungen, sobald du sie erfasst hast."
             />
           </CardContent>
@@ -49,7 +49,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <EmptyState
-              title=""
+              title="Noch keine Statistik"
               description="Statistik wird verfügbar, sobald Rechnungen verarbeitet wurden."
             />
           </CardContent>

@@ -31,7 +31,7 @@ export const tenantSettingsSchema = z.object({
   tax_id: z
     .string()
     .transform((v) => {
-      const cleaned = normalizeName(v).toUpperCase();
+      const cleaned = normalizeName(v).replace(/\s+/g, "").toUpperCase();
       return cleaned.length === 0 ? null : cleaned;
     })
     .pipe(
