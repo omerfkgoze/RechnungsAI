@@ -5,15 +5,8 @@ import {
   type ActionResult,
   type OnboardingSetupInput,
 } from "@rechnungsai/shared";
-import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
-
-function firstZodError(error: z.ZodError): string {
-  return (
-    error.issues[0]?.message ??
-    "Ungültige Eingabe. Bitte überprüfe deine Daten."
-  );
-}
+import { firstZodError } from "@/lib/zod-error";
 
 function mapRpcError(error: { code?: string; message?: string }): string {
   if (error.code === "42501") {

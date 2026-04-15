@@ -27,7 +27,7 @@ function isActive(pathname: string | null, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export function SidebarNav() {
+export function SidebarNav({ footer }: { footer?: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -55,7 +55,8 @@ export function SidebarNav() {
         collapsed ? "w-16" : "w-60",
       )}
     >
-      <nav aria-label="Hauptnavigation" className="flex flex-1 flex-col p-2">
+      <nav aria-label="Hauptnavigation" className="flex flex-1 flex-col p-2 justify-between">
+        <div className="flex flex-col gap-1">
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
@@ -97,6 +98,10 @@ export function SidebarNav() {
             );
           })}
         </ul>
+        </div>
+        {footer && (
+          <div className="border-t border-border pt-2 mt-2">{footer}</div>
+        )}
       </nav>
     </aside>
   );

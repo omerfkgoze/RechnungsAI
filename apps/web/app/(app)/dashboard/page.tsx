@@ -1,40 +1,60 @@
-import { signOut } from "@/app/actions/auth";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { EmptyState } from "@/components/layout/empty-state";
-
-async function signOutFormAction(): Promise<void> {
-  "use server";
-  // The underlying server action throws NEXT_REDIRECT on success; on failure
-  // it returns ActionResult<void>. This dashboard placeholder has no UI to
-  // surface a soft error, so on failure we redirect to /login with an error
-  // query param — the login page can show a generic toast/message and the
-  // session cookie is still cleared on the next middleware pass for any
-  // subsequent navigation. (Story 1.5 replaces this with a real profile menu
-  // that can render the error inline.)
-  const { redirect } = await import("next/navigation");
-  const result = await signOut();
-  if (result && result.success === false) {
-    console.error("[dashboard:signout]", result.error);
-    redirect("/login?error=signout_failed");
-  }
-}
 
 export default function DashboardPage() {
   return (
-    <div className="grid gap-6">
-      <div className="flex justify-end">
-        <form action={signOutFormAction}>
-          <button
-            type="submit"
-            className="text-body-sm text-muted-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            Abmelden
-          </button>
-        </form>
+    <div className="grid gap-4 lg:grid-cols-12 lg:gap-6">
+      {/* Pipeline Section — spans 8 cols on desktop */}
+      {/* TODO: Epic 3 Story 3.1 replaces with <PipelineDashboard /> */}
+      <section className="lg:col-span-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Rechnungs-Pipeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EmptyState
+              title=""
+              description="Hier erscheinen deine Rechnungen, sobald du sie erfasst hast."
+            />
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Right column — 4 cols on desktop */}
+      <div className="flex flex-col gap-4 lg:col-span-4">
+        {/* Weekly Value Section */}
+        {/* TODO: Epic 3 Story 3.5 + Epic 8 Story 8.3 populate this */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Deine Woche auf einen Blick</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-body-sm text-muted-foreground">
+              Zusammenfassung startet, sobald du deine ersten Rechnungen
+              verarbeitet hast.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Processing Stats Section */}
+        {/* TODO: Epic 3 Story 3.1 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Verarbeitungsstatistik</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EmptyState
+              title=""
+              description="Statistik wird verfügbar, sobald Rechnungen verarbeitet wurden."
+            />
+          </CardContent>
+        </Card>
       </div>
-      <EmptyState
-        title="Dashboard"
-        description="Übersicht kommt in Story 1.5."
-      />
     </div>
   );
 }

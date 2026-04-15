@@ -36,27 +36,45 @@ export type Database = {
     Tables: {
       tenants: {
         Row: {
+          company_address: string | null
           company_name: string
           created_at: string
+          datev_berater_nr: string | null
+          datev_fiscal_year_start: number
+          datev_mandanten_nr: string | null
+          datev_sachkontenlaenge: number
           id: string
           skr_plan: string
           steuerberater_name: string | null
+          tax_id: string | null
           updated_at: string
         }
         Insert: {
+          company_address?: string | null
           company_name: string
           created_at?: string
+          datev_berater_nr?: string | null
+          datev_fiscal_year_start?: number
+          datev_mandanten_nr?: string | null
+          datev_sachkontenlaenge?: number
           id?: string
           skr_plan?: string
           steuerberater_name?: string | null
+          tax_id?: string | null
           updated_at?: string
         }
         Update: {
+          company_address?: string | null
           company_name?: string
           created_at?: string
+          datev_berater_nr?: string | null
+          datev_fiscal_year_start?: number
+          datev_mandanten_nr?: string | null
+          datev_sachkontenlaenge?: number
           id?: string
           skr_plan?: string
           steuerberater_name?: string | null
+          tax_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -104,19 +122,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_first_invoice_step: { Args: never; Returns: undefined }
       complete_onboarding: {
         Args: {
-          p_disclaimer_accepted: boolean
           p_company_name: string
+          p_disclaimer_accepted: boolean
           p_skr_plan: string
           p_steuerberater_name: string
         }
         Returns: undefined
       }
-      complete_first_invoice_step: {
-        Args: Record<string, never>
-        Returns: undefined
-      }
+      my_tenant_id: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
