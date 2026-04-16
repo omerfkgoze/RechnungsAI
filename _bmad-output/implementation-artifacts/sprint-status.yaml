@@ -63,8 +63,8 @@ development_status:
 
   # 📦 Epic 2 Prerequisites
   prep-p1-vercel-ai-sdk-v5-packages-ai-scaffold: done      # ai@6.0.168 + @ai-sdk/openai@3.0.53; provider abstraction + extractInvoice stub
-  prep-p2-openai-api-key-env-var-setup: backlog            # .env.example + .env.local
-  prep-p3-supabase-storage-bucket-config: backlog          # Spike with brave-search MCP
+  prep-p2-openai-api-key-env-var-setup: done               # .env.example + .env.local updated
+  prep-p3-supabase-storage-bucket-config: done             # invoices bucket + RLS policies migration applied
   prep-p4-vitest-harness-setup: backlog                    # Requires P7 + P1 first
   prep-p5-sentry-integration: backlog                      # Replace all TODO sentry comments
   prep-p6-camera-api-getusermedia-spike: backlog           # UX-DR4 corner detection + mobile compat
