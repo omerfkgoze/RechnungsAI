@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const AUTH_ROUTES = ["/login", "/signup", "/reset-password"];
@@ -18,6 +19,30 @@ function isPublic(pathname: string) {
 
 function isOnboardingRoute(pathname: string) {
   return pathname.startsWith("/onboarding/");
+}
+
+// Same PgBouncer read-after-write retry as in auth/callback/route.ts.
+// Middleware fires on the first request after signup before the trigger's row
+// is visible on a fresh pooled connection. Two attempts (one retry after 150ms)
+// cover the typical pooler lag without adding perceptible latency on normal requests.
+async function fetchProfileWithRetry(
+  supabase: SupabaseClient,
+  userId: string,
+  maxAttempts = 2,
+): Promise<{ onboarded_at: string | null } | null> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const { data, error } = await supabase
+      .from("users")
+      .select("onboarded_at")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) return null;
+    if (data) return data;
+    if (attempt < maxAttempts - 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 150));
+    }
+  }
+  return null;
 }
 
 export async function middleware(request: NextRequest) {
@@ -53,25 +78,16 @@ export async function middleware(request: NextRequest) {
   // Authenticated gate: probe `onboarded_at` once per navigation. Single
   // scalar column lookup on the `users` PK, reusing the cookie-bound
   // supabase client returned by updateSession (no extra client).
-  const { data: profile, error: profileError } = await supabase
-    .from("users")
-    .select("onboarded_at")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileError) {
-    // Fail closed: a transient DB error must not let a non-onboarded user
-    // reach app routes. Surface the same recovery path as a missing row so
-    // the client sees a consistent, bounded failure mode (FR48: Trust Screen
-    // is NOT skippable).
-    console.error("[middleware:onboarding-probe]", profileError);
-    return NextResponse.redirect(
-      new URL("/login?error=account_setup_failed", request.url),
-    );
-  }
+  const profile = await fetchProfileWithRetry(supabase, user.id);
 
   if (!profile) {
-    // Signup trigger failed for this auth user — mirror the callback path.
+    // Row missing after retries: either a genuine trigger failure or a
+    // persistent DB error. Fail closed — redirect to a safe recovery path.
+    // The retry covers the PgBouncer read-after-write race window so this
+    // branch is only reached for real failures, not transient pool lag.
+    console.error("[middleware:onboarding-probe] missing users row", {
+      userId: user.id,
+    });
     return NextResponse.redirect(
       new URL("/login?error=account_setup_failed", request.url),
     );

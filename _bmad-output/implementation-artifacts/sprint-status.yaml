@@ -58,8 +58,8 @@ development_status:
 
   # 🔴 Critical Tech Debt (blocks Epic 2)
   prep-p7-transpilepackages-build-step-fix: done           # Prerequisite for Vitest (Action #3)
-  prep-td4-handle-new-user-trigger-race-fix: backlog       # Race: new user hits /login?error=account_setup_failed (Action #4)
-  prep-td5-form-errors-root-missing-fix: backlog           # Silent error on login-form + reset-update-form (Action #5)
+  prep-td4-handle-new-user-trigger-race-fix: done          # Retry with backoff in middleware.ts + callback/route.ts (PgBouncer pool lag fix)
+  prep-td5-form-errors-root-missing-fix: done              # Already fixed in story 1.x — errors.root wired in all forms
 
   # 📦 Epic 2 Prerequisites
   prep-p1-vercel-ai-sdk-v5-packages-ai-scaffold: done      # ai@6.0.168 + @ai-sdk/openai@3.0.53; provider abstraction + extractInvoice stub
