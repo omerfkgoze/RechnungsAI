@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { normalizeName } from "./_normalize";
+import { normalizeName } from "./_normalize.js";
 
 export const SKR_PLANS = ["SKR03", "SKR04"] as const;
 export type SkrPlan = (typeof SKR_PLANS)[number];

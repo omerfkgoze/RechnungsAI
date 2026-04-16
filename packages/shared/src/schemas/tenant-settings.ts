@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { normalizeName } from "./_normalize";
-import { SKR_PLANS } from "./onboarding";
+import { normalizeName } from "./_normalize.js";
+import { SKR_PLANS } from "./onboarding.js";
 
 const normalizeToNull = (value: string) => {
   const cleaned = normalizeName(value);
