@@ -52,7 +52,7 @@ development_status:
   1-3-user-registration-and-authentication: done
   1-4-trust-building-onboarding-flow: done
   1-5-tenant-settings-and-dashboard-shell: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   # Epic 2: Invoice Capture and AI Data Extraction
   epic-2: backlog
