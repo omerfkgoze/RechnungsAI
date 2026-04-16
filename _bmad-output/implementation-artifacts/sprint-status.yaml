@@ -62,7 +62,7 @@ development_status:
   prep-td5-form-errors-root-missing-fix: backlog           # Silent error on login-form + reset-update-form (Action #5)
 
   # 📦 Epic 2 Prerequisites
-  prep-p1-vercel-ai-sdk-v5-packages-ai-scaffold: backlog   # Spike with context7 MCP first
+  prep-p1-vercel-ai-sdk-v5-packages-ai-scaffold: done      # ai@6.0.168 + @ai-sdk/openai@3.0.53; provider abstraction + extractInvoice stub
   prep-p2-openai-api-key-env-var-setup: backlog            # .env.example + .env.local
   prep-p3-supabase-storage-bucket-config: backlog          # Spike with brave-search MCP
   prep-p4-vitest-harness-setup: backlog                    # Requires P7 + P1 first

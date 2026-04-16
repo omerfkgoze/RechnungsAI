@@ -3,14 +3,23 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
+    "build": "tsc --build",
     "lint": "eslint",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@rechnungsai/shared": "workspace:*"
+    "@ai-sdk/openai": "^3.0.53",
+    "@rechnungsai/shared": "workspace:*",
+    "ai": "^6.0.168"
   },
   "devDependencies": {
     "@rechnungsai/eslint-config": "workspace:*",
