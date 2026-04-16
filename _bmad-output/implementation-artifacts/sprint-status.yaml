@@ -66,8 +66,8 @@ development_status:
   prep-p2-openai-api-key-env-var-setup: done               # .env.example + .env.local updated
   prep-p3-supabase-storage-bucket-config: done             # invoices bucket + RLS policies migration applied
   prep-p4-vitest-harness-setup: done                       # packages/ai (2 tests) + apps/web (6 tests); pnpm test 8/8 passing
-  prep-p5-sentry-integration: backlog                      # Replace all TODO sentry comments
-  prep-p6-camera-api-getusermedia-spike: backlog           # UX-DR4 corner detection + mobile compat
+  prep-p5-sentry-integration: done                         # @sentry/nextjs@10.49.0; instrumentation.ts + captureException wired
+  prep-p6-camera-api-getusermedia-spike: done              # spike-p6-camera-api-2026-04-17.md — CSS overlay + stable-frame detection recommended
 
   # 🟡 Tech Debt (before/during Story 2.1)
   prep-td6-aria-invalid-wiring-forms: backlog              # aria-invalid on shadcn Input (all forms)

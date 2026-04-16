@@ -22,6 +22,7 @@
     "@rechnungsai/pdf": "workspace:*",
     "@rechnungsai/shared": "workspace:*",
     "@rechnungsai/validation": "workspace:*",
+    "@sentry/nextjs": "^10.49.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
     "class-variance-authority": "^0.7.1",

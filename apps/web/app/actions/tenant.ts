@@ -7,6 +7,7 @@ import {
 } from "@rechnungsai/shared";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@/lib/supabase/server";
 import { firstZodError } from "@/lib/zod-error";
 
@@ -50,7 +51,7 @@ export async function updateTenantSettings(
 
     if (tenantError) {
       console.error("[settings:update]", tenantError);
-      // TODO: @sentry/nextjs wiring — Epic 1 retrospective
+      Sentry.captureException(tenantError, { tags: { action: "settings:update" } });
       if (tenantError.code === "23514") {
         return {
           success: false,
@@ -78,7 +79,7 @@ export async function updateTenantSettings(
       throw err;
     }
     console.error("[settings:update]", err);
-    // TODO: @sentry/nextjs wiring — Epic 1 retrospective
+    Sentry.captureException(err, { tags: { action: "settings:update" } });
     return {
       success: false,
       error: "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
