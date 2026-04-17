@@ -1,5 +1,5 @@
 # generated: 2026-04-11
-# last_updated: 2026-04-17
+# last_updated: 2026-04-17 (Story 2.1 ready-for-dev)
 # project: RechnungsAI
 # project_key: NOKEY
 # tracking_system: file-system
@@ -77,8 +77,8 @@ development_status:
   # ─────────────────────────────────────────────────────────────
   # Epic 2: Invoice Capture and AI Data Extraction
   # ─────────────────────────────────────────────────────────────
-  epic-2: backlog
-  2-1-single-invoice-upload-photo-pdf-image-xml: backlog
+  epic-2: in-progress
+  2-1-single-invoice-upload-photo-pdf-image-xml: ready-for-dev
   2-2-ai-data-extraction-pipeline: backlog
   2-3-batch-invoice-upload: backlog
   epic-2-retrospective: optional
