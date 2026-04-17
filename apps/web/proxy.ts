@@ -45,7 +45,7 @@ async function fetchProfileWithRetry(
   return null;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { response, user, supabase } = await updateSession(request);
   const { pathname, search } = request.nextUrl;
 
@@ -85,7 +85,7 @@ export async function middleware(request: NextRequest) {
     // persistent DB error. Fail closed — redirect to a safe recovery path.
     // The retry covers the PgBouncer read-after-write race window so this
     // branch is only reached for real failures, not transient pool lag.
-    console.error("[middleware:onboarding-probe] missing users row", {
+    console.error("[proxy:onboarding-probe] missing users row", {
       userId: user.id,
     });
     return NextResponse.redirect(

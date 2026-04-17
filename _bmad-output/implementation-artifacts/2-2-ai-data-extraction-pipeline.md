@@ -277,6 +277,16 @@ Recent relevant commits:
 
 ### Debug Log References
 
+### Pre-Implementation Fixes (before Task 1)
+
+Three deprecation warnings surfaced on `pnpm dev` after Sentry project setup. Fixed before story implementation began:
+
+1. **`middleware.ts` → `proxy.ts`** — Next.js 16 renamed the `middleware` file convention to `proxy`. Renamed file and renamed exported function from `middleware` to `proxy`. Old file deleted.
+2. **`instrumentation-client.ts`** — Sentry ACTION REQUIRED: added `import * as Sentry from "@sentry/nextjs"` and `export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;` for navigation instrumentation.
+3. **`next.config.ts`** — Sentry deprecation: moved `autoInstrumentServerFunctions: true` into `webpack: { autoInstrumentServerFunctions: true }`.
+
+Changed files: `apps/web/proxy.ts` (new), `apps/web/middleware.ts` (deleted), `apps/web/instrumentation-client.ts`, `apps/web/next.config.ts`.
+
 ### Completion Notes List
 
 ### File List
