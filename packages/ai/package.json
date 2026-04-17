@@ -12,6 +12,7 @@
     }
   },
   "scripts": {
+    "dev": "tsc --build --watch",
     "build": "tsc --build",
     "test": "vitest run",
     "test:watch": "vitest",

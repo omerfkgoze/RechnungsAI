@@ -22,6 +22,8 @@ const XML_MIMES: ReadonlyArray<InvoiceAcceptedMime> = [
 function mapApiError(status: number | undefined): string {
   if (status === 401)
     return "Authentifizierung am KI-Provider fehlgeschlagen.";
+  if (status === 403)
+    return "KI-Modell nicht freigegeben. Bitte Administrator kontaktieren.";
   if (status === 429)
     return "KI-Provider überlastet. Bitte in einer Minute erneut versuchen.";
   if (status !== undefined && status >= 500)

@@ -117,8 +117,13 @@ export function CameraCaptureShell() {
   const failedCount = useCaptureStore(selectFailedCount);
 
   // ─── Upload worker ─────────────────────────────────────────────
+  // `redirect` is a per-call argument (not a store flag): the interactive
+  // capture path passes true, the offline drain passes false. A shared store
+  // flag would race when mount-time drain is still mid-await while a user
+  // triggers an interactive capture — the flag would read false at the wrong
+  // moment and swallow the navigation.
   const uploadOne = useCallback(
-    async (entry: StoreEntry, blob: Blob) => {
+    async (entry: StoreEntry, blob: Blob, redirect: boolean) => {
       markUploading(entry.id);
       await queueMarkUploading(entry.id);
       const fd = new FormData();
@@ -134,7 +139,7 @@ export function CameraCaptureShell() {
           if (res.success) {
             markUploaded(entry.id, res.data.invoiceId);
             await queueMarkUploaded(entry.id);
-            if (useCaptureStore.getState().redirectAfterUpload) {
+            if (redirect) {
               router.push(`/rechnungen/${res.data.invoiceId}`);
             }
             return;
@@ -162,11 +167,8 @@ export function CameraCaptureShell() {
   );
 
   const drainQueue = useCallback(async () => {
-    // Offline-drain path: upload many rows without navigating away (Story 2.2
-    // AC #8a). Restore the flag after so subsequent interactive captures
-    // resume navigation.
-    const prev = useCaptureStore.getState().redirectAfterUpload;
-    useCaptureStore.getState().setRedirectAfterUpload(false);
+    // Offline-drain path: upload many rows without navigating away
+    // (Story 2.1 AC #8). Pass redirect=false explicitly per-call.
     await requeueUploading();
     const pending = await listPending();
     for (const row of pending) {
@@ -178,9 +180,8 @@ export function CameraCaptureShell() {
         sizeBytes: row.sizeBytes,
         createdAt: row.createdAt,
       };
-      await uploadOne(entry, row.blob);
+      await uploadOne(entry, row.blob, false);
     }
-    useCaptureStore.getState().setRedirectAfterUpload(prev);
   }, [uploadOne]);
 
   // ─── Capture (shared path for manual + auto + gallery) ────────
@@ -222,7 +223,7 @@ export function CameraCaptureShell() {
         }
       }
       if (navigator.onLine) {
-        await uploadOne(entry, blob);
+        await uploadOne(entry, blob, true);
       }
     },
     [addToQueue, uploadOne],

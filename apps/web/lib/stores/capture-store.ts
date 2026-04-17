@@ -17,11 +17,6 @@ export interface QueuedCapture {
 
 interface CaptureState {
   queue: QueuedCapture[];
-  // Story 2.2: interactive capture path navigates to /rechnungen/:id after
-  // successful upload. Offline-queue drain sets this false to preserve the
-  // batch flow (Story 2.1 AC #8).
-  redirectAfterUpload: boolean;
-  setRedirectAfterUpload: (v: boolean) => void;
   addToQueue: (capture: QueuedCapture) => void;
   markUploading: (id: string) => void;
   markUploaded: (id: string, invoiceId: string) => void;
@@ -31,8 +26,6 @@ interface CaptureState {
 
 export const useCaptureStore = create<CaptureState>((set) => ({
   queue: [],
-  redirectAfterUpload: true,
-  setRedirectAfterUpload: (v) => set({ redirectAfterUpload: v }),
   addToQueue: (capture) =>
     set((state) => ({ queue: [...state.queue, capture] })),
   markUploading: (id) =>
