@@ -53,3 +53,12 @@
 - Sign-out form discards unsaved settings form edits without `beforeunload` prompt — cross-app UX decision (`apps/web/components/layout/sign-out-menu.tsx`)
 - SKR plan two-button `role="radiogroup"` + `aria-pressed` pattern lacks arrow-key navigation; inherited from Story 1.4 setup-form — fix in shared component (`apps/web/components/settings/tenant-settings-form.tsx:101-127`)
 - Regenerated `database.ts` surfaces `my_tenant_id` and reordered `complete_onboarding` args with no migration in this diff — verify no missing migration (`packages/shared/src/types/database.ts`)
+
+## Deferred from: code review of 2-1-single-invoice-upload-photo-pdf-image-xml (2026-04-17)
+
+- Tenant ID sourced from `users` DB row (not JWT claim) — pre-existing Story 1.5 pattern explicitly required by spec; RLS `WITH CHECK` enforces tenancy. Revisit if `users` table gains an untrusted update path. (`apps/web/app/actions/invoices.ts:72–78`)
+- FK `on delete restrict` on `invoices.tenant_id` blocks GDPR tenant erasure — no service-role cleanup path exists; a GDPR erasure deleting the tenant row will fail at the DB layer. Epic-level retention policy concern. (`supabase/migrations/20260417100000_invoices_table.sql:32`)
+- `openDb()` opens a new IDB connection per call — minor design debt; functional for single-tab usage. `versionchange` races only matter on multi-tab access or a future `DB_VERSION` bump. (`apps/web/lib/offline/invoice-queue.ts:18–32`)
+- IDB `updateStatus` uses `await` inside a `readwrite` transaction — potential `TransactionInactiveError` in pre-2021 browsers; not a risk in target environments (Chrome 89+, Firefox 82+). (`apps/web/lib/offline/invoice-queue.ts:114–127`)
+- `compressJpeg` creates a new `HTMLCanvasElement` per compression attempt — memory pressure on low-memory devices capturing many invoices rapidly; GC-dependent cleanup. (`apps/web/components/capture/camera-capture-shell.tsx:61–74`)
+- Storage orphan accumulation: compensating `supabase.storage.remove()` on insert failure is best-effort; if it fails, the orphaned blob has no retry path, no dead-letter queue, and no reconciliation job. Post-Epic-2 infra concern. (`apps/web/app/actions/invoices.ts:133–141`)

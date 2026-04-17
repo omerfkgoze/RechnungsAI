@@ -30,6 +30,7 @@ import {
   markUploaded as queueMarkUploaded,
   markUploading as queueMarkUploading,
   requeueFailed,
+  requeueUploading,
 } from "@/lib/offline/invoice-queue";
 import { registerInvoiceSW } from "@/lib/offline/register-sw";
 import { uploadInvoice } from "@/app/actions/invoices";
@@ -69,7 +70,9 @@ async function compressJpeg(
       target.toBlob((b) => resolve(b), "image/jpeg", quality),
     );
     if (blob && blob.size <= MAX_IMAGE_JPEG_BYTES) return blob;
-    if (blob && scale === 0.75) return blob; // last resort — accept oversize
+    if (blob && scale === 0.75) {
+      return null; // still oversize after all attempts — caller shows amber error
+    }
   }
   return null;
 }
@@ -118,30 +121,45 @@ export function CameraCaptureShell() {
     async (entry: StoreEntry, blob: Blob) => {
       markUploading(entry.id);
       await queueMarkUploading(entry.id);
-      try {
-        const fd = new FormData();
-        const file = new File([blob], entry.originalFilename, {
-          type: entry.fileType,
-        });
-        fd.set("file", file);
-        const res = await uploadInvoice(fd);
-        if (res.success) {
-          markUploaded(entry.id, res.data.invoiceId);
-          await queueMarkUploaded(entry.id);
-        } else {
-          markFailed(entry.id, res.error);
-          await queueMarkFailed(entry.id, res.error);
+      const fd = new FormData();
+      const file = new File([blob], entry.originalFilename, {
+        type: entry.fileType,
+      });
+      fd.set("file", file);
+      // AC#8: max 3 retries, linear backoff 1s / 3s / 5s (4 total attempts).
+      const retryDelays = [1000, 3000, 5000];
+      for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+        try {
+          const res = await uploadInvoice(fd);
+          if (res.success) {
+            markUploaded(entry.id, res.data.invoiceId);
+            await queueMarkUploaded(entry.id);
+            return;
+          }
+          if (attempt === retryDelays.length) {
+            markFailed(entry.id, res.error);
+            await queueMarkFailed(entry.id, res.error);
+            return;
+          }
+        } catch (err) {
+          if (attempt === retryDelays.length) {
+            const msg =
+              err instanceof Error ? err.message : "Upload fehlgeschlagen.";
+            markFailed(entry.id, msg);
+            await queueMarkFailed(entry.id, msg);
+            return;
+          }
         }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Upload fehlgeschlagen.";
-        markFailed(entry.id, msg);
-        await queueMarkFailed(entry.id, msg);
+        await new Promise<void>((r) =>
+          setTimeout(r, retryDelays[attempt] ?? 1000),
+        );
       }
     },
     [markFailed, markUploaded, markUploading],
   );
 
   const drainQueue = useCallback(async () => {
+    await requeueUploading();
     const pending = await listPending();
     for (const row of pending) {
       const entry: StoreEntry = {
@@ -262,12 +280,25 @@ export function CameraCaptureShell() {
           return;
         }
         streamRef.current = stream;
+        // If a track is stopped externally (e.g. phone call, another app
+        // claiming the camera), disarm auto-capture and show the fallback.
+        stream.getTracks().forEach((t) => {
+          t.addEventListener(
+            "ended",
+            () => { if (!cancelled) setFallback("permission"); },
+            { once: true },
+          );
+        });
         const video = videoRef.current;
         if (video) {
           video.srcObject = stream;
-          video.onloadeddata = () => {
+          const trySetReady = () => {
             if (video.readyState >= 4) setVideoReady(true);
           };
+          video.addEventListener("loadeddata", trySetReady);
+          // canplaythrough guarantees readyState 4 — fallback for browsers
+          // that fire loadeddata at readyState 2 and never re-fire.
+          video.addEventListener("canplaythrough", trySetReady);
         }
       })
       .catch(() => {
@@ -369,9 +400,15 @@ export function CameraCaptureShell() {
   // ─── SW registration + online/offline wiring ───────────────────
   useEffect(() => {
     void registerInvoiceSW();
+    // Drain on mount: pick up any pending IDB items from a previous session.
+    if (navigator.onLine) void drainQueue();
     const onOnline = () => {
       setOnline(true);
       void drainQueue();
+      // Notify other /erfassen tabs via the SW.
+      if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: "REQUEST_SYNC" });
+      }
     };
     const onOffline = () => setOnline(false);
     window.addEventListener("online", onOnline);
@@ -470,7 +507,7 @@ export function CameraCaptureShell() {
               Datei auswählen
             </Button>
             {inlineError ? (
-              <p className="text-destructive text-sm" role="alert">
+              <p className="text-destructive mt-2 text-sm" role="alert">
                 {inlineError}
               </p>
             ) : null}
@@ -495,7 +532,7 @@ export function CameraCaptureShell() {
         role="status"
         className="sr-only"
       >
-        {videoReady ? "Kamera aktiv. Rechnung vor die Kamera halten." : ""}
+        Kamera aktiv. Rechnung vor die Kamera halten.
       </div>
 
       <video
@@ -615,7 +652,7 @@ export function CameraCaptureShell() {
         <div className="absolute left-4 right-4 bottom-28 flex justify-center">
           <p
             role="alert"
-            className="rounded-md bg-background/95 px-3 py-2 text-destructive text-sm shadow"
+            className="rounded-md bg-background/95 px-3 py-2 text-destructive mt-2 text-sm shadow"
           >
             {inlineError}
             <Button

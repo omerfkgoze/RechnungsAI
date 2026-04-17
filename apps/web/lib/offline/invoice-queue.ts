@@ -153,3 +153,21 @@ export async function requeueFailed(): Promise<number> {
   db.close();
   return rows.length;
 }
+
+// Resets items stuck in "uploading" (e.g. after a crash mid-flight) back to
+// "pending" so the next drainQueue pass picks them up.
+export async function requeueUploading(): Promise<number> {
+  const db = await openDb();
+  const tx = db.transaction(STORE, "readwrite");
+  const store = tx.objectStore(STORE);
+  const index = store.index("status");
+  const rows = (await reqToPromise(
+    index.getAll(IDBKeyRange.only("uploading")),
+  )) as QueuedCapture[];
+  for (const row of rows) {
+    store.put({ ...row, status: "pending", error: undefined });
+  }
+  await txDone(tx);
+  db.close();
+  return rows.length;
+}

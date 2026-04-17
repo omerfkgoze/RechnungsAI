@@ -1,6 +1,6 @@
 # Story 2.1: Single Invoice Upload (Photo, PDF, Image, XML)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -87,6 +87,36 @@ so that I can quickly get my invoices into the system without manual data entry.
   - [x] 8.2 Manual browser smoke test per AC #11(a)–(o); record results in Completion Notes under "Browser Smoke Test" heading
   - [x] 8.3 If environment blocks browser execution, mark `BLOCKED-BY-ENVIRONMENT` with explicit manual steps — do NOT self-certify
   - [x] 8.4 Document "Route Naming Decision" and "Offline Scope Boundary" in Dev Notes
+
+### Review Findings
+
+#### Decision Needed
+
+- [x] [Review][Decision] AC#5 — Framer Motion counter pop animation replaced with CSS `animate-in zoom-in-75` — accepted: CSS animation sufficient, spec deviation acknowledged, closure.
+- [x] [Review][Decision] AC#1 — `grant insert` unrestricted — accepted: RLS `WITH CHECK` enforces tenancy, column-level INSERT restriction not required, dismiss.
+- [x] [Review][Decision] td8 — AMR `"otp"` = `"recovery"` tradeoff — accepted: bilinçli tercih, kod yorumunda belgelenmiş, dismiss.
+
+#### Patch
+
+- [x] [Review][Patch] SW `self.addEventListener("online", ...)` is dead code — removed; SW `online` event never fires; client-side `window.addEventListener("online")` already handles drain. [apps/web/public/sw.js]
+- [x] [Review][Patch] AC#8 — Retry logic (max 3 / linear backoff 1s/3s/5s) — `uploadOne` now retries up to 3 times (4 total attempts) with 1s/3s/5s delays before marking failed. [apps/web/components/capture/camera-capture-shell.tsx]
+- [x] [Review][Patch] IDB items stuck in `"uploading"` — added `requeueUploading()` to `invoice-queue.ts`; `drainQueue` now calls it at the start to reset stuck items before listing pending. [apps/web/lib/offline/invoice-queue.ts / camera-capture-shell.tsx]
+- [x] [Review][Patch] `drainQueue` not called on mount — added initial `drainQueue()` call in the SW registration effect when `navigator.onLine`. [apps/web/components/capture/camera-capture-shell.tsx]
+- [x] [Review][Patch] External stream termination triggers false auto-capture — added `ended` event listener on each track (`{ once: true }`) to call `setFallback("permission")` on external interruption. [apps/web/components/capture/camera-capture-shell.tsx]
+- [x] [Review][Patch] `video.onloadeddata` may not fire at `readyState >= 4` — added `canplaythrough` listener alongside `loadeddata` as fallback guarantee. [apps/web/components/capture/camera-capture-shell.tsx]
+- [x] [Review][Patch] AC#5d — `compressJpeg` last resort now returns `null` if blob is still oversize at scale 0.75, triggering the amber error in caller. [apps/web/components/capture/camera-capture-shell.tsx:72]
+- [x] [Review][Patch] AC#4 — `aria-live` text rendered unconditionally (not gated on `videoReady`) — announcement fires on mount. [apps/web/components/capture/camera-capture-shell.tsx]
+- [x] [Review][Patch] AC#9 — Added `mt-2` to both inline error elements. [apps/web/components/capture/camera-capture-shell.tsx]
+- [x] [Review][Patch] AC#8 — Wired client to send `REQUEST_SYNC` to SW on reconnect; SW `REQUEST_SYNC` handler is now live (broadcasts `SYNC_CAPTURES` to other /erfassen tabs). [apps/web/public/sw.js / camera-capture-shell.tsx]
+
+#### Deferred
+
+- [x] [Review][Defer] Tenant ID sourced from `users` DB row, not JWT claim [apps/web/app/actions/invoices.ts:72–78] — deferred, pre-existing Story 1.5 pattern explicitly required by spec; RLS enforces tenancy
+- [x] [Review][Defer] FK `on delete restrict` on `tenant_id` blocks GDPR tenant erasure [supabase/migrations/20260417100000_invoices_table.sql:32] — deferred, Epic-level retention policy concern, not in Story 2.1 scope
+- [x] [Review][Defer] `openDb()` opens a new IDB connection per call — minor design debt, functional for single-tab usage, versionchange races only matter on multi-tab or future DB_VERSION bump [apps/web/lib/offline/invoice-queue.ts:18–32] — deferred, out of scope
+- [x] [Review][Defer] IDB `updateStatus` read-modify-write uses `await` inside a transaction — potential `TransactionInactiveError` in pre-2021 browsers; not a risk in target environments (modern Chrome/Firefox) [apps/web/lib/offline/invoice-queue.ts:114–127] — deferred, modern-browser-only project
+- [x] [Review][Defer] `compressJpeg` creates a new `HTMLCanvasElement` per compression attempt — memory pressure on low-memory devices capturing many invoices rapidly [apps/web/components/capture/camera-capture-shell.tsx:61–74] — deferred, optimization not blocking
+- [x] [Review][Defer] Storage orphan accumulation: no background reconciliation job for blobs whose compensating `remove()` fails — logged and Sentry-reported but no retry path [apps/web/app/actions/invoices.ts:133–141] — deferred, post-Epic-2 infra concern
 
 ## Dev Notes
 
