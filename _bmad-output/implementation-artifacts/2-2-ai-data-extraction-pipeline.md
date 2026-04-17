@@ -1,6 +1,6 @@
 # Story 2.2: AI Data Extraction Pipeline
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -372,6 +372,52 @@ Changed files: `apps/web/proxy.ts` (new), `apps/web/middleware.ts` (deleted), `a
 **Generated / auto-rewritten**
 - `pnpm-lock.yaml` (one new transitive: @vitejs/plugin-react)
 
+### Review Findings
+
+**Date:** 2026-04-17 | **Layers:** Blind Hunter + Edge Case Hunter + Acceptance Auditor | **Dismissed:** 3
+
+#### Decision-Needed
+
+- [x] [Review][Patch] `redirectAfterUpload` — move flag to `useCaptureStore` per AC #8a [apps/web/lib/stores/capture-store.ts + camera-capture-shell.tsx] — Decision: A. Add `redirectAfterUpload: boolean` (default true) to the store. `uploadOne` reads via `useCaptureStore.getState().redirectAfterUpload`; `drainQueue` sets it false before and restores true after.
+- [x] [Review][Patch] `invoice_date` transform — force confidence to 0 on coercion to null [packages/shared/src/schemas/invoice.ts] — Decision: A. When the AI returns a non-ISO date string and the transform coerces it to null, the wrapping `makeField` value must also set confidence to 0. Implement via a custom Zod transform on the `isoDatePayload` that also drops confidence when value becomes null (requires restructuring makeField or post-processing in `extractInvoice`).
+- [x] [Review][Patch] Update Dev Notes to document `gpt-4o-mini` as intentional default [packages/ai/README.md + story Dev Notes] — Decision: B. Keep `gpt-4o-mini`; add a note in `packages/ai/README.md` explaining the model choice and that `EXTRACTION_MODEL` env var overrides it for higher-fidelity needs.
+
+#### Patch
+
+- [x] [Review][Patch] TOCTOU race — no optimistic lock on `processing` flip [apps/web/app/actions/invoices.ts:238-245] — Two concurrent calls can both read `captured` and both flip to `processing`. Fix: use `UPDATE … WHERE status = 'captured' RETURNING id`; return concurrent-call error if 0 rows affected.
+- [x] [Review][Patch] Dead-code ternary — `exported ? "ready" : "ready"` [apps/web/app/actions/invoices.ts:228] — Both arms identical. Also `overall: 1` is fabricated. Fix: correct the ternary and consider reading actual stored confidence.
+- [x] [Review][Patch] Outer `catch` doesn't revert `processing` status [apps/web/app/actions/invoices.ts:323-340] — Unexpected throws after the flip leave the row stuck in `processing`. Fix: add `await supabase.from('invoices').update({ status: 'captured', extraction_error: … }).eq('id', invoiceId)` in the catch block.
+- [x] [Review][Patch] Revert writes (sign-URL error, save error) are fire-and-forget [apps/web/app/actions/invoices.ts:268-271, 313-315] — Compensating update errors are discarded. If the revert itself fails, the row stays in `processing` permanently. Fix: check returned error and capture to Sentry.
+- [x] [Review][Patch] `alert()` instead of inline German hint [apps/web/components/invoice/extraction-results-client.tsx:215-216] — AC #8d + UX-DR12 violation: `alert()` is modal, blocks JS thread, suppressed in some WebViews. Fix: render inline `<p className="text-sm text-muted-foreground">Quelldokument-Ansicht kommt in Kürze.</p>` toggled by state.
+- [x] [Review][Patch] Retry button allows concurrent calls — no `isPending` guard [apps/web/components/invoice/extraction-results-client.tsx] — "Erneut versuchen" button doesn't check `isPending` before invoking `trigger()`. A double-tap fires two concurrent Server Action calls. Fix: disable the button while `isPending` is true.
+- [x] [Review][Patch] `mimeType` cast without runtime validation [apps/web/app/actions/invoices.ts:276] — `row.file_type as InvoiceAcceptedMime` is an unchecked cast. A stale DB value or upload bug produces a bad MIME type passed to the AI layer silently. Fix: validate against the accepted MIME set and return a German error if invalid.
+- [x] [Review][Patch] DB select error silently swallowed [apps/web/app/actions/invoices.ts:212-218] — Supabase `error` return is destructured away; DB connectivity failures are reported as "Rechnung nicht gefunden." Fix: check `error` and log/capture real DB errors separately.
+- [x] [Review][Patch] `ConfidenceIndicator` bar variant `aria-label` on wrong element [apps/web/components/invoice/confidence-indicator.tsx] — `aria-label` is on the outer `<span>` wrapper; `role="progressbar"` is on the inner element. Screen readers announce the label without associating it to the progressbar. Fix: move `aria-label` to the element with `role="progressbar"`.
+- [x] [Review][Patch] Invalid ISO-4217 currency code crashes `Intl.NumberFormat` silently [apps/web/components/invoice/extraction-results-client.tsx] — Empty string or unknown currency codes (e.g., `""`, `"DM"`) throw a `RangeError` caught by try/catch, silently falling back to raw number display with no user signal. Fix: validate currency against a basic allowlist (or use `try/catch` with a logged warning).
+- [x] [Review][Patch] `trigger` uses `useMemo` instead of `useCallback` [apps/web/components/invoice/extraction-results-client.tsx] — Anti-pattern; `useCallback` is the semantically correct hook for memoizing callbacks. Fix: replace `useMemo(() => () => {...}, deps)` with `useCallback(() => {...}, deps)`.
+- [x] [Review][Patch] Wrong log prefix `[invoices:capture]` in source-view stub [apps/web/components/invoice/extraction-results-client.tsx:215] — Convention is `[invoices:extract]` per AC #9d. Fix: update log prefix.
+- [x] [Review][Patch] Test mock doesn't verify `.eq()` filter ID [apps/web/app/actions/invoices.test.ts] — `update` mock discards the `.eq()` argument; tests can't detect if the wrong invoice row is targeted by mutations. Fix: capture and assert the `invoiceId` passed to `.eq()`.
+- [x] [Review][Patch] `formatValue` passes `"net_total"` as semantic key for line-item monetary cells [apps/web/components/invoice/extraction-results-client.tsx] — `unit_price`, `net_amount`, `vat_amount` cells all pass the literal `"net_total"` key to trigger currency formatting. Works today but is semantically wrong and fragile. Fix: extract a `isCurrencyField(key)` helper.
+
+#### Deferred
+
+- [x] [Review][Defer] XML invoice decoded as UTF-8 regardless of declared charset [packages/ai/src/extract-invoice.ts:83] — deferred, pre-existing; ISO-8859-1 ZUGFeRD invoices may garble German characters. Out of AC scope; file a follow-up for Epic 3/4.
+- [x] [Review][Defer] `as unknown as` cast disables TypeScript on `generateObject` call [packages/ai/src/extract-invoice.ts] — deferred, pre-existing; known Zod v3/v4 peer conflict documented in completion notes. Resolve when upgrading to Zod v4 repo-wide.
+- [x] [Review][Defer] System prompt passed as top-level `system:` arg, not inside `messages[]` [packages/ai/src/extract-invoice.ts] — deferred, pre-existing; AI SDK v6 accepts both forms at runtime. Minor spec deviation only.
+- [x] [Review][Defer] No timeout / stale-state recovery for `processing` skeleton [apps/web/components/invoice/extraction-results-client.tsx] — deferred, pre-existing; Epic 3 dashboard will surface `extraction_error` for orphaned rows.
+- [x] [Review][Defer] NEXT_REDIRECT detection couples to Next.js internals [apps/web/app/actions/invoices.ts:324-330] — deferred, pre-existing; same pattern used in Story 2.1 `uploadInvoice`. Track against Next.js upgrade.
+- [x] [Review][Defer] `drainQueue` can fire concurrently from mount + `online` event [apps/web/components/capture/camera-capture-shell.tsx] — deferred, pre-existing; Story 2.1 issue. Story 2.3 batch flow will refactor this path.
+- [x] [Review][Defer] Signed URL 60-second TTL may expire under cold-start + large PDF [apps/web/app/actions/invoices.ts:258-260] — deferred, pre-existing; operational risk only under high load. Monitor p95 latency; bump TTL if needed.
+- [x] [Review][Defer] `extraction_attempts` unbounded + `smallint` overflow [supabase/migrations/20260417120000_invoices_extraction_columns.sql] — deferred, pre-existing; explicitly out of scope per AC #1. Rate-limiting is Epic 3+ concern.
+- [x] [Review][Defer] `overallConfidence` excludes `supplier_address`, `recipient_name`, `recipient_address`, `payment_terms` [packages/shared/src/schemas/invoice.ts] — deferred, pre-existing; by spec design (seven scalar keys only). Epic 3 may revisit.
+- [x] [Review][Defer] `globalThis.process?.env` indirection in provider.ts [packages/ai/src/provider.ts] — deferred, pre-existing; minor style issue, not new in this story.
+- [x] [Review][Defer] `invoice[key]` cast breaks silently on schema evolution [apps/web/components/invoice/extraction-results-client.tsx] — deferred, pre-existing; low risk until schema changes.
+- [x] [Review][Defer] Out-of-range confidence values from manually edited JSONB [apps/web/components/invoice/extraction-results-client.tsx] — deferred, pre-existing; Epic 3 DB access controls will prevent manual edits.
+
 ## Change Log
 
 - 2026-04-17 — Story 2.2 implemented end-to-end. DB migration + shared schemas + full `packages/ai` extract-invoice + `extractInvoice` Server Action + ConfidenceIndicator component + `/rechnungen/[id]` route + ExtractionResultsClient + capture → review handoff flag. Test count: 33 → 67. Status: `ready-for-dev` → `in-progress` → `review`.
+- 2026-04-17 — Code review: 3 decision-needed, 14 patch, 12 deferred, 3 dismissed. Status → `in-progress`.
+- 2026-04-18 — All 17 patches applied (decisions resolved + original patches). `pnpm check-types` clean, 67/67 tests pass. Status → `done`.
+- 2026-04-18 — Post-review runtime fixes: (1) `useRef` missing from import in `extraction-results-client.tsx`; (2) `.maybeSingle()` missing from test mock's optimistic-lock chain. 33/33 tests pass.
+- 2026-04-18 — Confidence badge fix: `isoDateField` transform now preserves the AI's confidence when date format doesn't match ISO (only nulls the value). `overallConfidence` changed from `Math.min` to arithmetic mean of 7 key fields — a single low-confidence field no longer drags the overall badge to 0%. Tests updated and passing.

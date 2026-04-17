@@ -188,6 +188,7 @@ export async function extractInvoice(
     return { success: false, error: firstZodError(idParse.error) };
   }
 
+  let flippedToProcessing = false;
   try {
     const supabase = await createServerClient();
     const {
@@ -209,7 +210,7 @@ export async function extractInvoice(
     }
     const tenantId = userRow.tenant_id;
 
-    const { data: row } = await supabase
+    const { data: row, error: rowErr } = await supabase
       .from("invoices")
       .select(
         "id, tenant_id, status, file_path, file_type, original_filename, extraction_attempts",
@@ -217,6 +218,14 @@ export async function extractInvoice(
       .eq("id", invoiceId)
       .single();
 
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(EXTRACT_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "extract" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht verarbeitet werden." };
+    }
     if (!row || row.tenant_id !== tenantId) {
       return { success: false, error: "Rechnung nicht gefunden." };
     }
@@ -225,7 +234,7 @@ export async function extractInvoice(
       console.info(EXTRACT_LOG, "already-done", { invoiceId, status: row.status });
       return {
         success: true,
-        data: { status: row.status === "exported" ? "ready" : "ready", overall: 1 },
+        data: { status: "ready", overall: 1 },
       };
     }
     if (row.status === "processing") {
@@ -235,14 +244,19 @@ export async function extractInvoice(
       };
     }
 
-    const { error: flipErr } = await supabase
+    // Optimistic lock: only flip if status is still 'captured'. Prevents TOCTOU
+    // race when two concurrent calls both read 'captured' before either writes.
+    const { data: flipped, error: flipErr } = await supabase
       .from("invoices")
       .update({
         status: "processing",
         extraction_attempts: (row.extraction_attempts ?? 0) + 1,
         extraction_error: null,
       })
-      .eq("id", invoiceId);
+      .eq("id", invoiceId)
+      .eq("status", "captured")
+      .select("id")
+      .maybeSingle(); // maybeSingle: returns { data: null, error: null } for 0 rows instead of PGRST116
     if (flipErr) {
       console.error(EXTRACT_LOG, "flip-processing-failed", flipErr);
       Sentry.captureException(flipErr, {
@@ -253,6 +267,28 @@ export async function extractInvoice(
         success: false,
         error: "Rechnung kann momentan nicht verarbeitet werden.",
       };
+    }
+    if (!flipped) {
+      // 0 rows affected: status was not 'captured' — concurrent call or already extracted
+      return {
+        success: false,
+        error: "Extraktion läuft bereits. Bitte einen Moment warten.",
+      };
+    }
+    flippedToProcessing = true;
+
+    if (!(INVOICE_ACCEPTED_MIME as readonly string[]).includes(row.file_type)) {
+      const msg = "Ungültiger Dateityp. Rechnung kann nicht verarbeitet werden.";
+      const { error: typeRevertErr } = await supabase
+        .from("invoices")
+        .update({ status: "captured", extraction_error: msg })
+        .eq("id", invoiceId);
+      if (typeRevertErr) {
+        console.error(EXTRACT_LOG, "type-revert-failed", typeRevertErr);
+        Sentry.captureException(typeRevertErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+      }
+      flippedToProcessing = false;
+      return { success: false, error: msg };
     }
 
     const { data: signed, error: signErr } = await supabase.storage
@@ -265,10 +301,15 @@ export async function extractInvoice(
         extra: { invoiceId },
       });
       const msg = "Rechnung kann momentan nicht verarbeitet werden.";
-      await supabase
+      const { error: signRevertErr } = await supabase
         .from("invoices")
         .update({ status: "captured", extraction_error: msg })
         .eq("id", invoiceId);
+      if (signRevertErr) {
+        console.error(EXTRACT_LOG, "sign-revert-failed", signRevertErr);
+        Sentry.captureException(signRevertErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+      }
+      flippedToProcessing = false;
       return { success: false, error: msg };
     }
 
@@ -279,10 +320,15 @@ export async function extractInvoice(
     });
 
     if (!result.success) {
-      await supabase
+      const { error: aiRevertErr } = await supabase
         .from("invoices")
         .update({ status: "captured", extraction_error: result.error })
         .eq("id", invoiceId);
+      if (aiRevertErr) {
+        console.error(EXTRACT_LOG, "ai-revert-failed", aiRevertErr);
+        Sentry.captureException(aiRevertErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+      }
+      flippedToProcessing = false;
       Sentry.captureException(new Error(`${EXTRACT_LOG} ${result.error}`), {
         tags: { module: "invoices", action: "extract" },
         extra: { invoiceId },
@@ -309,12 +355,18 @@ export async function extractInvoice(
         extra: { invoiceId },
       });
       const msg = "Extraktion konnte nicht gespeichert werden.";
-      await supabase
+      const { error: saveRevertErr } = await supabase
         .from("invoices")
         .update({ status: "captured", extraction_error: msg })
         .eq("id", invoiceId);
+      if (saveRevertErr) {
+        console.error(EXTRACT_LOG, "save-revert-failed", saveRevertErr);
+        Sentry.captureException(saveRevertErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+      }
+      flippedToProcessing = false;
       return { success: false, error: msg };
     }
+    flippedToProcessing = false;
 
     revalidatePath("/dashboard");
     revalidatePath(`/rechnungen/${invoiceId}`);
@@ -333,6 +385,21 @@ export async function extractInvoice(
       tags: { module: "invoices", action: "extract" },
       extra: { invoiceId },
     });
+    // If we already flipped to 'processing', revert so the row is never orphaned.
+    if (flippedToProcessing) {
+      const revertMsg = "Extraktion fehlgeschlagen. Bitte erneut versuchen.";
+      const { error: catchRevertErr } = await createServerClient()
+        .then((sb) =>
+          sb.from("invoices")
+            .update({ status: "captured", extraction_error: revertMsg })
+            .eq("id", invoiceId),
+        )
+        .catch((e) => ({ error: e }));
+      if (catchRevertErr) {
+        console.error(EXTRACT_LOG, "catch-revert-failed", catchRevertErr);
+        Sentry.captureException(catchRevertErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+      }
+    }
     return {
       success: false,
       error: "Extraktion fehlgeschlagen. Bitte erneut versuchen.",

@@ -76,6 +76,7 @@ export function ConfidenceIndicator({
       <span
         className="relative block h-1 w-full overflow-hidden rounded bg-muted"
         role="progressbar"
+        aria-label={ariaLabel}
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -101,12 +102,16 @@ export function ConfidenceIndicator({
     </>
   );
 
+  // The bar variant carries aria-label on its inner role="progressbar" element;
+  // the outer wrapper gets no duplicate label in that case.
+  const outerAriaLabel = variant === "bar" ? undefined : ariaLabel;
+
   if (onTap) {
     return (
       <button
         type="button"
         onClick={onTap}
-        aria-label={ariaLabel}
+        aria-label={outerAriaLabel ?? ariaLabel}
         className="inline-flex flex-col items-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
       >
         {common}
@@ -114,7 +119,10 @@ export function ConfidenceIndicator({
     );
   }
   return (
-    <span className="inline-flex flex-col items-start" aria-label={ariaLabel}>
+    <span
+      className="inline-flex flex-col items-start"
+      aria-label={outerAriaLabel}
+    >
       {common}
     </span>
   );

@@ -52,7 +52,16 @@ vi.mock("@/lib/supabase/server", () => ({
             eq: () => ({ single: invoiceSelectSingleMock }),
           }),
           update: (patch: unknown) => ({
-            eq: () => invoiceUpdateEqMock(patch),
+            eq: (col: string, val: unknown) => {
+              const call = () => invoiceUpdateEqMock(patch, col, val);
+              return {
+                // Second .eq() for optimistic-lock flip: .eq(id).eq(status).select().maybeSingle()
+                eq: () => ({ select: () => ({ single: call, maybeSingle: call }) }),
+                // Direct await: await supabase.from('invoices').update().eq()
+                then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
+                  Promise.resolve(call()).then(res, rej),
+              };
+            },
           }),
         };
       }
@@ -256,7 +265,7 @@ describe("extractInvoice", () => {
       },
       error: null,
     });
-    invoiceUpdateEqMock.mockResolvedValue({ error: null });
+    invoiceUpdateEqMock.mockResolvedValue({ data: { id: VALID_UUID }, error: null });
     createSignedUrlMock.mockResolvedValue({
       data: { signedUrl: "https://signed.example/abc.pdf" },
       error: null,

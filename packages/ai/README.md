@@ -15,10 +15,17 @@ as a defensive layer so the OpenAI Chat-Completions endpoint does not
 persist the completion on their side. This is belt-and-braces — it does
 NOT substitute for ZDR enrollment.
 
+## Default model
+
+`src/provider.ts` defaults to `gpt-4o-mini` for broad project access and
+lower cost. Override via the `OPENAI_EXTRACTION_MODEL` environment variable for
+higher-fidelity needs (e.g., set `OPENAI_EXTRACTION_MODEL=gpt-4o` in `.env.local`
+when processing low-resolution or handwritten invoices).
+
 ## Provider swap
 
 `getExtractionModel()` in `src/provider.ts` is the single swap point.
-Replace `openai("gpt-4o")` with `anthropic("claude-...")` to change
+Replace `openai("gpt-4o-mini")` with `anthropic("claude-...")` to change
 providers without touching call sites (NFR28).
 
 ## Tests

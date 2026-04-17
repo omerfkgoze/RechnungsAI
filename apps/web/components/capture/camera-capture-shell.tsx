@@ -112,18 +112,17 @@ export function CameraCaptureShell() {
   const markUploading = useCaptureStore((s) => s.markUploading);
   const markUploaded = useCaptureStore((s) => s.markUploaded);
   const markFailed = useCaptureStore((s) => s.markFailed);
+  const setRedirectAfterUpload = useCaptureStore((s) => s.setRedirectAfterUpload);
   const uploadedCount = useCaptureStore(selectUploadedCount);
   const pendingCount = useCaptureStore(selectPendingCount);
   const failedCount = useCaptureStore(selectFailedCount);
 
   // ─── Upload worker ─────────────────────────────────────────────
-  // `redirect` is a per-call argument (not a store flag): the interactive
-  // capture path passes true, the offline drain passes false. A shared store
-  // flag would race when mount-time drain is still mid-await while a user
-  // triggers an interactive capture — the flag would read false at the wrong
-  // moment and swallow the navigation.
+  // Reads `redirectAfterUpload` from the store at call time. The drain path
+  // sets the flag false before processing and restores it after (AC #8a).
   const uploadOne = useCallback(
-    async (entry: StoreEntry, blob: Blob, redirect: boolean) => {
+    async (entry: StoreEntry, blob: Blob) => {
+      const redirect = useCaptureStore.getState().redirectAfterUpload;
       markUploading(entry.id);
       await queueMarkUploading(entry.id);
       const fd = new FormData();
@@ -167,22 +166,28 @@ export function CameraCaptureShell() {
   );
 
   const drainQueue = useCallback(async () => {
-    // Offline-drain path: upload many rows without navigating away
-    // (Story 2.1 AC #8). Pass redirect=false explicitly per-call.
-    await requeueUploading();
-    const pending = await listPending();
-    for (const row of pending) {
-      const entry: StoreEntry = {
-        id: row.id,
-        status: "queued",
-        originalFilename: row.originalFilename,
-        fileType: row.fileType,
-        sizeBytes: row.sizeBytes,
-        createdAt: row.createdAt,
-      };
-      await uploadOne(entry, row.blob, false);
+    // Offline-drain path: upload many rows without navigating away (AC #8a).
+    // Set redirectAfterUpload=false for the duration of the drain so uploadOne
+    // does not navigate; restore to true afterwards.
+    setRedirectAfterUpload(false);
+    try {
+      await requeueUploading();
+      const pending = await listPending();
+      for (const row of pending) {
+        const entry: StoreEntry = {
+          id: row.id,
+          status: "queued",
+          originalFilename: row.originalFilename,
+          fileType: row.fileType,
+          sizeBytes: row.sizeBytes,
+          createdAt: row.createdAt,
+        };
+        await uploadOne(entry, row.blob);
+      }
+    } finally {
+      setRedirectAfterUpload(true);
     }
-  }, [uploadOne]);
+  }, [uploadOne, setRedirectAfterUpload]);
 
   // ─── Capture (shared path for manual + auto + gallery) ────────
   const submitBlob = useCallback(
@@ -223,7 +228,7 @@ export function CameraCaptureShell() {
         }
       }
       if (navigator.onLine) {
-        await uploadOne(entry, blob, true);
+        await uploadOne(entry, blob);
       }
     },
     [addToQueue, uploadOne],

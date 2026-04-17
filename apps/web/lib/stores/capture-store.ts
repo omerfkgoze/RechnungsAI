@@ -17,15 +17,18 @@ export interface QueuedCapture {
 
 interface CaptureState {
   queue: QueuedCapture[];
+  redirectAfterUpload: boolean;
   addToQueue: (capture: QueuedCapture) => void;
   markUploading: (id: string) => void;
   markUploaded: (id: string, invoiceId: string) => void;
   markFailed: (id: string, error: string) => void;
+  setRedirectAfterUpload: (v: boolean) => void;
   reset: () => void;
 }
 
 export const useCaptureStore = create<CaptureState>((set) => ({
   queue: [],
+  redirectAfterUpload: true,
   addToQueue: (capture) =>
     set((state) => ({ queue: [...state.queue, capture] })),
   markUploading: (id) =>
@@ -46,6 +49,7 @@ export const useCaptureStore = create<CaptureState>((set) => ({
         c.id === id ? { ...c, status: "failed", error } : c,
       ),
     })),
+  setRedirectAfterUpload: (v) => set({ redirectAfterUpload: v }),
   reset: () => set({ queue: [] }),
 }));
 

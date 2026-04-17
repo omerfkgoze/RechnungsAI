@@ -100,12 +100,15 @@ describe("invoiceSchema", () => {
 });
 
 describe("overallConfidence", () => {
-  it("returns the minimum of the seven scalar keys", () => {
+  it("returns the mean of the seven scalar keys", () => {
+    // 7 keys: invoice_number(0.99), invoice_date(0.97), supplier_name(0.99),
+    // gross_total(0.4), vat_total(0.97), net_total(0.97), currency(0.99)
     const inv = baseInvoice({
       invoice_number: field("X", 0.99),
       gross_total: field(1, 0.4),
     });
-    expect(overallConfidence(inv)).toBeCloseTo(0.4);
+    const expected = (0.99 + 0.97 + 0.99 + 0.4 + 0.97 + 0.97 + 0.99) / 7;
+    expect(overallConfidence(inv)).toBeCloseTo(expected);
   });
 
   it("ignores line_items and non-listed fields", () => {

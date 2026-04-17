@@ -62,3 +62,18 @@
 - IDB `updateStatus` uses `await` inside a `readwrite` transaction — potential `TransactionInactiveError` in pre-2021 browsers; not a risk in target environments (Chrome 89+, Firefox 82+). (`apps/web/lib/offline/invoice-queue.ts:114–127`)
 - `compressJpeg` creates a new `HTMLCanvasElement` per compression attempt — memory pressure on low-memory devices capturing many invoices rapidly; GC-dependent cleanup. (`apps/web/components/capture/camera-capture-shell.tsx:61–74`)
 - Storage orphan accumulation: compensating `supabase.storage.remove()` on insert failure is best-effort; if it fails, the orphaned blob has no retry path, no dead-letter queue, and no reconciliation job. Post-Epic-2 infra concern. (`apps/web/app/actions/invoices.ts:133–141`)
+
+## Deferred from: code review of 2-2-ai-data-extraction-pipeline (2026-04-17)
+
+- XML invoice decoded as UTF-8 regardless of declared charset — ISO-8859-1 ZUGFeRD invoices may garble German characters (ä, ö, ü, ß). Fix: parse XML prolog for `encoding=` and pass to `TextDecoder`. Out of AC scope; file for Epic 3/4 ZUGFeRD work. (`packages/ai/src/extract-invoice.ts:83`)
+- `as unknown as` cast disables TypeScript on `generateObject` call — Zod v3/v4 peer conflict documented in completion notes. Resolve when upgrading to Zod v4 repo-wide. (`packages/ai/src/extract-invoice.ts`)
+- System prompt passed as top-level `system:` arg instead of inside `messages[]` — AI SDK v6 accepts both forms at runtime; minor spec deviation only. (`packages/ai/src/extract-invoice.ts`)
+- No timeout / stale-state recovery for `processing` skeleton — row stuck in `processing` causes infinite skeleton with no recovery path. Epic 3 dashboard will surface `extraction_error` for orphaned rows. (`apps/web/components/invoice/extraction-results-client.tsx`)
+- NEXT_REDIRECT detection couples to Next.js internals (`digest.startsWith("NEXT_REDIRECT")`) — same pattern from Story 2.1; track against Next.js upgrade. (`apps/web/app/actions/invoices.ts:324-330`)
+- `drainQueue` can fire concurrently from mount + `online` event — pre-existing Story 2.1 issue; Story 2.3 batch flow will refactor this path. (`apps/web/components/capture/camera-capture-shell.tsx`)
+- Signed URL 60-second TTL may expire under cold-start + large PDF — operational risk only under high load. Monitor p95 latency; bump TTL if needed. (`apps/web/app/actions/invoices.ts:258-260`)
+- `extraction_attempts` unbounded + `smallint` overflow — explicitly out of scope per AC #1. Rate-limiting is Epic 3+ concern. (`supabase/migrations/20260417120000_invoices_extraction_columns.sql`)
+- `overallConfidence` excludes `supplier_address`, `recipient_name`, `recipient_address`, `payment_terms` from minimum calculation — by spec design (seven scalar keys). Epic 3 may revisit if legal-field confidence needs to affect routing. (`packages/shared/src/schemas/invoice.ts`)
+- `globalThis.process?.env` indirection in provider.ts — minor style issue, not new in this story; simplify to `process.env` when environment is confirmed Node-only. (`packages/ai/src/provider.ts`)
+- `invoice[key]` cast breaks silently on schema evolution — low risk until schema changes; add a type guard if `Invoice` gains non-envelope fields. (`apps/web/components/invoice/extraction-results-client.tsx`)
+- Out-of-range confidence values from manually edited JSONB misclassify confidence level — Epic 3 DB access controls will prevent manual edits; add Zod validation at the RSC boundary if needed. (`apps/web/components/invoice/extraction-results-client.tsx`)

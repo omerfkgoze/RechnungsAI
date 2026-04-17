@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   overallConfidence,
@@ -54,21 +54,25 @@ const FIELD_ORDER: Array<keyof Invoice> = [
   "payment_terms",
 ];
 
+function safeCurrency(code: string | undefined | null): string {
+  return /^[A-Z]{3}$/.test(code ?? "") ? (code as string) : "EUR";
+}
+
+function formatCurrency(value: unknown, currency?: string): string {
+  try {
+    return new Intl.NumberFormat("de-DE", {
+      style: "currency",
+      currency: safeCurrency(currency),
+    }).format(Number(value));
+  } catch {
+    return String(value);
+  }
+}
+
 function formatValue(key: keyof Invoice, value: unknown, currency?: string) {
   if (value === null || value === undefined) return "—";
-  if (
-    key === "net_total" ||
-    key === "vat_total" ||
-    key === "gross_total"
-  ) {
-    try {
-      return new Intl.NumberFormat("de-DE", {
-        style: "currency",
-        currency: currency || "EUR",
-      }).format(Number(value));
-    } catch {
-      return String(value);
-    }
+  if (key === "net_total" || key === "vat_total" || key === "gross_total") {
+    return formatCurrency(value, currency);
   }
   if (key === "invoice_date" && typeof value === "string") {
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -88,32 +92,39 @@ export function ExtractionResultsClient({ initialInvoice }: Props) {
   const [error, setError] = useState<string | null>(
     initialInvoice.extraction_error,
   );
-  const [triggered, setTriggered] = useState(false);
+  const [showSourceHint, setShowSourceHint] = useState(false);
+  // Use a ref for the trigger guard so it survives React StrictMode's
+  // intentional unmount → remount cycle in development, preventing duplicate
+  // extraction calls for the same invoice.
+  const triggeredRef = useRef(false);
 
   const invoice = initialInvoice.invoice_data;
   const status = initialInvoice.status;
 
-  const trigger = useMemo(
-    () => () => {
-      setError(null);
-      startTransition(async () => {
-        const result = await extractInvoice(initialInvoice.id);
-        if (!result.success) {
-          setError(result.error);
-          return;
-        }
-        router.refresh();
-      });
-    },
-    [initialInvoice.id, router],
-  );
+  const trigger = useCallback(() => {
+    setError(null);
+    startTransition(async () => {
+      const result = await extractInvoice(initialInvoice.id);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }, [initialInvoice.id, router]);
+
+  // Clear a stale error banner once invoice data becomes available (e.g. after
+  // a concurrent call failed but the first call already stored the result).
+  useEffect(() => {
+    if (invoice && error) setError(null);
+  }, [invoice, error]);
 
   useEffect(() => {
-    if (status === "captured" && !triggered && !error) {
-      setTriggered(true);
+    if (status === "captured" && !triggeredRef.current && !error) {
+      triggeredRef.current = true;
       trigger();
     }
-  }, [status, triggered, error, trigger]);
+  }, [status, error, trigger]);
 
   if ((status === "captured" || status === "processing") && !invoice) {
     return (
@@ -124,7 +135,8 @@ export function ExtractionResultsClient({ initialInvoice }: Props) {
             <button
               type="button"
               onClick={trigger}
-              className="underline font-medium"
+              disabled={isPending}
+              className="underline font-medium disabled:opacity-50"
             >
               Erneut versuchen
             </button>
@@ -175,7 +187,8 @@ export function ExtractionResultsClient({ initialInvoice }: Props) {
           <button
             type="button"
             onClick={trigger}
-            className="underline font-medium"
+            disabled={isPending}
+            className="underline font-medium disabled:opacity-50"
           >
             Erneut versuchen
           </button>
@@ -212,14 +225,27 @@ export function ExtractionResultsClient({ initialInvoice }: Props) {
                 fieldName={LABELS[key as string] ?? String(key)}
                 explanation={field.reason}
                 onTap={() => {
-                  console.info("[invoices:capture] source-view TBD");
-                  alert("Quelldokument-Ansicht kommt in Kürze.");
+                  console.info("[invoices:extract] source-view TBD");
+                  setShowSourceHint(true);
                 }}
               />
             </div>
           );
         })}
       </dl>
+
+      {showSourceHint ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          Quelldokument-Ansicht kommt in Kürze.{" "}
+          <button
+            type="button"
+            className="underline text-xs"
+            onClick={() => setShowSourceHint(false)}
+          >
+            Schließen
+          </button>
+        </p>
+      ) : null}
 
       {invoice.line_items.length > 0 ? (
         <div className="mt-6">
@@ -242,17 +268,17 @@ export function ExtractionResultsClient({ initialInvoice }: Props) {
                     <td className="py-1 pr-2">{li.quantity.value ?? "—"}</td>
                     <td className="py-1 pr-2">
                       {li.unit_price.value !== null
-                        ? formatValue("net_total", li.unit_price.value, currencyValue)
+                        ? formatCurrency(li.unit_price.value, currencyValue)
                         : "—"}
                     </td>
                     <td className="py-1 pr-2">
                       {li.net_amount.value !== null
-                        ? formatValue("net_total", li.net_amount.value, currencyValue)
+                        ? formatCurrency(li.net_amount.value, currencyValue)
                         : "—"}
                     </td>
                     <td className="py-1 pr-2">
                       {li.vat_amount.value !== null
-                        ? formatValue("net_total", li.vat_amount.value, currencyValue)
+                        ? formatCurrency(li.vat_amount.value, currencyValue)
                         : "—"}
                     </td>
                   </tr>
