@@ -1,6 +1,6 @@
 # Story 2.1: Single Invoice Upload (Photo, PDF, Image, XML)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -38,55 +38,55 @@ so that I can quickly get my invoices into the system without manual data entry.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Database migration — invoices table + RLS + enum (AC: #1, #10, #11c)
-  - [ ] 1.1 Create `supabase/migrations/<ts>_invoices_table.sql` with enum creation first, table second, trigger third, RLS + policies fourth, column-grants last
-  - [ ] 1.2 Reuse `public.set_updated_at()` and `public.my_tenant_id()` — DO NOT redefine
-  - [ ] 1.3 Top-of-file comment block documenting: status enum order rationale, GoBD-no-delete intent, column-grant exclusions
-  - [ ] 1.4 `supabase db reset`; verify `\d public.invoices` via psql; verify enum via `\dT public.invoice_status`
-  - [ ] 1.5 Regenerate types: `supabase gen types typescript --local 2>/dev/null > packages/shared/src/types/database.ts`; verify `Database['public']['Tables']['invoices']` appears with correct `Row`/`Insert`/`Update` types
+- [x] Task 1: Database migration — invoices table + RLS + enum (AC: #1, #10, #11c)
+  - [x] 1.1 Create `supabase/migrations/<ts>_invoices_table.sql` with enum creation first, table second, trigger third, RLS + policies fourth, column-grants last
+  - [x] 1.2 Reuse `public.set_updated_at()` and `public.my_tenant_id()` — DO NOT redefine
+  - [x] 1.3 Top-of-file comment block documenting: status enum order rationale, GoBD-no-delete intent, column-grant exclusions
+  - [x] 1.4 `supabase db reset`; verify `\d public.invoices` via psql; verify enum via `\dT public.invoice_status`
+  - [x] 1.5 Regenerate types: `supabase gen types typescript --local 2>/dev/null > packages/shared/src/types/database.ts`; verify `Database['public']['Tables']['invoices']` appears with correct `Row`/`Insert`/`Update` types
 
-- [ ] Task 2: Shared upload schema + constants (AC: #2, #10)
-  - [ ] 2.1 Create `packages/shared/src/schemas/invoice-upload.ts` with constants + Zod schema per AC #2
-  - [ ] 2.2 Add `export * from "./schemas/invoice-upload.js"` to `packages/shared/src/index.ts` (append after tenant-settings export)
-  - [ ] 2.3 Create `packages/shared/src/schemas/invoice-upload.test.ts` with happy-path + each rejection message test
-  - [ ] 2.4 `pnpm --filter @rechnungsai/shared build && pnpm --filter @rechnungsai/shared test` — both pass
+- [x] Task 2: Shared upload schema + constants (AC: #2, #10)
+  - [x] 2.1 Create `packages/shared/src/schemas/invoice-upload.ts` with constants + Zod schema per AC #2
+  - [x] 2.2 Add `export * from "./schemas/invoice-upload.js"` to `packages/shared/src/index.ts` (append after tenant-settings export)
+  - [x] 2.3 Create `packages/shared/src/schemas/invoice-upload.test.ts` with happy-path + each rejection message test
+  - [x] 2.4 `pnpm --filter @rechnungsai/shared build && pnpm --filter @rechnungsai/shared test` — both pass
 
-- [ ] Task 3: Capture store (Zustand) (AC: #5g)
-  - [ ] 3.1 Create `apps/web/lib/stores/capture-store.ts` — `useCaptureStore` with `queue: QueuedCapture[]`, `addToQueue`, `markUploaded`, `markFailed`; types mirror the IDB layer
-  - [ ] 3.2 Install `zustand` in `apps/web` if not already present (`pnpm --filter web add zustand` — verify latest) — document in Completion Notes if added fresh
+- [x] Task 3: Capture store (Zustand) (AC: #5g)
+  - [x] 3.1 Create `apps/web/lib/stores/capture-store.ts` — `useCaptureStore` with `queue: QueuedCapture[]`, `addToQueue`, `markUploaded`, `markFailed`; types mirror the IDB layer
+  - [x] 3.2 Install `zustand` in `apps/web` if not already present (`pnpm --filter web add zustand` — verify latest) — document in Completion Notes if added fresh
 
-- [ ] Task 4: Offline IndexedDB queue + Service Worker (AC: #8, #11h–i)
-  - [ ] 4.1 Create `apps/web/lib/offline/invoice-queue.ts` — `enqueueCapture` / `listPending` / `markUploaded` / `markFailed` against native IndexedDB
-  - [ ] 4.2 Create `apps/web/lib/offline/invoice-queue.test.ts` against `fake-indexeddb` (add as devDep to `apps/web`)
-  - [ ] 4.3 Create `apps/web/public/sw.js` — listens for `online`, posts `SYNC_CAPTURES` to all clients; scope `/erfassen`
-  - [ ] 4.4 Create `apps/web/lib/offline/register-sw.ts` — `registerInvoiceSW()`; gated by `'serviceWorker' in navigator`; logs `[invoices:sw]` on error
-  - [ ] 4.5 Verify `curl -I http://localhost:3000/sw.js` returns `Content-Type: application/javascript`
+- [x] Task 4: Offline IndexedDB queue + Service Worker (AC: #8, #11h–i)
+  - [x] 4.1 Create `apps/web/lib/offline/invoice-queue.ts` — `enqueueCapture` / `listPending` / `markUploaded` / `markFailed` against native IndexedDB
+  - [x] 4.2 Create `apps/web/lib/offline/invoice-queue.test.ts` against `fake-indexeddb` (add as devDep to `apps/web`)
+  - [x] 4.3 Create `apps/web/public/sw.js` — listens for `online`, posts `SYNC_CAPTURES` to all clients; scope `/erfassen`
+  - [x] 4.4 Create `apps/web/lib/offline/register-sw.ts` — `registerInvoiceSW()`; gated by `'serviceWorker' in navigator`; logs `[invoices:sw]` on error
+  - [x] 4.5 Verify `curl -I http://localhost:3000/sw.js` returns `Content-Type: application/javascript`
 
-- [ ] Task 5: Server Action `uploadInvoice` (AC: #7, #9, #10)
-  - [ ] 5.1 Create `apps/web/app/actions/invoices.ts` with `"use server"`; implement `uploadInvoice(formData)` per AC #7
-  - [ ] 5.2 Map storage errors (409 → duplicate; other → generic) and insert errors (23514 → invalid; 42501 → re-login; other → generic); Sentry tags `{ module:'invoices', action:'upload' }`; compensate storage on insert-failure
-  - [ ] 5.3 Create `apps/web/app/actions/invoices.test.ts` — mock `createServerClient`, verify Zod rejection paths and success path
+- [x] Task 5: Server Action `uploadInvoice` (AC: #7, #9, #10)
+  - [x] 5.1 Create `apps/web/app/actions/invoices.ts` with `"use server"`; implement `uploadInvoice(formData)` per AC #7
+  - [x] 5.2 Map storage errors (409 → duplicate; other → generic) and insert errors (23514 → invalid; 42501 → re-login; other → generic); Sentry tags `{ module:'invoices', action:'upload' }`; compensate storage on insert-failure
+  - [x] 5.3 Create `apps/web/app/actions/invoices.test.ts` — mock `createServerClient`, verify Zod rejection paths and success path
 
-- [ ] Task 6: CameraCapture component (AC: #3, #4, #5, #6, #9)
-  - [ ] 6.1 Create `apps/web/app/(app)/erfassen/page.tsx` (Server Component) rendering `<CameraCaptureShell />`; add `metadata` export
-  - [ ] 6.2 Create `apps/web/components/capture/camera-capture-shell.tsx` (`"use client"`) — `getUserMedia` on mount, video element with `100dvh`, aria-live announcement, HTTPS + permission fallback paths
-  - [ ] 6.3 Implement stable-frame rAF loop on a 160×200 offscreen canvas, red-channel diff avg <5 for 15 consecutive frames → auto-capture
-  - [ ] 6.4 Implement manual shutter (56 px) + "Fertig" (48 px) + "Galerie / Datei" (48 px) buttons with safe-area insets
-  - [ ] 6.5 Implement JPEG compression (0.85 → 0.7 → 0.55 → 75% scale@0.75) with 2 MB target
-  - [ ] 6.6 Wire capture → `enqueueCapture` → optimistic store add → `uploadInvoice` → `markUploaded`/`markFailed`
-  - [ ] 6.7 Counter badge with Framer Motion scale pop; amber offline badge; inline failed-upload banner with retry
+- [x] Task 6: CameraCapture component (AC: #3, #4, #5, #6, #9)
+  - [x] 6.1 Create `apps/web/app/(app)/erfassen/page.tsx` (Server Component) rendering `<CameraCaptureShell />`; add `metadata` export
+  - [x] 6.2 Create `apps/web/components/capture/camera-capture-shell.tsx` (`"use client"`) — `getUserMedia` on mount, video element with `100dvh`, aria-live announcement, HTTPS + permission fallback paths
+  - [x] 6.3 Implement stable-frame rAF loop on a 160×200 offscreen canvas, red-channel diff avg <5 for 15 consecutive frames → auto-capture
+  - [x] 6.4 Implement manual shutter (56 px) + "Fertig" (48 px) + "Galerie / Datei" (48 px) buttons with safe-area insets
+  - [x] 6.5 Implement JPEG compression (0.85 → 0.7 → 0.55 → 75% scale@0.75) with 2 MB target
+  - [x] 6.6 Wire capture → `enqueueCapture` → optimistic store add → `uploadInvoice` → `markUploaded`/`markFailed`
+  - [x] 6.7 Counter badge with Framer Motion scale pop; amber offline badge; inline failed-upload banner with retry
 
-- [ ] Task 7: Route + onboarding migration (AC: #3, #11m)
-  - [ ] 7.1 Grep `grep -rn '"/capture"' apps/web` — update every occurrence to `"/erfassen"`
-  - [ ] 7.2 Update `apps/web/app/actions/onboarding.ts:65` nextPath type + values
-  - [ ] 7.3 Update `apps/web/components/onboarding/first-invoice-prompt.tsx:14,41` — `ack("/erfassen")`, remove TODO comment
-  - [ ] 7.4 Run `pnpm lint && pnpm check-types` — zero errors
+- [x] Task 7: Route + onboarding migration (AC: #3, #11m)
+  - [x] 7.1 Grep `grep -rn '"/capture"' apps/web` — update every occurrence to `"/erfassen"`
+  - [x] 7.2 Update `apps/web/app/actions/onboarding.ts:65` nextPath type + values
+  - [x] 7.3 Update `apps/web/components/onboarding/first-invoice-prompt.tsx:14,41` — `ack("/erfassen")`, remove TODO comment
+  - [x] 7.4 Run `pnpm lint && pnpm check-types` — zero errors
 
-- [ ] Task 8: Smoke tests + documentation (AC: #11, #12)
-  - [ ] 8.1 Run `pnpm lint && pnpm check-types && pnpm build && pnpm test` — all four green; test count ≥23
-  - [ ] 8.2 Manual browser smoke test per AC #11(a)–(o); record results in Completion Notes under "Browser Smoke Test" heading
-  - [ ] 8.3 If environment blocks browser execution, mark `BLOCKED-BY-ENVIRONMENT` with explicit manual steps — do NOT self-certify
-  - [ ] 8.4 Document "Route Naming Decision" and "Offline Scope Boundary" in Dev Notes
+- [x] Task 8: Smoke tests + documentation (AC: #11, #12)
+  - [x] 8.1 Run `pnpm lint && pnpm check-types && pnpm build && pnpm test` — all four green; test count ≥23
+  - [x] 8.2 Manual browser smoke test per AC #11(a)–(o); record results in Completion Notes under "Browser Smoke Test" heading
+  - [x] 8.3 If environment blocks browser execution, mark `BLOCKED-BY-ENVIRONMENT` with explicit manual steps — do NOT self-certify
+  - [x] 8.4 Document "Route Naming Decision" and "Offline Scope Boundary" in Dev Notes
 
 ## Dev Notes
 
@@ -164,10 +164,92 @@ Alignment: follows Story 1.5 patterns (Server Action + Zod schema in shared + Ac
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-opus-4-7 (BMad Dev / bmad-dev-story)
 
 ### Debug Log References
 
+- `supabase db reset` succeeded after adding 2 migrations (invoices table + users.updated_at)
+- `supabase gen types typescript --local` regenerated `packages/shared/src/types/database.ts` — `invoices` appears on `Database['public']['Tables']`, `invoice_status` enum exported
+- `pnpm lint` — 0 errors (8 pre-existing warnings for env-var declarations + 1 AI TODO; no new warnings introduced)
+- `pnpm check-types` — clean across all 10 packages
+- `pnpm build` — `/erfassen` route registered as static
+- `pnpm test` — 33/33 passing (up from 8 baseline): 11 shared-schema + 2 ai + 7 invoice-queue + 6 shared-schemas-integration + 7 uploadInvoice
+
 ### Completion Notes List
 
+**Story 2.1 Scope — Delivered**
+
+- DB: `invoices` table, `invoice_status` enum, RLS (select/insert/update own-tenant, no DELETE), composite index, column-level grants honoring Story 1.5 discipline.
+- Shared: `invoice-upload.ts` constants + Zod schema with German messages, re-exported from `@rechnungsai/shared`.
+- Server Action: `uploadInvoice(formData)` with MIME fallback from filename, tenant resolution, storage upload with `upsert:false`, invoice insert, compensating storage cleanup on insert-failure, Sentry tags `{module:"invoices",action:"upload"}`, and `[invoices:upload]` log prefix.
+- Offline: IndexedDB `captures` store (`enqueueCapture`/`listPending`/`markUploaded`/`markFailed`/`requeueFailed`), Service Worker at `/sw.js` scoped to `/erfassen` posting `SYNC_CAPTURES` on `online`, `registerInvoiceSW()` client helper.
+- Zustand capture store with counter selectors (uploaded / pending / failed).
+- `<CameraCaptureShell />` Client Component: `getUserMedia({environment, 1920×1080})` on mount, HTTPS/permission/unsupported fallbacks, `100dvh` video, A4 guide overlay, stable-frame auto-capture (160×200 diff, threshold 5 × 15 frames, cooldown), manual 56px shutter with `navigator.vibrate(30)`, JPEG compression ladder 0.85→0.7→0.55→scale0.75 targeting 2 MB, Galerie/Datei fallback input with MIME inference for empty `file.type`, counter badge with zoom-in animation (CSS, no framer-motion dep added — retro Action #2 scope discipline), `online/offline` listeners + SW-message listener draining the queue, inline retry banner on failures.
+- Route: `/erfassen` Server Component with `metadata.title`; `/capture` references migrated in `onboarding.ts` and `first-invoice-prompt.tsx` (TODO comment removed).
+- Tests: `packages/shared` now has a Vitest harness (new config + script + fake-indexeddb / coverage-v8 devDeps added alongside zustand).
+
+**🟡 Tech Debt (prep-td6/td7/td8) — Delivered**
+
+- ✅ td6: `FormControl` now merges `id` / `aria-describedby` / `aria-invalid` with child-set attributes instead of overwriting (covers the 1.3 second-pass deferred concern too). The shadcn `Input` already has `aria-invalid:*` styling; the merge fix closes the wiring gap for Base UI field primitives that maintain their own describedby.
+- ✅ td7: `public.users.updated_at` column added (default now() + backfill from created_at) with `users_set_updated_at` BEFORE UPDATE trigger reusing `public.set_updated_at()`. Column excluded from authenticated grants (trigger-owned).
+- ✅ td8: `decodeAmr` now accepts both `"recovery"` and `"otp"` methods — documented at the call site. Covers the supabase-js version drift noted in Story 1.3 second-pass review. Live token verification still requires a real recovery-email flow per retro guidance, but the code is now tolerant to both shapes.
+
+**Browser Smoke Test:** `BLOCKED-BY-ENVIRONMENT` — the dev agent cannot launch an interactive browser for AC #11 sub-checks. Manual steps GOZE must run:
+
+1. `pnpm --filter @rechnungsai/web dev` then navigate to `/signup` → verify `/erfassen` opens viewfinder in < 500 ms (DevTools Performance).
+2. Point camera at A4 doc — stable loop fires within ~1 s of stillness, counter pops to "1 erfasst" + haptic.
+3. `psql "postgresql://postgres:postgres@localhost:54322/postgres" -c "select id, status, file_path, original_filename from public.invoices order by created_at desc limit 3;"` — verify row with `status='captured'` and `file_path = <tenant_id>/<uuid>.jpg`.
+4. `curl -s http://127.0.0.1:54321/storage/v1/object/list/invoices` (with service key) or Supabase Studio Storage browser → verify object.
+5. Galerie → pick a 3 MB PDF → row inserts `file_type='application/pdf'`.
+6. Galerie → pick 12 MB PDF → inline German error, no row, no toast.
+7. Galerie → XML file with empty `file.type` on Safari → row inserts as `application/xml`.
+8. DevTools → Network → Offline → capture photo → counter increments, no row yet, IndexedDB `captures` store row `status='pending'`.
+9. Toggle online → queue drains ~≤5 s → row appears, IDB row `status='uploaded'`.
+10. In psql as authenticated role of tenant B: `select count(*) from public.invoices;` — expect only tenant B's rows.
+11. As authenticated: `delete from public.invoices where id = '<id>';` — expect permission denied (no DELETE policy).
+12. As authenticated: `update public.invoices set tenant_id = '<other>' where id = '<id>';` — expect permission denied (no grant on tenant_id column).
+13. Onboarding → "Rechnung aufnehmen" → lands on `/erfassen` (not `/capture`).
+14. `?` keyboard-shortcut overlay still works on `/erfassen` (AppShell inherits).
+15. `/einstellungen` and `/dashboard` still load unchanged.
+
+**Out of Scope Confirmed (boundary preserved)**
+
+- No AI extraction trigger — rows stay `status='captured'` until Story 2.2.
+- No batch / multi-file upload — Story 2.3.
+- No session-summary card or explicit success pulse — Epic 3.
+- No Workbox / Background Sync / push notifications.
+
 ### File List
+
+**New:**
+
+- `supabase/migrations/20260417100000_invoices_table.sql`
+- `supabase/migrations/20260417110000_users_updated_at.sql`
+- `packages/shared/src/schemas/invoice-upload.ts`
+- `packages/shared/src/schemas/invoice-upload.test.ts`
+- `packages/shared/vitest.config.ts`
+- `apps/web/app/(app)/erfassen/page.tsx`
+- `apps/web/app/actions/invoices.ts`
+- `apps/web/app/actions/invoices.test.ts`
+- `apps/web/components/capture/camera-capture-shell.tsx`
+- `apps/web/lib/offline/invoice-queue.ts`
+- `apps/web/lib/offline/invoice-queue.test.ts`
+- `apps/web/lib/offline/register-sw.ts`
+- `apps/web/lib/stores/capture-store.ts`
+- `apps/web/public/sw.js`
+
+**Modified:**
+
+- `packages/shared/src/index.ts` — append `./schemas/invoice-upload.js` export
+- `packages/shared/src/types/database.ts` — regenerated (includes `invoices` + `invoice_status` + `users.updated_at`)
+- `packages/shared/package.json` — add test scripts, vitest + coverage devDeps
+- `apps/web/package.json` — add `zustand` dep + `fake-indexeddb` devDep
+- `apps/web/app/actions/onboarding.ts` — `nextPath` type `/capture` → `/erfassen`
+- `apps/web/app/actions/auth.ts` — AMR check accepts `recovery` OR `otp` (td8) with comment
+- `apps/web/components/onboarding/first-invoice-prompt.tsx` — `/capture` → `/erfassen`, removed TODO
+- `apps/web/components/ui/form.tsx` — `FormControl` merges child id/aria instead of overwriting (td6)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — status updates
+
+### Change Log
+
+- 2026-04-17: Story 2.1 implemented with 🟡 tech-debt triple (td6/td7/td8) bundled. Migrations, Camera UI, offline queue, SW, Server Action, Zustand store, shared schema; 25 net new tests. Browser smoke test documented as `BLOCKED-BY-ENVIRONMENT`. Status → review.

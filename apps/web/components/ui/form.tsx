@@ -114,12 +114,27 @@ function FormControl({
   const { error, formItemId, formDescriptionId, formMessageId } =
     useFormField();
 
+  // Merge rather than overwrite: respect any id/aria-* the child already
+  // sets (field primitives may need their own for internal wiring).
+  const childProps = children.props;
+  const childDescribedBy =
+    typeof childProps["aria-describedby"] === "string"
+      ? childProps["aria-describedby"]
+      : undefined;
+  const ownDescribedBy = !error
+    ? formDescriptionId
+    : `${formDescriptionId} ${formMessageId}`;
+  const mergedDescribedBy = childDescribedBy
+    ? `${childDescribedBy} ${ownDescribedBy}`
+    : ownDescribedBy;
+
   return React.cloneElement(children, {
-    id: formItemId,
-    "aria-describedby": !error
-      ? formDescriptionId
-      : `${formDescriptionId} ${formMessageId}`,
-    "aria-invalid": !!error,
+    id: childProps.id ?? formItemId,
+    "aria-describedby": mergedDescribedBy,
+    "aria-invalid":
+      typeof childProps["aria-invalid"] === "boolean"
+        ? childProps["aria-invalid"] || !!error
+        : !!error,
   });
 }
 

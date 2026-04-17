@@ -1,0 +1,576 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
+import { useRouter } from "next/navigation";
+import { Camera, Check, FolderOpen, X } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  INVOICE_ACCEPTED_MIME,
+  MAX_IMAGE_JPEG_BYTES,
+  invoiceUploadInputSchema,
+} from "@rechnungsai/shared";
+import {
+  selectFailedCount,
+  selectPendingCount,
+  selectUploadedCount,
+  useCaptureStore,
+  type QueuedCapture as StoreEntry,
+} from "@/lib/stores/capture-store";
+import {
+  enqueueCapture,
+  listPending,
+  markFailed as queueMarkFailed,
+  markUploaded as queueMarkUploaded,
+  markUploading as queueMarkUploading,
+  requeueFailed,
+} from "@/lib/offline/invoice-queue";
+import { registerInvoiceSW } from "@/lib/offline/register-sw";
+import { uploadInvoice } from "@/app/actions/invoices";
+
+const ACCEPT_ATTR = INVOICE_ACCEPTED_MIME.join(",");
+
+type FallbackReason = "permission" | "https" | "unsupported" | null;
+
+function inferMime(name: string, fallback: string): string {
+  if (fallback && (INVOICE_ACCEPTED_MIME as readonly string[]).includes(fallback))
+    return fallback;
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".xml")) return "application/xml";
+  return fallback;
+}
+
+async function compressJpeg(
+  canvas: HTMLCanvasElement,
+): Promise<Blob | null> {
+  const attempts: Array<{ quality: number; scale: number }> = [
+    { quality: 0.85, scale: 1 },
+    { quality: 0.7, scale: 1 },
+    { quality: 0.55, scale: 1 },
+    { quality: 0.75, scale: 0.75 },
+  ];
+  for (const { quality, scale } of attempts) {
+    const target = document.createElement("canvas");
+    target.width = Math.round(canvas.width * scale);
+    target.height = Math.round(canvas.height * scale);
+    const ctx = target.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(canvas, 0, 0, target.width, target.height);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      target.toBlob((b) => resolve(b), "image/jpeg", quality),
+    );
+    if (blob && blob.size <= MAX_IMAGE_JPEG_BYTES) return blob;
+    if (blob && scale === 0.75) return blob; // last resort — accept oversize
+  }
+  return null;
+}
+
+export function CameraCaptureShell() {
+  const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const diffCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const prevFrameRef = useRef<Uint8ClampedArray | null>(null);
+  const stableCountRef = useRef(0);
+  const captureLockRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [fallback, setFallback] = useState<FallbackReason>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+  const [pop, setPop] = useState(0);
+  const [online, setOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
+
+  const addToQueue = useCaptureStore((s) => s.addToQueue);
+  const markUploading = useCaptureStore((s) => s.markUploading);
+  const markUploaded = useCaptureStore((s) => s.markUploaded);
+  const markFailed = useCaptureStore((s) => s.markFailed);
+  const uploadedCount = useCaptureStore(selectUploadedCount);
+  const pendingCount = useCaptureStore(selectPendingCount);
+  const failedCount = useCaptureStore(selectFailedCount);
+
+  // ─── Upload worker ─────────────────────────────────────────────
+  const uploadOne = useCallback(
+    async (entry: StoreEntry, blob: Blob) => {
+      markUploading(entry.id);
+      await queueMarkUploading(entry.id);
+      try {
+        const fd = new FormData();
+        const file = new File([blob], entry.originalFilename, {
+          type: entry.fileType,
+        });
+        fd.set("file", file);
+        const res = await uploadInvoice(fd);
+        if (res.success) {
+          markUploaded(entry.id, res.data.invoiceId);
+          await queueMarkUploaded(entry.id);
+        } else {
+          markFailed(entry.id, res.error);
+          await queueMarkFailed(entry.id, res.error);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload fehlgeschlagen.";
+        markFailed(entry.id, msg);
+        await queueMarkFailed(entry.id, msg);
+      }
+    },
+    [markFailed, markUploaded, markUploading],
+  );
+
+  const drainQueue = useCallback(async () => {
+    const pending = await listPending();
+    for (const row of pending) {
+      const entry: StoreEntry = {
+        id: row.id,
+        status: "queued",
+        originalFilename: row.originalFilename,
+        fileType: row.fileType,
+        sizeBytes: row.sizeBytes,
+        createdAt: row.createdAt,
+      };
+      await uploadOne(entry, row.blob);
+    }
+  }, [uploadOne]);
+
+  // ─── Capture (shared path for manual + auto + gallery) ────────
+  const submitBlob = useCallback(
+    async (blob: Blob, filename: string, mime: string) => {
+      const parsed = invoiceUploadInputSchema.safeParse({
+        originalFilename: filename,
+        fileType: mime,
+        sizeBytes: blob.size,
+      });
+      if (!parsed.success) {
+        setInlineError(
+          parsed.error.issues[0]?.message ??
+            "Ungültige Datei. Bitte überprüfe dein Dokument.",
+        );
+        return;
+      }
+      setInlineError(null);
+      const queueId = await enqueueCapture(blob, {
+        originalFilename: filename,
+        fileType: mime,
+        sizeBytes: blob.size,
+      });
+      const entry: StoreEntry = {
+        id: queueId,
+        status: "queued",
+        originalFilename: filename,
+        fileType: mime,
+        sizeBytes: blob.size,
+        createdAt: Date.now(),
+      };
+      addToQueue(entry);
+      setPop((n) => n + 1);
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate(30);
+        } catch {
+          // noop
+        }
+      }
+      if (navigator.onLine) {
+        await uploadOne(entry, blob);
+      }
+    },
+    [addToQueue, uploadOne],
+  );
+
+  const snapFromVideo = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || captureLockRef.current) return;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+    captureLockRef.current = true;
+    try {
+      const canvas =
+        captureCanvasRef.current ?? document.createElement("canvas");
+      captureCanvasRef.current = canvas;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        captureLockRef.current = false;
+        return;
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await compressJpeg(canvas);
+      if (!blob) {
+        setInlineError("Bild unscharf — bitte nochmal versuchen.");
+        return;
+      }
+      await submitBlob(blob, `invoice-${Date.now()}.jpg`, "image/jpeg");
+    } finally {
+      captureLockRef.current = false;
+    }
+  }, [submitBlob]);
+
+  // ─── Camera setup ──────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (
+      window.location.protocol !== "https:" &&
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1"
+    ) {
+      setFallback("https");
+      return;
+    }
+    if (
+      !navigator.mediaDevices ||
+      typeof navigator.mediaDevices.getUserMedia !== "function"
+    ) {
+      setFallback("unsupported");
+      return;
+    }
+    let cancelled = false;
+    navigator.mediaDevices
+      .getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      })
+      .then((stream) => {
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        const video = videoRef.current;
+        if (video) {
+          video.srcObject = stream;
+          video.onloadeddata = () => {
+            if (video.readyState >= 4) setVideoReady(true);
+          };
+        }
+      })
+      .catch(() => {
+        setFallback("permission");
+      });
+    return () => {
+      cancelled = true;
+      const stream = streamRef.current;
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
+  // ─── Stable-frame auto-capture loop ────────────────────────────
+  useEffect(() => {
+    if (!videoReady) return;
+    const diff = diffCanvasRef.current ?? document.createElement("canvas");
+    diffCanvasRef.current = diff;
+    diff.width = 160;
+    diff.height = 200;
+    const ctx = diff.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+
+    const tick = () => {
+      const video = videoRef.current;
+      if (!video || video.readyState < 2) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      ctx.drawImage(video, 0, 0, diff.width, diff.height);
+      const imageData = ctx.getImageData(0, 0, diff.width, diff.height);
+      const data = imageData.data;
+      const prev = prevFrameRef.current;
+      if (prev && prev.length === data.length) {
+        let sum = 0;
+        let samples = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          sum += Math.abs((data[i] ?? 0) - (prev[i] ?? 0));
+          samples++;
+        }
+        const avg = sum / Math.max(samples, 1);
+        if (avg < 5) {
+          stableCountRef.current++;
+          if (
+            stableCountRef.current >= 15 &&
+            !captureLockRef.current
+          ) {
+            stableCountRef.current = -60; // cooldown ~2s
+            void snapFromVideo();
+          }
+        } else {
+          stableCountRef.current = 0;
+        }
+      }
+      prevFrameRef.current = new Uint8ClampedArray(data);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      prevFrameRef.current = null;
+    };
+  }, [videoReady, snapFromVideo]);
+
+  // ─── SW registration + online/offline wiring ───────────────────
+  useEffect(() => {
+    void registerInvoiceSW();
+    const onOnline = () => {
+      setOnline(true);
+      void drainQueue();
+    };
+    const onOffline = () => setOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    const onMsg = (event: MessageEvent) => {
+      if (event.data && event.data.type === "SYNC_CAPTURES") {
+        void drainQueue();
+      }
+    };
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onMsg);
+    }
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", onMsg);
+      }
+    };
+  }, [drainQueue]);
+
+  // ─── Gallery / file fallback handler ──────────────────────────
+  const onGalleryChange = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      const mime = inferMime(file.name, file.type);
+      const parsed = invoiceUploadInputSchema.safeParse({
+        originalFilename: file.name,
+        fileType: mime,
+        sizeBytes: file.size,
+      });
+      if (!parsed.success) {
+        setInlineError(
+          parsed.error.issues[0]?.message ??
+            "Ungültige Datei. Bitte überprüfe dein Dokument.",
+        );
+        return;
+      }
+      await submitBlob(file, file.name, mime);
+    },
+    [submitBlob],
+  );
+
+  const triggerFilePicker = () => fileInputRef.current?.click();
+
+  const retry = useCallback(async () => {
+    await requeueFailed();
+    await drainQueue();
+  }, [drainQueue]);
+
+  // ─── Render: fallback card (no camera) ─────────────────────────
+  if (fallback) {
+    const headline = "Kamera nicht verfügbar.";
+    const body =
+      fallback === "https"
+        ? "Kamera benötigt eine sichere Verbindung (HTTPS)."
+        : "Bitte erlaube den Kamerazugriff in den Browser-Einstellungen oder wähle eine Datei aus.";
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center gap-4 px-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>{headline}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <p className="text-muted-foreground text-sm">{body}</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_ATTR}
+              onChange={onGalleryChange}
+              className="hidden"
+              aria-invalid={inlineError ? true : undefined}
+            />
+            <Button type="button" size="lg" onClick={triggerFilePicker}>
+              <FolderOpen className="size-5" aria-hidden />
+              Datei auswählen
+            </Button>
+            {inlineError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {inlineError}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              variant="link"
+              onClick={() => router.push("/dashboard")}
+            >
+              Zurück zum Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ─── Render: viewfinder ────────────────────────────────────────
+  return (
+    <div className="fixed inset-0 z-50 h-[100dvh] w-screen overflow-hidden bg-black">
+      <div
+        aria-live="polite"
+        role="status"
+        className="sr-only"
+      >
+        {videoReady ? "Kamera aktiv. Rechnung vor die Kamera halten." : ""}
+      </div>
+
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="fixed inset-0 h-[100dvh] w-screen object-cover bg-black"
+      />
+
+      {!videoReady ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="size-16 animate-pulse rounded-full bg-white/10" />
+        </div>
+      ) : null}
+
+      {/* Document-guide overlay (A4 aspect 1:√2) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+      >
+        <div
+          className="rounded-md border-2 border-dashed border-white/60"
+          style={{ width: "70vmin", height: `calc(70vmin * 1.414)` }}
+        />
+      </div>
+
+      {/* Top chrome: gallery + done */}
+      <div
+        className="absolute top-0 left-0 right-0 flex items-start justify-between p-4"
+        style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
+      >
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={triggerFilePicker}
+          className="h-12 min-w-12 gap-2"
+          aria-label="Galerie oder Datei auswählen"
+        >
+          <FolderOpen className="size-5" aria-hidden />
+          Galerie / Datei
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPT_ATTR}
+          onChange={onGalleryChange}
+          className="hidden"
+          aria-invalid={inlineError ? true : undefined}
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            streamRef.current?.getTracks().forEach((t) => t.stop());
+            router.push("/dashboard");
+          }}
+          className="h-12 min-w-12 gap-2"
+          aria-label="Fertig — zurück zum Dashboard"
+        >
+          <Check className="size-5" aria-hidden />
+          Fertig
+        </Button>
+      </div>
+
+      {/* Counter badge */}
+      {(uploadedCount > 0 || pendingCount > 0 || failedCount > 0) ? (
+        <div
+          key={pop}
+          className="absolute left-1/2 top-20 -translate-x-1/2 animate-in zoom-in-75 duration-200"
+        >
+          <span className="rounded-full bg-primary/90 px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg">
+            {uploadedCount} erfasst
+            {!online && pendingCount > 0
+              ? ` · ${pendingCount} in Warteschlange`
+              : null}
+          </span>
+        </div>
+      ) : null}
+
+      {/* Shutter */}
+      <div
+        className="absolute bottom-0 left-0 right-0 flex justify-center"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 2rem)" }}
+      >
+        <button
+          type="button"
+          onClick={() => void snapFromVideo()}
+          className="size-14 rounded-full border-4 border-white bg-white/20 backdrop-blur transition active:scale-95"
+          aria-label="Rechnung aufnehmen"
+        >
+          <Camera className="m-auto size-7 text-white" aria-hidden />
+        </button>
+      </div>
+
+      {/* Inline failed banner */}
+      {failedCount > 0 ? (
+        <div className="absolute left-4 right-4 top-4 rounded-md bg-destructive/90 p-3 text-destructive-foreground text-sm flex items-center justify-between gap-2">
+          <span>
+            {failedCount} Aufnahme
+            {failedCount === 1 ? "" : "n"} konnte
+            {failedCount === 1 ? "" : "n"} nicht hochgeladen werden.
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => void retry()}
+          >
+            Erneut versuchen
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Inline validation / compression errors */}
+      {inlineError ? (
+        <div className="absolute left-4 right-4 bottom-28 flex justify-center">
+          <p
+            role="alert"
+            className="rounded-md bg-background/95 px-3 py-2 text-destructive text-sm shadow"
+          >
+            {inlineError}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setInlineError(null)}
+              aria-label="Meldung schließen"
+              className="ml-2 size-6"
+            >
+              <X className="size-4" aria-hidden />
+            </Button>
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}

@@ -11,7 +11,7 @@ export function FirstInvoicePrompt() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function ack(next: "/capture" | "/dashboard") {
+  function ack(next: "/erfassen" | "/dashboard") {
     if (isPending) return;
     setError(null);
     startTransition(async () => {
@@ -35,10 +35,9 @@ export function FirstInvoicePrompt() {
       </p>
 
       <div className="flex w-full flex-col gap-3">
-        {/* TODO: Epic 2 Story 2.1 implements /capture — until then this link will 404 in dev; dashboard fallback is primary. */}
         <Button
           type="button"
-          onClick={() => ack("/capture")}
+          onClick={() => ack("/erfassen")}
           disabled={isPending}
           size="lg"
           className="w-full"

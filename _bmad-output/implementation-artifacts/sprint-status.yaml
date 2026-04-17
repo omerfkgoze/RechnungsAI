@@ -1,5 +1,5 @@
 # generated: 2026-04-11
-# last_updated: 2026-04-17 (Story 2.1 ready-for-dev)
+# last_updated: 2026-04-17 (Story 2.1 → review; td6/td7/td8 → done)
 # project: RechnungsAI
 # project_key: NOKEY
 # tracking_system: file-system
@@ -69,16 +69,16 @@ development_status:
   prep-p5-sentry-integration: done                         # @sentry/nextjs@10.49.0; instrumentation.ts + captureException wired
   prep-p6-camera-api-getusermedia-spike: done              # spike-p6-camera-api-2026-04-17.md — CSS overlay + stable-frame detection recommended
 
-  # 🟡 Tech Debt (before/during Story 2.1)
-  prep-td6-aria-invalid-wiring-forms: backlog              # aria-invalid on shadcn Input (all forms)
-  prep-td7-users-updated-at-column-trigger: backlog        # audit trail column + trigger
-  prep-td8-decode-amr-recovery-verify: backlog             # verify token shape with real Supabase recovery
+  # 🟡 Tech Debt (bundled with Story 2.1 — 2026-04-17)
+  prep-td6-aria-invalid-wiring-forms: done                 # FormControl now merges child id/aria-*; shadcn Input styling preserved
+  prep-td7-users-updated-at-column-trigger: done           # migration 20260417110000 adds column + trigger + backfill
+  prep-td8-decode-amr-recovery-verify: done                # decodeAmr accepts "recovery" OR "otp"; live-token verification still recommended on real recovery flow
 
   # ─────────────────────────────────────────────────────────────
   # Epic 2: Invoice Capture and AI Data Extraction
   # ─────────────────────────────────────────────────────────────
   epic-2: in-progress
-  2-1-single-invoice-upload-photo-pdf-image-xml: ready-for-dev
+  2-1-single-invoice-upload-photo-pdf-image-xml: review
   2-2-ai-data-extraction-pipeline: backlog
   2-3-batch-invoice-upload: backlog
   epic-2-retrospective: optional

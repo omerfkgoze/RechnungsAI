@@ -34,6 +34,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      invoices: {
+        Row: {
+          created_at: string
+          file_path: string
+          file_type: string
+          id: string
+          original_filename: string
+          status: Database["public"]["Enums"]["invoice_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_path: string
+          file_type: string
+          id?: string
+          original_filename: string
+          status?: Database["public"]["Enums"]["invoice_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_path?: string
+          file_type?: string
+          id?: string
+          original_filename?: string
+          status?: Database["public"]["Enums"]["invoice_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           company_address: string | null
@@ -88,6 +129,7 @@ export type Database = {
           onboarded_at: string | null
           role: string
           tenant_id: string
+          updated_at: string
         }
         Insert: {
           ai_disclaimer_accepted_at?: string | null
@@ -97,6 +139,7 @@ export type Database = {
           onboarded_at?: string | null
           role?: string
           tenant_id: string
+          updated_at?: string
         }
         Update: {
           ai_disclaimer_accepted_at?: string | null
@@ -106,6 +149,7 @@ export type Database = {
           onboarded_at?: string | null
           role?: string
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -135,7 +179,12 @@ export type Database = {
       my_tenant_id: { Args: never; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      invoice_status:
+        | "captured"
+        | "processing"
+        | "ready"
+        | "review"
+        | "exported"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -265,7 +314,9 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      invoice_status: ["captured", "processing", "ready", "review", "exported"],
+    },
   },
 } as const
 

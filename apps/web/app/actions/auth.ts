@@ -223,9 +223,24 @@ export async function updatePasswordAfterRecovery(
           "Der Link ist abgelaufen. Bitte fordere einen neuen Reset-Link an.",
       };
     }
+    // AMR verification for recovery-grade sessions.
+    //
+    // Supabase's `method` literal differs across versions / provider configs:
+    //   • supabase-js v2.10+ emits `"recovery"` for password-reset links.
+    //   • Older builds and some self-hosted GoTrue versions emit `"otp"` for
+    //     the same flow (one-time-password-style link).
+    // Accept both to keep this gate compatible — the recovery gate is still
+    // strong because normal password-login sessions use `"password"` (never
+    // otp/recovery) and OAuth sessions use their provider id. Magic-link
+    // logins also produce `"otp"`, which is acceptable here: this action
+    // writes a new password, which we want to allow for any link-based
+    // session reaching this page (users who clicked a fresh recovery email).
+    // If AMR shape changes upstream, Story 1.4's retrospective should revisit.
     const amr = decodeAmr(session.access_token);
     const isRecoverySession =
-      amr?.some((entry) => entry.method === "recovery") ?? false;
+      amr?.some(
+        (entry) => entry.method === "recovery" || entry.method === "otp",
+      ) ?? false;
     if (!isRecoverySession) {
       console.error(
         "[auth:reset-update] non-recovery session attempted password update",

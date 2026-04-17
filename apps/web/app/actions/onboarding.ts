@@ -62,7 +62,7 @@ export async function completeOnboarding(
 }
 
 export async function completeFirstInvoiceStep(
-  nextPath: "/capture" | "/dashboard",
+  nextPath: "/erfassen" | "/dashboard",
 ): Promise<ActionResult<{ redirectTo: string }>> {
   try {
     const supabase = await createServerClient();
