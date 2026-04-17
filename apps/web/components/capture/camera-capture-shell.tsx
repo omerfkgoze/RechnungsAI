@@ -134,6 +134,9 @@ export function CameraCaptureShell() {
           if (res.success) {
             markUploaded(entry.id, res.data.invoiceId);
             await queueMarkUploaded(entry.id);
+            if (useCaptureStore.getState().redirectAfterUpload) {
+              router.push(`/rechnungen/${res.data.invoiceId}`);
+            }
             return;
           }
           if (attempt === retryDelays.length) {
@@ -155,10 +158,15 @@ export function CameraCaptureShell() {
         );
       }
     },
-    [markFailed, markUploaded, markUploading],
+    [markFailed, markUploaded, markUploading, router],
   );
 
   const drainQueue = useCallback(async () => {
+    // Offline-drain path: upload many rows without navigating away (Story 2.2
+    // AC #8a). Restore the flag after so subsequent interactive captures
+    // resume navigation.
+    const prev = useCaptureStore.getState().redirectAfterUpload;
+    useCaptureStore.getState().setRedirectAfterUpload(false);
     await requeueUploading();
     const pending = await listPending();
     for (const row of pending) {
@@ -172,6 +180,7 @@ export function CameraCaptureShell() {
       };
       await uploadOne(entry, row.blob);
     }
+    useCaptureStore.getState().setRedirectAfterUpload(prev);
   }, [uploadOne]);
 
   // ─── Capture (shared path for manual + auto + gallery) ────────

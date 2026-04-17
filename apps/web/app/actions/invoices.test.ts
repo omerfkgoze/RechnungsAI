@@ -18,11 +18,19 @@ vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
 
+const aiExtractMock = vi.fn();
+vi.mock("@rechnungsai/ai", () => ({
+  extractInvoice: (...args: unknown[]) => aiExtractMock(...args),
+}));
+
 const uploadMock = vi.fn();
 const removeMock = vi.fn();
+const createSignedUrlMock = vi.fn();
 const insertSingleMock = vi.fn();
 const userSingleMock = vi.fn();
 const authGetUserMock = vi.fn();
+const invoiceSelectSingleMock = vi.fn();
+const invoiceUpdateEqMock = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerClient: vi.fn(async () => ({
@@ -31,18 +39,20 @@ vi.mock("@/lib/supabase/server", () => ({
       if (table === "users") {
         return {
           select: () => ({
-            eq: () => ({
-              single: userSingleMock,
-            }),
+            eq: () => ({ single: userSingleMock }),
           }),
         };
       }
       if (table === "invoices") {
         return {
           insert: () => ({
-            select: () => ({
-              single: insertSingleMock,
-            }),
+            select: () => ({ single: insertSingleMock }),
+          }),
+          select: () => ({
+            eq: () => ({ single: invoiceSelectSingleMock }),
+          }),
+          update: (patch: unknown) => ({
+            eq: () => invoiceUpdateEqMock(patch),
           }),
         };
       }
@@ -52,12 +62,13 @@ vi.mock("@/lib/supabase/server", () => ({
       from: () => ({
         upload: uploadMock,
         remove: removeMock,
+        createSignedUrl: createSignedUrlMock,
       }),
     },
   })),
 }));
 
-import { uploadInvoice } from "./invoices";
+import { extractInvoice, uploadInvoice } from "./invoices";
 
 function makeFile(
   name: string,
@@ -195,5 +206,151 @@ describe("uploadInvoice — error compensation", () => {
     if (!result.success) {
       expect(result.error).toContain("existiert bereits");
     }
+  });
+});
+
+const VALID_UUID = "11111111-1111-1111-1111-111111111111";
+
+function field<T>(value: T, confidence: number, reason: string | null = null) {
+  return { value, confidence, reason };
+}
+
+function mockInvoiceData(confidence = 0.99) {
+  return {
+    invoice_number: field("R-1", confidence),
+    invoice_date: field("2024-03-15", confidence),
+    supplier_name: field("ACME GmbH", confidence),
+    supplier_address: field(null, confidence),
+    supplier_tax_id: field(null, confidence),
+    recipient_name: field(null, confidence),
+    recipient_address: field(null, confidence),
+    line_items: [],
+    net_total: field(100, confidence),
+    vat_total: field(19, confidence),
+    gross_total: field(119, confidence),
+    currency: field("EUR", confidence),
+    payment_terms: field(null, confidence),
+  };
+}
+
+describe("extractInvoice", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authGetUserMock.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    userSingleMock.mockResolvedValue({
+      data: { tenant_id: "tenant-1" },
+      error: null,
+    });
+    invoiceSelectSingleMock.mockResolvedValue({
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-1",
+        status: "captured",
+        file_path: "tenant-1/abc.pdf",
+        file_type: "application/pdf",
+        original_filename: "abc.pdf",
+        extraction_attempts: 0,
+      },
+      error: null,
+    });
+    invoiceUpdateEqMock.mockResolvedValue({ error: null });
+    createSignedUrlMock.mockResolvedValue({
+      data: { signedUrl: "https://signed.example/abc.pdf" },
+      error: null,
+    });
+    aiExtractMock.mockResolvedValue({ success: true, data: mockInvoiceData() });
+  });
+
+  it("rejects invalid UUID with German message", async () => {
+    const result = await extractInvoice("not-a-uuid");
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("Ungültige Rechnungs-ID.");
+    }
+  });
+
+  it("returns success without re-extraction when status is 'ready' (idempotency)", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-1",
+        status: "ready",
+        file_path: "x",
+        file_type: "application/pdf",
+        original_filename: "x.pdf",
+        extraction_attempts: 1,
+      },
+      error: null,
+    });
+    const result = await extractInvoice(VALID_UUID);
+    expect(result.success).toBe(true);
+    expect(aiExtractMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects concurrent call when status is 'processing'", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-1",
+        status: "processing",
+        file_path: "x",
+        file_type: "application/pdf",
+        original_filename: "x.pdf",
+        extraction_attempts: 1,
+      },
+      error: null,
+    });
+    const result = await extractInvoice(VALID_UUID);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Extraktion läuft bereits");
+    }
+    expect(aiExtractMock).not.toHaveBeenCalled();
+  });
+
+  it("happy path flips status to 'ready' when overall confidence is high", async () => {
+    const result = await extractInvoice(VALID_UUID);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe("ready");
+      expect(result.data.overall).toBeGreaterThanOrEqual(0.95);
+    }
+    expect(aiExtractMock).toHaveBeenCalledOnce();
+  });
+
+  it("flips status to 'review' when overall confidence is below high threshold", async () => {
+    aiExtractMock.mockResolvedValueOnce({
+      success: true,
+      data: mockInvoiceData(0.8),
+    });
+    const result = await extractInvoice(VALID_UUID);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.status).toBe("review");
+  });
+
+  it("reverts status to 'captured' with extraction_error when AI fails", async () => {
+    aiExtractMock.mockResolvedValueOnce({
+      success: false,
+      error: "KI-Provider überlastet. Bitte in einer Minute erneut versuchen.",
+    });
+    const result = await extractInvoice(VALID_UUID);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("überlastet");
+    const patches = invoiceUpdateEqMock.mock.calls.map(
+      (c) => c[0] as Record<string, unknown>,
+    );
+    const revert = patches.find((p) => p.status === "captured");
+    expect(revert).toBeDefined();
+    expect(revert?.extraction_error).toContain("überlastet");
+  });
+
+  it("returns 'Rechnung nicht gefunden' when row is missing", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({ data: null, error: null });
+    const result = await extractInvoice(VALID_UUID);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toBe("Rechnung nicht gefunden.");
   });
 });

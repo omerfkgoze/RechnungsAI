@@ -231,6 +231,26 @@
   }
 }
 
+/* Story 2.2: cascade reveal for extraction results.
+   CSS-only (Story 2.1 retro Action #2 — no Framer Motion).
+   Set `style={{ '--i': index }}` on each row to stagger.
+*/
+@keyframes extraction-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.field-reveal {
+  animation: extraction-reveal 320ms ease-out both;
+  animation-delay: calc(var(--i, 0) * 120ms);
+}
+
 /* Respect reduced motion system preference */
 @media (prefers-reduced-motion: reduce) {
   *,

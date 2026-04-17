@@ -37,9 +37,13 @@ export type Database = {
       invoices: {
         Row: {
           created_at: string
+          extracted_at: string | null
+          extraction_attempts: number
+          extraction_error: string | null
           file_path: string
           file_type: string
           id: string
+          invoice_data: Json | null
           original_filename: string
           status: Database["public"]["Enums"]["invoice_status"]
           tenant_id: string
@@ -47,9 +51,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          extracted_at?: string | null
+          extraction_attempts?: number
+          extraction_error?: string | null
           file_path: string
           file_type: string
           id?: string
+          invoice_data?: Json | null
           original_filename: string
           status?: Database["public"]["Enums"]["invoice_status"]
           tenant_id: string
@@ -57,9 +65,13 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          extracted_at?: string | null
+          extraction_attempts?: number
+          extraction_error?: string | null
           file_path?: string
           file_type?: string
           id?: string
+          invoice_data?: Json | null
           original_filename?: string
           status?: Database["public"]["Enums"]["invoice_status"]
           tenant_id?: string

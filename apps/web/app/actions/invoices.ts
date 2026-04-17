@@ -3,9 +3,13 @@
 import {
   INVOICE_ACCEPTED_MIME,
   invoiceUploadInputSchema,
+  overallConfidence,
+  statusFromOverallConfidence,
   type ActionResult,
   type InvoiceAcceptedMime,
 } from "@rechnungsai/shared";
+import { z } from "zod";
+import { extractInvoice as aiExtractInvoice } from "@rechnungsai/ai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
@@ -13,6 +17,9 @@ import { createServerClient } from "@/lib/supabase/server";
 import { firstZodError } from "@/lib/zod-error";
 
 const LOG_PREFIX = "[invoices:upload]";
+const EXTRACT_LOG = "[invoices:extract]";
+
+const invoiceIdSchema = z.string().uuid({ message: "Ungültige Rechnungs-ID." });
 
 function inferMimeFromFilename(name: string): string | null {
   const lower = name.toLowerCase();
@@ -169,6 +176,166 @@ export async function uploadInvoice(
     return {
       success: false,
       error: "Upload fehlgeschlagen. Bitte versuche es erneut.",
+    };
+  }
+}
+
+export async function extractInvoice(
+  invoiceId: string,
+): Promise<ActionResult<{ status: "ready" | "review"; overall: number }>> {
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(EXTRACT_LOG, userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row } = await supabase
+      .from("invoices")
+      .select(
+        "id, tenant_id, status, file_path, file_type, original_filename, extraction_attempts",
+      )
+      .eq("id", invoiceId)
+      .single();
+
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    if (row.status === "ready" || row.status === "exported") {
+      console.info(EXTRACT_LOG, "already-done", { invoiceId, status: row.status });
+      return {
+        success: true,
+        data: { status: row.status === "exported" ? "ready" : "ready", overall: 1 },
+      };
+    }
+    if (row.status === "processing") {
+      return {
+        success: false,
+        error: "Extraktion läuft bereits. Bitte einen Moment warten.",
+      };
+    }
+
+    const { error: flipErr } = await supabase
+      .from("invoices")
+      .update({
+        status: "processing",
+        extraction_attempts: (row.extraction_attempts ?? 0) + 1,
+        extraction_error: null,
+      })
+      .eq("id", invoiceId);
+    if (flipErr) {
+      console.error(EXTRACT_LOG, "flip-processing-failed", flipErr);
+      Sentry.captureException(flipErr, {
+        tags: { module: "invoices", action: "extract" },
+        extra: { invoiceId },
+      });
+      return {
+        success: false,
+        error: "Rechnung kann momentan nicht verarbeitet werden.",
+      };
+    }
+
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("invoices")
+      .createSignedUrl(row.file_path, 60);
+    if (signErr || !signed?.signedUrl) {
+      console.error(EXTRACT_LOG, "sign-url-failed", signErr);
+      Sentry.captureException(signErr ?? new Error("sign-url-failed"), {
+        tags: { module: "invoices", action: "extract" },
+        extra: { invoiceId },
+      });
+      const msg = "Rechnung kann momentan nicht verarbeitet werden.";
+      await supabase
+        .from("invoices")
+        .update({ status: "captured", extraction_error: msg })
+        .eq("id", invoiceId);
+      return { success: false, error: msg };
+    }
+
+    const result = await aiExtractInvoice({
+      fileUrl: signed.signedUrl,
+      mimeType: row.file_type as InvoiceAcceptedMime,
+      originalFilename: row.original_filename,
+    });
+
+    if (!result.success) {
+      await supabase
+        .from("invoices")
+        .update({ status: "captured", extraction_error: result.error })
+        .eq("id", invoiceId);
+      Sentry.captureException(new Error(`${EXTRACT_LOG} ${result.error}`), {
+        tags: { module: "invoices", action: "extract" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: result.error };
+    }
+
+    const overall = overallConfidence(result.data);
+    const next = statusFromOverallConfidence(overall);
+
+    const { error: saveErr } = await supabase
+      .from("invoices")
+      .update({
+        invoice_data: result.data,
+        status: next,
+        extracted_at: new Date().toISOString(),
+        extraction_error: null,
+      })
+      .eq("id", invoiceId);
+    if (saveErr) {
+      console.error(EXTRACT_LOG, "save-failed", saveErr);
+      Sentry.captureException(saveErr, {
+        tags: { module: "invoices", action: "extract" },
+        extra: { invoiceId },
+      });
+      const msg = "Extraktion konnte nicht gespeichert werden.";
+      await supabase
+        .from("invoices")
+        .update({ status: "captured", extraction_error: msg })
+        .eq("id", invoiceId);
+      return { success: false, error: msg };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/rechnungen/${invoiceId}`);
+    console.info(EXTRACT_LOG, "done", { invoiceId, status: next, overall });
+    return { success: true, data: { status: next, overall } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(EXTRACT_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "extract" },
+      extra: { invoiceId },
+    });
+    return {
+      success: false,
+      error: "Extraktion fehlgeschlagen. Bitte erneut versuchen.",
     };
   }
 }
