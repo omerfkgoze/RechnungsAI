@@ -83,6 +83,17 @@ export function CameraCaptureShell() {
   const prevFrameRef = useRef<Uint8ClampedArray | null>(null);
   const stableCountRef = useRef(0);
   const captureLockRef = useRef(false);
+  // Auto-capture starts disarmed: the user must first frame the document
+  // (which produces motion → arms the loop) and then hold still. Without
+  // this, a motionless scene at mount triggers an immediate capture before
+  // the user has pointed the camera anywhere meaningful. Re-arms after each
+  // fire only once UNSTABLE_THRESHOLD motion is seen for UNSTABLE_FRAMES
+  // consecutive frames. Manual shutter bypasses this gate entirely.
+  const armedRef = useRef(false);
+  const unstableCountRef = useRef(0);
+  // Paused while the native file picker (gallery) is open so the RAF loop
+  // does not fire auto-captures behind the modal.
+  const galleryOpenRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -282,9 +293,28 @@ export function CameraCaptureShell() {
     const ctx = diff.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
+    const STABLE_THRESHOLD = 5;
+    const STABLE_FRAMES = 15;
+    // After a capture, the scene must meaningfully change (diff ≥ this, for
+    // UNSTABLE_FRAMES frames) before the loop re-arms. This prevents the
+    // "same motionless document re-captures forever" bug — intent of
+    // auto-capture is ONE photo per placement, not continuous burst.
+    const UNSTABLE_THRESHOLD = 12;
+    const UNSTABLE_FRAMES = 6;
+
     const tick = () => {
       const video = videoRef.current;
       if (!video || video.readyState < 2) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      // Freeze auto-capture while native file picker is open or a capture is
+      // already in flight. Manual shutter is not affected (it bypasses this
+      // loop entirely).
+      if (galleryOpenRef.current || captureLockRef.current) {
+        prevFrameRef.current = null;
+        stableCountRef.current = 0;
+        unstableCountRef.current = 0;
         rafRef.current = requestAnimationFrame(tick);
         return;
       }
@@ -300,13 +330,25 @@ export function CameraCaptureShell() {
           samples++;
         }
         const avg = sum / Math.max(samples, 1);
-        if (avg < 5) {
+
+        if (!armedRef.current) {
+          // Disarmed state: watch for meaningful motion so we can re-arm.
+          if (avg >= UNSTABLE_THRESHOLD) {
+            unstableCountRef.current++;
+            if (unstableCountRef.current >= UNSTABLE_FRAMES) {
+              armedRef.current = true;
+              unstableCountRef.current = 0;
+              stableCountRef.current = 0;
+            }
+          } else {
+            unstableCountRef.current = 0;
+          }
+        } else if (avg < STABLE_THRESHOLD) {
           stableCountRef.current++;
-          if (
-            stableCountRef.current >= 15 &&
-            !captureLockRef.current
-          ) {
-            stableCountRef.current = -60; // cooldown ~2s
+          if (stableCountRef.current >= STABLE_FRAMES) {
+            armedRef.current = false;
+            stableCountRef.current = 0;
+            unstableCountRef.current = 0;
             void snapFromVideo();
           }
         } else {
@@ -356,6 +398,11 @@ export function CameraCaptureShell() {
     async (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       e.target.value = "";
+      // File picker is closed once onChange fires (cancel also fires with
+      // empty files) — resume auto-capture on the next frame and require
+      // a fresh stable window before firing.
+      galleryOpenRef.current = false;
+      armedRef.current = false;
       if (!file) return;
       const mime = inferMime(file.name, file.type);
       const parsed = invoiceUploadInputSchema.safeParse({
@@ -375,7 +422,20 @@ export function CameraCaptureShell() {
     [submitBlob],
   );
 
-  const triggerFilePicker = () => fileInputRef.current?.click();
+  const triggerFilePicker = () => {
+    // Pause auto-capture BEFORE opening the native picker so no frames fire
+    // while the modal is up.
+    galleryOpenRef.current = true;
+    fileInputRef.current?.click();
+    // iOS Safari does not fire `change` on cancel, so also resume when the
+    // window regains focus (fires on both select and cancel). `once: true`
+    // ensures we don't double-handle the selected-file path.
+    const resume = () => {
+      galleryOpenRef.current = false;
+      armedRef.current = false;
+    };
+    window.addEventListener("focus", resume, { once: true });
+  };
 
   const retry = useCallback(async () => {
     await requeueFailed();
@@ -507,7 +567,7 @@ export function CameraCaptureShell() {
           key={pop}
           className="absolute left-1/2 top-20 -translate-x-1/2 animate-in zoom-in-75 duration-200"
         >
-          <span className="rounded-full bg-primary/90 px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg">
+          <span className="inline-block whitespace-nowrap rounded-full bg-primary/90 px-4 py-2 text-xs sm:text-sm font-medium text-primary-foreground shadow-lg">
             {uploadedCount} erfasst
             {!online && pendingCount > 0
               ? ` · ${pendingCount} in Warteschlange`
