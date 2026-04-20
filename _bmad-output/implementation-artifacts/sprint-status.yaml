@@ -1,5 +1,5 @@
 # generated: 2026-04-11
-# last_updated: 2026-04-17 (Story 2.2 → review)
+# last_updated: 2026-04-20 (Story 2.3 → review)
 # project: RechnungsAI
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: 2026-04-20 (Story 2.3 → ready-for-dev)
+last_updated: 2026-04-20 (Story 2.3 → review)
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -80,7 +80,7 @@ development_status:
   epic-2: in-progress
   2-1-single-invoice-upload-photo-pdf-image-xml: done
   2-2-ai-data-extraction-pipeline: done
-  2-3-batch-invoice-upload: ready-for-dev
+  2-3-batch-invoice-upload: review
   epic-2-retrospective: optional
 
   # Epic 3: Invoice Review, Approval, and Dashboard

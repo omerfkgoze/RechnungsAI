@@ -6,9 +6,11 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type TouchEvent as ReactTouchEvent,
 } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Check, FolderOpen, X } from "lucide-react";
+import * as Sentry from "@sentry/nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +19,7 @@ import {
   invoiceUploadInputSchema,
 } from "@rechnungsai/shared";
 import {
+  selectExtractingCount,
   selectFailedCount,
   selectPendingCount,
   selectUploadedCount,
@@ -33,7 +36,14 @@ import {
   requeueUploading,
 } from "@/lib/offline/invoice-queue";
 import { registerInvoiceSW } from "@/lib/offline/register-sw";
-import { uploadInvoice } from "@/app/actions/invoices";
+import { extractInvoice, uploadInvoice } from "@/app/actions/invoices";
+import {
+  resetExtractionGate,
+  runExtractionGated,
+} from "@/components/capture/extraction-gate";
+
+// Soft cap per AC #2 (NFR2 is written for batches up to 20).
+const MAX_FILES_PER_SELECTION = 20;
 
 const ACCEPT_ATTR = INVOICE_ACCEPTED_MIME.join(",");
 
@@ -103,19 +113,60 @@ export function CameraCaptureShell() {
   const [fallback, setFallback] = useState<FallbackReason>(null);
   const [videoReady, setVideoReady] = useState(false);
   const [inlineError, setInlineError] = useState<string | null>(null);
+  // Per-file validation errors from the multi-file picker path (AC #2).
+  // Rendered as a compact list (≤3 visible + "und N weitere").
+  const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [pop, setPop] = useState(0);
   const [online, setOnline] = useState(
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
+  const touchStartYRef = useRef<number | null>(null);
 
   const addToQueue = useCaptureStore((s) => s.addToQueue);
   const markUploading = useCaptureStore((s) => s.markUploading);
   const markUploaded = useCaptureStore((s) => s.markUploaded);
   const markFailed = useCaptureStore((s) => s.markFailed);
+  const markExtracting = useCaptureStore((s) => s.markExtracting);
+  const markExtracted = useCaptureStore((s) => s.markExtracted);
+  const markExtractionFailed = useCaptureStore((s) => s.markExtractionFailed);
   const setRedirectAfterUpload = useCaptureStore((s) => s.setRedirectAfterUpload);
   const uploadedCount = useCaptureStore(selectUploadedCount);
   const pendingCount = useCaptureStore(selectPendingCount);
   const failedCount = useCaptureStore(selectFailedCount);
+  const extractingCount = useCaptureStore(selectExtractingCount);
+
+  // ─── Background AI extraction kickoff ──────────────────────────
+  // Fire-and-forget trigger that replaces Story 2.2's "extract on detail page
+  // mount" UX. Runs client-side, gated by a module-scoped semaphore (cap=5)
+  // so a 20-doc batch does not fan-out into 20 parallel Server Actions.
+  const kickoffExtraction = useCallback(
+    async (invoiceId: string, entryId: string) => {
+      markExtracting(entryId);
+      try {
+        const result = await extractInvoice(invoiceId);
+        if (result.success) {
+          markExtracted(entryId, result.data.status);
+          return;
+        }
+        markExtractionFailed(entryId, result.error);
+        Sentry.captureException(new Error(`[invoices:capture] ${result.error}`), {
+          tags: { module: "invoices", action: "capture" },
+          extra: { invoiceId },
+        });
+      } catch (err) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Extraktion fehlgeschlagen. Bitte erneut versuchen.";
+        markExtractionFailed(entryId, msg);
+        Sentry.captureException(err, {
+          tags: { module: "invoices", action: "capture" },
+          extra: { invoiceId },
+        });
+      }
+    },
+    [markExtracting, markExtracted, markExtractionFailed],
+  );
 
   // ─── Upload worker ─────────────────────────────────────────────
   // Reads `redirectAfterUpload` from the store at call time. The drain path
@@ -138,6 +189,11 @@ export function CameraCaptureShell() {
           if (res.success) {
             markUploaded(entry.id, res.data.invoiceId);
             await queueMarkUploaded(entry.id);
+            // Fire-and-forget: the user can keep capturing while AI runs.
+            // Concurrency cap is enforced inside runExtractionGated.
+            void runExtractionGated(() =>
+              kickoffExtraction(res.data.invoiceId, entry.id),
+            );
             if (redirect) {
               router.push(`/rechnungen/${res.data.invoiceId}`);
             }
@@ -162,13 +218,13 @@ export function CameraCaptureShell() {
         );
       }
     },
-    [markFailed, markUploaded, markUploading, router],
+    [kickoffExtraction, markFailed, markUploaded, markUploading, router],
   );
 
   const drainQueue = useCallback(async () => {
     // Offline-drain path: upload many rows without navigating away (AC #8a).
-    // Set redirectAfterUpload=false for the duration of the drain so uploadOne
-    // does not navigate; restore to true afterwards.
+    // Story 2.3 flipped the default from true → false, so the restore in
+    // `finally` now matches the new default.
     setRedirectAfterUpload(false);
     try {
       await requeueUploading();
@@ -185,7 +241,7 @@ export function CameraCaptureShell() {
         await uploadOne(entry, row.blob);
       }
     } finally {
-      setRedirectAfterUpload(true);
+      setRedirectAfterUpload(false);
     }
   }, [uploadOne, setRedirectAfterUpload]);
 
@@ -445,31 +501,60 @@ export function CameraCaptureShell() {
     };
   }, [drainQueue]);
 
-  // ─── Gallery / file fallback handler ──────────────────────────
+  // ─── Gallery / file multi-handler (Story 2.3 AC #2) ───────────
+  // Iterates selected files sequentially (await each enqueue for stable
+  // ordering; uploads run in parallel inside submitBlob). One bad file does
+  // NOT block others — validation errors surface per-file in the UI, not as
+  // a blocking modal. 20-file cap per AC #2.
   const onGalleryChange = useCallback(
     async (e: ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
+      const selected = Array.from(e.target.files ?? []);
       e.target.value = "";
-      // File picker is closed once onChange fires (cancel also fires with
-      // empty files) — resume auto-capture on the next frame and require
-      // a fresh stable window before firing.
       galleryOpenRef.current = false;
       armedRef.current = false;
-      if (!file) return;
-      const mime = inferMime(file.name, file.type);
-      const parsed = invoiceUploadInputSchema.safeParse({
-        originalFilename: file.name,
-        fileType: mime,
-        sizeBytes: file.size,
-      });
-      if (!parsed.success) {
-        setInlineError(
-          parsed.error.issues[0]?.message ??
-            "Ungültige Datei. Bitte überprüfe dein Dokument.",
-        );
-        return;
+      if (selected.length === 0) return;
+
+      setFileErrors([]);
+      setInlineError(null);
+      const perFileErrors: string[] = [];
+
+      const overCap = selected.length > MAX_FILES_PER_SELECTION;
+      const files = overCap
+        ? selected.slice(0, MAX_FILES_PER_SELECTION)
+        : selected;
+
+      for (const file of files) {
+        try {
+          const mime = inferMime(file.name, file.type);
+          const parsed = invoiceUploadInputSchema.safeParse({
+            originalFilename: file.name,
+            fileType: mime,
+            sizeBytes: file.size,
+          });
+          if (!parsed.success) {
+            const msg =
+              parsed.error.issues[0]?.message ??
+              "Ungültige Datei. Bitte überprüfe dein Dokument.";
+            perFileErrors.push(`${file.name}: ${msg}`);
+            continue;
+          }
+          await submitBlob(file, file.name, mime);
+        } catch (err) {
+          // AC #7(b): one failure must not escape the loop.
+          const msg =
+            err instanceof Error ? err.message : "Upload fehlgeschlagen.";
+          perFileErrors.push(`${file.name}: ${msg}`);
+        }
       }
-      await submitBlob(file, file.name, mime);
+
+      if (perFileErrors.length > 0) setFileErrors(perFileErrors);
+      // Surface cap error AFTER the loop so submitBlob's setInlineError(null)
+      // on each successful file does not clear it mid-batch.
+      if (overCap) {
+        setInlineError(
+          "Bitte wähle höchstens 20 Dateien pro Aufnahme-Runde.",
+        );
+      }
     },
     [submitBlob],
   );
@@ -494,6 +579,49 @@ export function CameraCaptureShell() {
     await drainQueue();
   }, [drainQueue]);
 
+  // ─── Exit the viewfinder (Fertig / swipe-down / Escape) ───────
+  const exitViewfinder = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    router.push("/dashboard");
+  }, [router]);
+
+  // AC #6: Escape key exits on desktop. SSR-guarded via useEffect (runs only
+  // in the browser).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") exitViewfinder();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [exitViewfinder]);
+
+  // AC #9(g): clear any still-queued extraction tasks when the shell unmounts.
+  // In-flight Server Actions are NOT cancelled — they continue to completion
+  // on the server (correct: the DB row must persist). The client just stops
+  // tracking them.
+  useEffect(() => {
+    return () => {
+      resetExtractionGate();
+    };
+  }, []);
+
+  // AC #6: swipe-down gesture. Start on the outer container but early-return
+  // if the touch originated on any interactive element.
+  const onViewfinderTouchStart = (e: ReactTouchEvent<HTMLDivElement>) => {
+    touchStartYRef.current = e.touches[0]?.clientY ?? null;
+  };
+  const onViewfinderTouchEnd = (e: ReactTouchEvent<HTMLDivElement>) => {
+    const start = touchStartYRef.current;
+    touchStartYRef.current = null;
+    if (start == null) return;
+    const endY = e.changedTouches[0]?.clientY ?? 0;
+    const deltaY = endY - start;
+    if (deltaY <= 100) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("button, input, [data-no-swipe]")) return;
+    exitViewfinder();
+  };
+
   // ─── Render: fallback card (no camera) ─────────────────────────
   if (fallback) {
     const headline = "Kamera nicht verfügbar.";
@@ -513,6 +641,7 @@ export function CameraCaptureShell() {
               ref={fileInputRef}
               type="file"
               accept={ACCEPT_ATTR}
+              multiple
               onChange={onGalleryChange}
               className="hidden"
               aria-invalid={inlineError ? true : undefined}
@@ -525,6 +654,20 @@ export function CameraCaptureShell() {
               <p className="text-destructive mt-2 text-sm" role="alert">
                 {inlineError}
               </p>
+            ) : null}
+            {fileErrors.length > 0 ? (
+              <div role="alert" className="text-sm">
+                <ul className="list-disc pl-5 text-destructive space-y-1">
+                  {fileErrors.slice(0, 3).map((msg, i) => (
+                    <li key={i}>{msg}</li>
+                  ))}
+                </ul>
+                {fileErrors.length > 3 ? (
+                  <p className="text-muted-foreground text-xs mt-1">
+                    und {fileErrors.length - 3} weitere
+                  </p>
+                ) : null}
+              </div>
             ) : null}
             <Button
               type="button"
@@ -541,7 +684,12 @@ export function CameraCaptureShell() {
 
   // ─── Render: viewfinder ────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-50 h-[100dvh] w-screen overflow-hidden bg-black">
+    <div
+      className="fixed inset-0 z-50 h-[100dvh] w-screen overflow-hidden bg-black"
+      aria-label="Rechnungsaufnahme beenden (Wisch nach unten)"
+      onTouchStart={onViewfinderTouchStart}
+      onTouchEnd={onViewfinderTouchEnd}
+    >
       <div
         aria-live="polite"
         role="status"
@@ -594,6 +742,7 @@ export function CameraCaptureShell() {
           ref={fileInputRef}
           type="file"
           accept={ACCEPT_ATTR}
+          multiple
           onChange={onGalleryChange}
           className="hidden"
           aria-invalid={inlineError ? true : undefined}
@@ -601,10 +750,7 @@ export function CameraCaptureShell() {
         <Button
           type="button"
           variant="secondary"
-          onClick={() => {
-            streamRef.current?.getTracks().forEach((t) => t.stop());
-            router.push("/dashboard");
-          }}
+          onClick={exitViewfinder}
           className="h-12 min-w-12 gap-2"
           aria-label="Fertig — zurück zum Dashboard"
         >
@@ -621,6 +767,9 @@ export function CameraCaptureShell() {
         >
           <span className="inline-block whitespace-nowrap rounded-full bg-primary/90 px-4 py-2 text-xs sm:text-sm font-medium text-primary-foreground shadow-lg">
             {uploadedCount} erfasst
+            {extractingCount > 0
+              ? ` · ${extractingCount} verarbeiten`
+              : null}
             {!online && pendingCount > 0
               ? ` · ${pendingCount} in Warteschlange`
               : null}
@@ -658,6 +807,34 @@ export function CameraCaptureShell() {
             onClick={() => void retry()}
           >
             Erneut versuchen
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Per-file validation errors from multi-file picker (AC #2) */}
+      {fileErrors.length > 0 ? (
+        <div
+          className="absolute left-4 right-4 bottom-40 rounded-md bg-background/95 px-3 py-2 text-sm shadow"
+          role="alert"
+        >
+          <ul className="list-disc pl-5 text-destructive space-y-1">
+            {fileErrors.slice(0, 3).map((msg, i) => (
+              <li key={i}>{msg}</li>
+            ))}
+          </ul>
+          {fileErrors.length > 3 ? (
+            <p className="text-muted-foreground text-xs mt-1">
+              und {fileErrors.length - 3} weitere
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setFileErrors([])}
+            className="mt-1"
+          >
+            Schließen
           </Button>
         </div>
       ) : null}
