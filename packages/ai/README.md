@@ -15,18 +15,31 @@ as a defensive layer so the OpenAI Chat-Completions endpoint does not
 persist the completion on their side. This is belt-and-braces — it does
 NOT substitute for ZDR enrollment.
 
-## Default model
+## Provider selection
 
-`src/provider.ts` defaults to `gpt-4o-mini` for broad project access and
-lower cost. Override via the `OPENAI_EXTRACTION_MODEL` environment variable for
-higher-fidelity needs (e.g., set `OPENAI_EXTRACTION_MODEL=gpt-4o` in `.env.local`
-when processing low-resolution or handwritten invoices).
+Set `EXTRACTION_PROVIDER` in `.env.local` to choose the provider:
 
-## Provider swap
+| `EXTRACTION_PROVIDER` | Use case | Model env var | Default model |
+|---|---|---|---|
+| `openai` (default) | Production | `OPENAI_EXTRACTION_MODEL` | `gpt-4o-mini` |
+| `google` | Development (free tier) | `GOOGLE_EXTRACTION_MODEL` | `gemini-2.5-flash` |
 
-`getExtractionModel()` in `src/provider.ts` is the single swap point.
-Replace `openai("gpt-4o-mini")` with `anthropic("claude-...")` to change
-providers without touching call sites (NFR28).
+For development with Gemini free tier:
+```
+EXTRACTION_PROVIDER=google
+GOOGLE_GENERATIVE_AI_API_KEY=<your-free-tier-key>
+```
+
+For production with OpenAI (see ZDR section below):
+```
+EXTRACTION_PROVIDER=openai   # or omit — openai is the default
+OPENAI_API_KEY=<zdr-enrolled-org-key>
+```
+
+Override the default model per provider with `OPENAI_EXTRACTION_MODEL` or
+`GOOGLE_EXTRACTION_MODEL` (e.g., `gemini-2.0-flash-lite` for lower latency).
+
+`getExtractionModel()` in `src/provider.ts` is the single swap point (NFR28).
 
 ## Tests
 
