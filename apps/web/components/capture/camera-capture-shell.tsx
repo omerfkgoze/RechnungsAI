@@ -38,7 +38,7 @@ import {
 import { registerInvoiceSW } from "@/lib/offline/register-sw";
 import { extractInvoice, uploadInvoice } from "@/app/actions/invoices";
 import {
-  resetExtractionGate,
+  clearExtractionQueue,
   runExtractionGated,
 } from "@/components/capture/extraction-gate";
 
@@ -121,6 +121,9 @@ export function CameraCaptureShell() {
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
   const touchStartYRef = useRef<number | null>(null);
+  const touchStartTargetRef = useRef<HTMLElement | null>(null);
+  const touchStartTimeRef = useRef<number>(0);
+  const pickerAbortRef = useRef<AbortController | null>(null);
 
   const addToQueue = useCaptureStore((s) => s.addToQueue);
   const markUploading = useCaptureStore((s) => s.markUploading);
@@ -130,6 +133,7 @@ export function CameraCaptureShell() {
   const markExtracted = useCaptureStore((s) => s.markExtracted);
   const markExtractionFailed = useCaptureStore((s) => s.markExtractionFailed);
   const setRedirectAfterUpload = useCaptureStore((s) => s.setRedirectAfterUpload);
+  const resetStore = useCaptureStore((s) => s.reset);
   const uploadedCount = useCaptureStore(selectUploadedCount);
   const pendingCount = useCaptureStore(selectPendingCount);
   const failedCount = useCaptureStore(selectFailedCount);
@@ -148,11 +152,12 @@ export function CameraCaptureShell() {
           markExtracted(entryId, result.data.status);
           return;
         }
+        // Structured failure (validation, rate-limit, provider down) — expected
+        // operational outcome, not an exception. Log to console for debugging
+        // but do NOT page Sentry at error severity. Real throws still Sentry
+        // via the catch block below.
         markExtractionFailed(entryId, result.error);
-        Sentry.captureException(new Error(`[invoices:capture] ${result.error}`), {
-          tags: { module: "invoices", action: "capture" },
-          extra: { invoiceId },
-        });
+        console.warn(`[invoices:capture] ${result.error}`, { invoiceId });
       } catch (err) {
         const msg =
           err instanceof Error
@@ -190,7 +195,11 @@ export function CameraCaptureShell() {
             markUploaded(entry.id, res.data.invoiceId);
             await queueMarkUploaded(entry.id);
             // Fire-and-forget: the user can keep capturing while AI runs.
-            // Concurrency cap is enforced inside runExtractionGated.
+            // Concurrency cap is enforced inside runExtractionGated. No mount
+            // guard: uploads that resolve after the user tapped "Fertig" MUST
+            // still kick off extraction — otherwise rows stick at
+            // `status=captured` forever. The module-scoped gate tracks
+            // in-flight work correctly across unmounts.
             void runExtractionGated(() =>
               kickoffExtraction(res.data.invoiceId, entry.id),
             );
@@ -238,12 +247,16 @@ export function CameraCaptureShell() {
           sizeBytes: row.sizeBytes,
           createdAt: row.createdAt,
         };
+        // Rehydrate the UI queue from IDB so the counter reflects in-flight
+        // drain work. Without this, markUploading/markUploaded silently no-op
+        // (nothing to find in the store) and the user sees a stale badge.
+        addToQueue(entry);
         await uploadOne(entry, row.blob);
       }
     } finally {
       setRedirectAfterUpload(false);
     }
-  }, [uploadOne, setRedirectAfterUpload]);
+  }, [addToQueue, uploadOne, setRedirectAfterUpload]);
 
   // ─── Capture (shared path for manual + auto + gallery) ────────
   const submitBlob = useCallback(
@@ -283,8 +296,18 @@ export function CameraCaptureShell() {
           // noop
         }
       }
+      // Fire-and-forget: durability is guaranteed by the IDB enqueue above.
+      // Awaiting here would force the user to stare at the camera for
+      // 30–90 s on a 10-file batch (3–9 s per file × retry ladder) — which
+      // violates Epic AC #4 ("user can continue capturing or navigating
+      // the app while AI runs") and UX spec line 1316 "Capture Momentum".
+      // If the user exits mid-upload the Server Action fetch continues; if
+      // the tab closes, `requeueUploading()` on next drain reclaims stuck
+      // 'uploading' rows from IDB and retries. `uploadOne` has its own
+      // try/catch ladder, but the defensive `.catch` here stops any
+      // unhandled rejection from surfacing.
       if (navigator.onLine) {
-        await uploadOne(entry, blob);
+        void uploadOne(entry, blob).catch(() => {});
       }
     },
     [addToQueue, uploadOne],
@@ -468,6 +491,17 @@ export function CameraCaptureShell() {
     };
   }, [videoReady, snapFromVideo]);
 
+  // Reset the UI queue ONCE on initial mount. The store is module-scoped, so
+  // returning to /erfassen after a previous session would otherwise leave a
+  // stale counter badge ("3 erfasst" from the last visit). Any genuinely
+  // pending captures get re-hydrated via drainQueue → addToQueue. Kept in its
+  // own single-fire effect so transient ref churn (e.g. router identity
+  // change) in the SW effect below cannot wipe mid-session state.
+  useEffect(() => {
+    resetStore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ─── SW registration + online/offline wiring ───────────────────
   useEffect(() => {
     void registerInvoiceSW();
@@ -560,18 +594,28 @@ export function CameraCaptureShell() {
   );
 
   const triggerFilePicker = () => {
+    // Clear any stale per-file errors from a previous batch so a cancel does
+    // not leave them on screen.
+    setFileErrors([]);
     // Pause auto-capture BEFORE opening the native picker so no frames fire
     // while the modal is up.
     galleryOpenRef.current = true;
+    // Abort any listeners from a prior open so they do not accumulate when
+    // the user opens the picker repeatedly without `focus` firing (Android
+    // Chrome / backgrounded-tab quirks).
+    pickerAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    pickerAbortRef.current = ctrl;
     fileInputRef.current?.click();
-    // iOS Safari does not fire `change` on cancel, so also resume when the
-    // window regains focus (fires on both select and cancel). `once: true`
-    // ensures we don't double-handle the selected-file path.
     const resume = () => {
       galleryOpenRef.current = false;
       armedRef.current = false;
     };
-    window.addEventListener("focus", resume, { once: true });
+    // iOS Safari does not fire `change` on cancel, so resume on focus. Also
+    // listen to `visibilitychange` as a belt-and-braces fallback for
+    // backgrounded tabs where focus never fires.
+    window.addEventListener("focus", resume, { signal: ctrl.signal });
+    document.addEventListener("visibilitychange", resume, { signal: ctrl.signal });
   };
 
   const retry = useCallback(async () => {
@@ -580,45 +624,85 @@ export function CameraCaptureShell() {
   }, [drainQueue]);
 
   // ─── Exit the viewfinder (Fertig / swipe-down / Escape) ───────
+  // Exit is ALWAYS unblocked. Uploads + extractions run fire-and-forget and
+  // are durable via IDB + drain + module-scoped gate — making the user wait
+  // in the camera UI for uploads to complete violates UX spec line 1316
+  // "Capture Momentum" and Epic AC #4 ("user can continue navigating while
+  // AI runs"). Epic 3 dashboard is the canonical place to see pipeline
+  // progress after the user leaves /erfassen.
   const exitViewfinder = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     router.push("/dashboard");
   }, [router]);
 
   // AC #6: Escape key exits on desktop. SSR-guarded via useEffect (runs only
-  // in the browser).
+  // in the browser). Bail when the user is typing in an input/textarea/
+  // contenteditable, or when another handler has already consumed the key.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") exitViewfinder();
+      if (e.key !== "Escape") return;
+      if (e.defaultPrevented) return;
+      const ae = document.activeElement as HTMLElement | null;
+      if (
+        ae &&
+        (ae.tagName === "INPUT" ||
+          ae.tagName === "TEXTAREA" ||
+          ae.tagName === "SELECT" ||
+          ae.isContentEditable)
+      ) {
+        return;
+      }
+      exitViewfinder();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [exitViewfinder]);
 
-  // AC #9(g): clear any still-queued extraction tasks when the shell unmounts.
-  // In-flight Server Actions are NOT cancelled — they continue to completion
-  // on the server (correct: the DB row must persist). The client just stops
-  // tracking them.
+  // AC #9(g): drop queued extraction kickoffs when the shell unmounts. We do
+  // NOT zero `activeExtractions` — in-flight Server Actions continue on the
+  // server (DB rows must persist) and their `finally` correctly decrements
+  // the counter. Also abort any pending picker-focus listeners.
   useEffect(() => {
     return () => {
-      resetExtractionGate();
+      clearExtractionQueue();
+      pickerAbortRef.current?.abort();
     };
   }, []);
 
-  // AC #6: swipe-down gesture. Start on the outer container but early-return
-  // if the touch originated on any interactive element.
+  // AC #6: swipe-down gesture. Record origin target / time at touchstart so
+  // the interactive-element guard keys off where the gesture began (not where
+  // the finger happens to lift). Bail on multi-touch (pinch-zoom, two-finger
+  // scroll) and clear state on touchcancel (OS interrupt, incoming call).
   const onViewfinderTouchStart = (e: ReactTouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 1) {
+      touchStartYRef.current = null;
+      touchStartTargetRef.current = null;
+      return;
+    }
     touchStartYRef.current = e.touches[0]?.clientY ?? null;
+    touchStartTargetRef.current = e.target as HTMLElement | null;
+    touchStartTimeRef.current = Date.now();
+  };
+  const clearTouchState = () => {
+    touchStartYRef.current = null;
+    touchStartTargetRef.current = null;
   };
   const onViewfinderTouchEnd = (e: ReactTouchEvent<HTMLDivElement>) => {
     const start = touchStartYRef.current;
-    touchStartYRef.current = null;
+    const startTarget = touchStartTargetRef.current;
+    const elapsed = Date.now() - touchStartTimeRef.current;
+    clearTouchState();
     if (start == null) return;
-    const endY = e.changedTouches[0]?.clientY ?? 0;
-    const deltaY = endY - start;
+    // Bail if any other touches remain (multi-touch tail).
+    if (e.touches.length > 0) return;
+    // Cap gesture duration so a slow drag (user resting on screen) does not
+    // accidentally exit. 800ms is comfortably above a genuine swipe (~200ms).
+    if (elapsed > 800) return;
+    const endTouch = e.changedTouches[0];
+    if (!endTouch) return;
+    const deltaY = endTouch.clientY - start;
     if (deltaY <= 100) return;
-    const target = e.target as HTMLElement | null;
-    if (target?.closest("button, input, [data-no-swipe]")) return;
+    if (startTarget?.closest("button, input, [data-no-swipe]")) return;
     exitViewfinder();
   };
 
@@ -689,6 +773,7 @@ export function CameraCaptureShell() {
       aria-label="Rechnungsaufnahme beenden (Wisch nach unten)"
       onTouchStart={onViewfinderTouchStart}
       onTouchEnd={onViewfinderTouchEnd}
+      onTouchCancel={clearTouchState}
     >
       <div
         aria-live="polite"
@@ -759,23 +844,31 @@ export function CameraCaptureShell() {
         </Button>
       </div>
 
-      {/* Counter badge */}
-      {(uploadedCount > 0 || pendingCount > 0 || failedCount > 0) ? (
-        <div
-          key={pop}
-          className="absolute left-1/2 top-20 -translate-x-1/2 animate-in zoom-in-75 duration-200"
-        >
-          <span className="inline-block whitespace-nowrap rounded-full bg-primary/90 px-4 py-2 text-xs sm:text-sm font-medium text-primary-foreground shadow-lg">
-            {uploadedCount} erfasst
-            {extractingCount > 0
-              ? ` · ${extractingCount} verarbeiten`
-              : null}
-            {!online && pendingCount > 0
-              ? ` · ${pendingCount} in Warteschlange`
-              : null}
-          </span>
-        </div>
-      ) : null}
+      {/* Counter badge — shows ALL in-flight states so the user never thinks
+          work is done when it isn't. Online uploads surface as
+          "wird hochgeladen" (distinct from the offline "in Warteschlange"
+          label). */}
+      {(() => {
+        const parts: string[] = [];
+        if (uploadedCount > 0) parts.push(`${uploadedCount} erfasst`);
+        if (online && pendingCount > 0)
+          parts.push(`${pendingCount} wird hochgeladen`);
+        if (extractingCount > 0)
+          parts.push(`${extractingCount} verarbeiten`);
+        if (!online && pendingCount > 0)
+          parts.push(`${pendingCount} in Warteschlange`);
+        if (parts.length === 0 && failedCount === 0) return null;
+        return (
+          <div
+            key={pop}
+            className="absolute left-1/2 top-20 -translate-x-1/2 animate-in zoom-in-75 duration-200"
+          >
+            <span className="inline-block whitespace-nowrap rounded-full bg-primary/90 px-4 py-2 text-xs sm:text-sm font-medium text-primary-foreground shadow-lg">
+              {parts.join(" · ")}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Shutter */}
       <div

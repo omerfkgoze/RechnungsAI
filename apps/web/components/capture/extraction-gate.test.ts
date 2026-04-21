@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  clearExtractionQueue,
   getActiveExtractions,
   getQueuedExtractionCount,
   MAX_CONCURRENT_EXTRACTIONS,
   resetExtractionGate,
   runExtractionGated,
+  setMaxConcurrentExtractionsForTesting,
 } from "./extraction-gate";
 
 // Helper: a task whose promise we can resolve manually, with a label to
@@ -110,6 +112,102 @@ describe("extraction-gate", () => {
     await Promise.all(running);
     expect(getActiveExtractions()).toBe(0);
     expect(getQueuedExtractionCount()).toBe(0);
+  });
+
+  it("AC #4e: 7 tasks with cap=3 → 3 run, 4 queue in FIFO order", async () => {
+    setMaxConcurrentExtractionsForTesting(3);
+    const log: string[] = [];
+    const deferred = Array.from({ length: 7 }, (_, i) =>
+      deferredTask(`q${i}`, log),
+    );
+    const running = deferred.map((d) => runExtractionGated(d.task));
+
+    await microtick();
+    expect(getActiveExtractions()).toBe(3);
+    expect(getQueuedExtractionCount()).toBe(4);
+    expect(log.filter((l) => l.startsWith("start:"))).toEqual([
+      "start:q0",
+      "start:q1",
+      "start:q2",
+    ]);
+
+    // Drain everything and verify FIFO ordering of starts.
+    for (let i = 0; i < 7; i++) {
+      deferred[i]!.resolve();
+      await microtick();
+    }
+    await Promise.all(running);
+    const starts = log.filter((l) => l.startsWith("start:"));
+    expect(starts).toEqual([
+      "start:q0",
+      "start:q1",
+      "start:q2",
+      "start:q3",
+      "start:q4",
+      "start:q5",
+      "start:q6",
+    ]);
+    expect(getActiveExtractions()).toBe(0);
+    expect(getQueuedExtractionCount()).toBe(0);
+  });
+
+  it("late caller cannot jump ahead of already-queued waiters (FIFO)", async () => {
+    setMaxConcurrentExtractionsForTesting(2);
+    const log: string[] = [];
+    const deferred = Array.from({ length: 4 }, (_, i) =>
+      deferredTask(`f${i}`, log),
+    );
+    // Fill cap (2) + queue one waiter (f2).
+    const running: Array<Promise<unknown>> = [];
+    running.push(runExtractionGated(deferred[0]!.task));
+    running.push(runExtractionGated(deferred[1]!.task));
+    running.push(runExtractionGated(deferred[2]!.task));
+    await microtick();
+    expect(getQueuedExtractionCount()).toBe(1);
+
+    // Resolve f0 → f2 should be next, NOT a newly arriving f3.
+    deferred[0]!.resolve();
+    // Fire f3 in the exact same tick as f0's release.
+    running.push(runExtractionGated(deferred[3]!.task));
+    await microtick();
+
+    // f2 (queued first) must have started; f3 (arrived at cap release) must
+    // still be queued — proves it did not jump the line.
+    expect(log).toContain("start:f2");
+    expect(log).not.toContain("start:f3");
+    expect(getQueuedExtractionCount()).toBe(1);
+
+    deferred[1]!.resolve();
+    await microtick();
+    deferred[2]!.resolve();
+    await microtick();
+    deferred[3]!.resolve();
+    await Promise.all(running);
+  });
+
+  it("clearExtractionQueue cancels pending waiters without zeroing active count", async () => {
+    const log: string[] = [];
+    const deferred = Array.from({ length: 7 }, (_, i) =>
+      deferredTask(`k${i}`, log),
+    );
+    const running = deferred.map((d) => runExtractionGated(d.task));
+    await microtick();
+    const activeBefore = getActiveExtractions();
+    expect(activeBefore).toBe(MAX_CONCURRENT_EXTRACTIONS);
+    expect(getQueuedExtractionCount()).toBe(2);
+
+    clearExtractionQueue();
+    // Active tasks untouched; queued waiters resolved with cancelled=true.
+    expect(getActiveExtractions()).toBe(activeBefore);
+    expect(getQueuedExtractionCount()).toBe(0);
+
+    // Resolve in-flight → counter must reach 0 (not go negative).
+    for (let i = 0; i < MAX_CONCURRENT_EXTRACTIONS; i++) deferred[i]!.resolve();
+    await Promise.all(running);
+    expect(getActiveExtractions()).toBe(0);
+    // Cancelled waiters must NOT have run their tasks.
+    expect(log.some((l) => l === "start:k5")).toBe(false);
+    expect(log.some((l) => l === "start:k6")).toBe(false);
   });
 
   it("resetExtractionGate clears active count and queue", async () => {

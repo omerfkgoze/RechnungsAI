@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of 2-3-batch-invoice-upload (2026-04-21)
+
+- [ ] Per-file `submitBlob` serializes uploads in multi-file picker path [apps/web/components/capture/camera-capture-shell.tsx onGalleryChange ~526-548] — `for..of + await` serializes 20 uploads plus their retry ladders (1s/3s/5s), potentially blowing NFR2 60s p95 budget on slow networks. Spec wording is ambiguous ("await each enqueue before the next … uploads themselves run in parallel"). Needs design call: keep serial for store-ordering stability, or parallelize with `Promise.all(files.map(...))` / batched fan-out.
+
 ## Deferred from: code review of 1-2-design-token-system-and-base-layout (2026-04-12)
 
 - [x] `.dark` theme tokens removed but `dark:` variants remain in shadcn primitives (badge, sheet, dropdown-menu). Latent dead code; no runtime impact while `.dark` class is never applied. Revisit when dark mode is reintroduced or strip `dark:` variants for cleanliness.

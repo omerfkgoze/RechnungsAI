@@ -71,21 +71,25 @@ export const useCaptureStore = create<CaptureState>((set) => ({
           : c,
       ),
     })),
+  // Guarded transition: only a row currently `extracting` can become
+  // `extracted`. Protects against out-of-order callbacks (retry race, double
+  // invocation) that would flip a `failed` / `queued` / reset row.
   markExtracted: (id, verdict) =>
     set((state) => ({
       queue: state.queue.map((c) =>
-        c.id === id
+        c.id === id && c.status === "extracting"
           ? { ...c, status: "extracted", extractionVerdict: verdict }
           : c,
       ),
     })),
   // Extraction failure does NOT roll back capture: the invoice row is already
   // persisted. Revert status to 'uploaded' (capture terminal state) and record
-  // the error. Epic 3 dashboard will surface retry UI.
+  // the error. Epic 3 dashboard will surface retry UI. Guarded to `extracting`
+  // so a late failure callback cannot demote an already-`extracted` row.
   markExtractionFailed: (id, error) =>
     set((state) => ({
       queue: state.queue.map((c) =>
-        c.id === id
+        c.id === id && c.status === "extracting"
           ? { ...c, status: "uploaded", extractionError: error }
           : c,
       ),
