@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: 2026-04-21 (Story 2.3 → done)
+last_updated: "2026-04-21 (prep-td1 Zod v4 upgrade → done)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -82,6 +82,16 @@ development_status:
   2-2-ai-data-extraction-pipeline: done
   2-3-batch-invoice-upload: done
   epic-2-retrospective: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 3 PREPARATION SPRINT (must complete before Story 3.1)
+  # Source: epic-2-retro-2026-04-21.md — Action Items + Critical Tech Debt
+  # ─────────────────────────────────────────────────────────────
+
+  # 🔴 Critical Tech Debt (blocks Epic 3)
+  prep-td1-zod-v4-repo-wide-upgrade: done          # AI SDK v6 Zod v4 peer dep; removes `as unknown as` cast on generateObject+invoiceSchema
+  prep-td2-categorization-corrections-table-migration: ready-for-dev  # Schema prerequisite for Story 3.3 (SKR categorization learning)
+  prep-td3-smoke-test-guide-prototype-story-3-1: ready-for-dev        # A1 action item: redesigned smoke test format with expected outputs for Story 3.1
 
   # Epic 3: Invoice Review, Approval, and Dashboard
   epic-3: backlog

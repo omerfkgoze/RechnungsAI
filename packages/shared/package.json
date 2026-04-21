@@ -26,10 +26,10 @@
     "eslint": "^9.39.1",
     "typescript": "^5.9.2",
     "vitest": "^4.1.4",
-    "zod": "^3.25.76"
+    "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "zod": "^3.25.76"
+    "zod": "^4.3.6"
   },
   "peerDependenciesMeta": {
     "zod": {

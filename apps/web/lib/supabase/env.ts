@@ -5,10 +5,10 @@ import { z } from "zod";
 // properties of undefined` deep inside the Supabase SDK.
 const schema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z
-    .string({ required_error: "NEXT_PUBLIC_SUPABASE_URL is required" })
+    .string({ error: "NEXT_PUBLIC_SUPABASE_URL is required" })
     .url({ message: "NEXT_PUBLIC_SUPABASE_URL must be a valid URL" }),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z
-    .string({ required_error: "NEXT_PUBLIC_SUPABASE_ANON_KEY is required" })
+    .string({ error: "NEXT_PUBLIC_SUPABASE_ANON_KEY is required" })
     .min(1, { message: "NEXT_PUBLIC_SUPABASE_ANON_KEY is required" }),
 });
 

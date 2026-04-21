@@ -19,7 +19,7 @@ import { firstZodError } from "@/lib/zod-error";
 const LOG_PREFIX = "[invoices:upload]";
 const EXTRACT_LOG = "[invoices:extract]";
 
-const invoiceIdSchema = z.string().uuid({ message: "Ungültige Rechnungs-ID." });
+const invoiceIdSchema = z.guid({ message: "Ungültige Rechnungs-ID." });
 
 function inferMimeFromFilename(name: string): string | null {
   const lower = name.toLowerCase();

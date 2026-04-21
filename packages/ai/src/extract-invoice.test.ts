@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { APICallError } from "ai";
-import type { Invoice } from "@rechnungsai/shared";
+import { invoiceSchema, type Invoice } from "@rechnungsai/shared";
 
 vi.mock("ai", async () => {
   const actual = await vi.importActual<typeof import("ai")>("ai");
@@ -126,6 +126,24 @@ describe("extractInvoice", () => {
       expect(result.error).toBe(
         "Rechnungsformat konnte nicht erkannt werden.",
       );
+  });
+
+  it("passes raw invoiceSchema reference to generateObject (no cast wrapper — TD1 guardrail)", async () => {
+    mockedGenerateObject.mockResolvedValueOnce({
+      object: mockInvoice(),
+    } as unknown as Awaited<ReturnType<typeof generateObject>>);
+
+    await extractInvoice({
+      fileUrl: "https://signed.example/invoice.pdf",
+      mimeType: "application/pdf",
+      originalFilename: "invoice.pdf",
+    });
+
+    expect(mockedGenerateObject).toHaveBeenCalledTimes(1);
+    const callArgs = mockedGenerateObject.mock.calls[0]?.[0] as {
+      schema: unknown;
+    };
+    expect(callArgs.schema).toBe(invoiceSchema);
   });
 
   it("returns Rechnung konnte nicht geladen werden when fetch non-ok", async () => {

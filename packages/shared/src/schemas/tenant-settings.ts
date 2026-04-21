@@ -2,10 +2,16 @@ import { z } from "zod";
 import { normalizeName } from "./_normalize.js";
 import { SKR_PLANS } from "./onboarding.js";
 
-const normalizeToNull = (value: string) => {
+const normalizeToNull = (value: string | null | undefined) => {
+  if (value == null) return null;
   const cleaned = normalizeName(value);
   return cleaned.length === 0 ? null : cleaned;
 };
+
+// Accepts both raw form strings and already-transformed null values so the
+// schema can be safe-parsed a second time (e.g. client submits transformed
+// output, then server re-parses the same payload).
+const optionalString = z.string().nullable();
 
 export const tenantSettingsSchema = z.object({
   company_name: z
@@ -18,8 +24,7 @@ export const tenantSettingsSchema = z.object({
         .max(100, { message: "Firmenname ist zu lang." }),
     ),
 
-  company_address: z
-    .string()
+  company_address: optionalString
     .transform(normalizeToNull)
     .pipe(
       z
@@ -28,9 +33,9 @@ export const tenantSettingsSchema = z.object({
         .nullable(),
     ),
 
-  tax_id: z
-    .string()
+  tax_id: optionalString
     .transform((v) => {
+      if (v == null) return null;
       const cleaned = normalizeName(v).replace(/\s+/g, "").toUpperCase();
       return cleaned.length === 0 ? null : cleaned;
     })
@@ -44,11 +49,10 @@ export const tenantSettingsSchema = z.object({
     ),
 
   skr_plan: z.enum(SKR_PLANS, {
-    errorMap: () => ({ message: "Bitte wähle SKR03 oder SKR04." }),
+    error: () => "Bitte wähle SKR03 oder SKR04.",
   }),
 
-  steuerberater_name: z
-    .string()
+  steuerberater_name: optionalString
     .transform(normalizeToNull)
     .pipe(
       z
@@ -57,9 +61,9 @@ export const tenantSettingsSchema = z.object({
         .nullable(),
     ),
 
-  datev_berater_nr: z
-    .string()
+  datev_berater_nr: optionalString
     .transform((v) => {
+      if (v == null) return null;
       const cleaned = normalizeName(v);
       return cleaned.length === 0 ? null : cleaned;
     })
@@ -72,9 +76,9 @@ export const tenantSettingsSchema = z.object({
         .nullable(),
     ),
 
-  datev_mandanten_nr: z
-    .string()
+  datev_mandanten_nr: optionalString
     .transform((v) => {
+      if (v == null) return null;
       const cleaned = normalizeName(v);
       return cleaned.length === 0 ? null : cleaned;
     })

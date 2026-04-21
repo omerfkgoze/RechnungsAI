@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export function makeField<T extends z.ZodTypeAny>(payload: T) {
+export function makeField<T extends z.ZodType>(payload: T) {
   return z.object({
     value: payload,
     confidence: z.number().min(0).max(1),

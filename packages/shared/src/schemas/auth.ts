@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const emailField = z
-  .string({ required_error: "E-Mail ist erforderlich." })
+  .string({ error: "E-Mail ist erforderlich." })
   .trim()
   .toLowerCase()
   .min(1, { message: "E-Mail ist erforderlich." })
@@ -9,7 +9,7 @@ const emailField = z
   .email({ message: "Bitte gib eine gültige E-Mail ein." });
 
 const passwordField = z
-  .string({ required_error: "Passwort ist erforderlich." })
+  .string({ error: "Passwort ist erforderlich." })
   .min(8, { message: "Passwort muss mindestens 8 Zeichen enthalten." })
   // bcrypt truncates silently at 72 bytes — enforce the boundary so users
   // don't set a long passphrase whose tail is effectively ignored.
@@ -21,7 +21,7 @@ export const signupSchema = z
     email: emailField,
     password: passwordField,
     passwordConfirm: z.string({
-      required_error: "Bitte bestätige dein Passwort.",
+      error: "Bitte bestätige dein Passwort.",
     }),
   })
   .refine((data) => data.password === data.passwordConfirm, {
@@ -32,7 +32,7 @@ export const signupSchema = z
 export const loginSchema = z.object({
   email: emailField,
   password: z
-    .string({ required_error: "Passwort ist erforderlich." })
+    .string({ error: "Passwort ist erforderlich." })
     .min(1, { message: "Passwort ist erforderlich." }),
 });
 
@@ -44,7 +44,7 @@ export const resetUpdateSchema = z
   .object({
     password: passwordField,
     passwordConfirm: z.string({
-      required_error: "Bitte bestätige dein Passwort.",
+      error: "Bitte bestätige dein Passwort.",
     }),
   })
   .refine((data) => data.password === data.passwordConfirm, {

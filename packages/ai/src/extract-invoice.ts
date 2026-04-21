@@ -96,17 +96,7 @@ export async function extractInvoice(
 
   let object: unknown;
   try {
-    const result = await (
-      generateObject as unknown as (args: {
-        model: ReturnType<typeof getExtractionModel>;
-        schema: unknown;
-        system: string;
-        messages: ModelMessage[];
-        temperature: number;
-        maxRetries: number;
-        providerOptions: Record<string, Record<string, unknown>>;
-      }) => Promise<{ object: unknown }>
-    )({
+    const result = await generateObject({
       model: getExtractionModel(),
       schema: invoiceSchema,
       system: EXTRACTION_SYSTEM_PROMPT,
@@ -136,13 +126,7 @@ export async function extractInvoice(
     };
   }
 
-  const parsed = (
-    invoiceSchema as unknown as {
-      safeParse: (x: unknown) =>
-        | { success: true; data: Invoice }
-        | { success: false; error: unknown };
-    }
-  ).safeParse(object);
+  const parsed = invoiceSchema.safeParse(object);
   if (!parsed.success) {
     logAiError(parsed.error);
     return {

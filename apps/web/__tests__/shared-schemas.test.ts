@@ -33,7 +33,7 @@ describe("signupSchema", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      const paths = result.error.issues.map((i) => i.path.join("."));
+      const paths = result.error.issues.map((i) => i.path.map(String).join("."));
       expect(paths).toContain("passwordConfirm");
     }
   });
@@ -55,6 +55,28 @@ describe("tenantSettingsSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.company_name).toBe("Mustermann GmbH");
+    }
+  });
+
+  it("accepts null for optional fields (idempotent re-parse)", () => {
+    // RHF hands transformed output back to the server action, which re-parses
+    // the schema. Optional fields must accept null on the second pass.
+    const result = tenantSettingsSchema.safeParse({
+      company_name: "Test GmbH",
+      company_address: null,
+      tax_id: null,
+      skr_plan: "SKR04",
+      steuerberater_name: null,
+      datev_berater_nr: null,
+      datev_mandanten_nr: null,
+      datev_sachkontenlaenge: 4,
+      datev_fiscal_year_start: 1,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.company_address).toBe(null);
+      expect(result.data.tax_id).toBe(null);
+      expect(result.data.skr_plan).toBe("SKR04");
     }
   });
 

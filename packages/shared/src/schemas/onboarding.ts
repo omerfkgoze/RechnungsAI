@@ -6,10 +6,8 @@ export type SkrPlan = (typeof SKR_PLANS)[number];
 
 export const onboardingSetupSchema = z.object({
   disclaimer_accepted: z.literal(true, {
-    errorMap: () => ({
-      message:
-        "Bitte bestätige zuerst den Hinweis zur KI-Nutzung auf der vorherigen Seite.",
-    }),
+    error: () =>
+      "Bitte bestätige zuerst den Hinweis zur KI-Nutzung auf der vorherigen Seite.",
   }),
   company_name: z
     .string()
@@ -21,7 +19,7 @@ export const onboardingSetupSchema = z.object({
         .max(100, { message: "Firmenname ist zu lang." }),
     ),
   skr_plan: z.enum(SKR_PLANS, {
-    errorMap: () => ({ message: "Bitte wähle SKR03 oder SKR04." }),
+    error: () => "Bitte wähle SKR03 oder SKR04.",
   }),
   steuerberater_name: z
     .string()
