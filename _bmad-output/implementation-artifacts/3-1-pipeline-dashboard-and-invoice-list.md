@@ -1,6 +1,6 @@
 # Story 3.1: Pipeline Dashboard and Invoice List
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -160,49 +160,49 @@ Swipe-to-approve, SKR categorization, compliance warnings, weekly value summary 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Migration for aggregation RPCs + TD4 guardrail (AC: #11, #17)**
-  - [ ] 1.1 Create `supabase/migrations/20260422000000_dashboard_aggregations.sql` with `invoice_stage_counts()` + `invoice_processing_stats()` (both SECURITY DEFINER, search_path set)
-  - [ ] 1.2 Add CHECK constraint `invoices_extraction_attempts_upper_bound` (≤5)
-  - [ ] 1.3 `supabase db reset` green locally
-  - [ ] 1.4 Regenerate `packages/shared/src/types/database.ts` if the project has a generator script; otherwise note manually in Dev Notes — functions + constraint signatures
+- [x] **Task 1: Migration for aggregation RPCs + TD4 guardrail (AC: #11, #17)**
+  - [x] 1.1 Create `supabase/migrations/20260422000000_dashboard_aggregations.sql` with `invoice_stage_counts()` + `invoice_processing_stats()` (both SECURITY DEFINER, search_path set)
+  - [x] 1.2 Add CHECK constraint `invoices_extraction_attempts_upper_bound` (≤5)
+  - [x] 1.3 `supabase db reset` green locally
+  - [x] 1.4 Regenerate `packages/shared/src/types/database.ts` — no generator script in repo; added `invoice_stage_counts` + `invoice_processing_stats` to the `Functions` map by hand
 
-- [ ] **Task 2: Shared helpers (AC: #6, #10, #17)**
-  - [ ] 2.1 `apps/web/lib/format.ts` NEW — `formatEur`, `formatDateDe`
-  - [ ] 2.2 `apps/web/lib/format.test.ts` NEW — ≥4 cases
-  - [ ] 2.3 `apps/web/lib/status-labels.ts` NEW — `INVOICE_STATUS_LABEL_DE` map
-  - [ ] 2.4 `apps/web/lib/dashboard-query.ts` NEW — zod `dashboardQuerySchema` with `searchParams` parsing
-  - [ ] 2.5 `apps/web/lib/dashboard-query.test.ts` NEW — ≥6 cases
+- [x] **Task 2: Shared helpers (AC: #6, #10, #17)**
+  - [x] 2.1 `apps/web/lib/format.ts` NEW — `formatEur`, `formatDateDe`
+  - [x] 2.2 `apps/web/lib/format.test.ts` NEW — 10 cases
+  - [x] 2.3 `apps/web/lib/status-labels.ts` NEW — `INVOICE_STATUS_LABEL_DE` map + pipeline stage maps
+  - [x] 2.4 `apps/web/lib/dashboard-query.ts` NEW — zod `dashboardQuerySchema` + per-field permissive parse
+  - [x] 2.5 `apps/web/lib/dashboard-query.test.ts` NEW — 8 cases
 
-- [ ] **Task 3: PipelineHeader component (AC: #1, #2, #3, #4, #17)**
-  - [ ] 3.1 `apps/web/components/dashboard/pipeline-header.tsx` NEW — server component, accepts `stageCounts` + `activeStage` props, renders the client wrapper
-  - [ ] 3.2 `apps/web/components/dashboard/pipeline-header-stages.tsx` NEW — `"use client"` child owning click handlers, scrollIntoView, `router.replace`, haptic
-  - [ ] 3.3 Global CSS: `@keyframes subtle-pulse` in `apps/web/app/globals.css` wrapped in `@media (prefers-reduced-motion: no-preference)`
-  - [ ] 3.4 `apps/web/components/dashboard/pipeline-header.test.tsx` NEW — ≥5 cases
+- [x] **Task 3: PipelineHeader component (AC: #1, #2, #3, #4, #17)**
+  - [x] 3.1 `apps/web/components/dashboard/pipeline-header.tsx` NEW — RSC, accepts `stageCounts` + `activeStage`, exports `aggregateStageCounts` helper
+  - [x] 3.2 `apps/web/components/dashboard/pipeline-header-stages.tsx` NEW — `"use client"` child owning click handlers, scrollIntoView, `router.replace`, haptic, Escape listener with input-focus guard
+  - [x] 3.3 Global CSS: `@keyframes subtle-pulse` + `.subtle-pulse` utility in `apps/web/app/globals.css` wrapped in `@media (prefers-reduced-motion: no-preference)`
+  - [x] 3.4 `apps/web/components/dashboard/pipeline-header.test.tsx` NEW — 8 cases (enum order, Bereit pulse, shimmer, empty dim, aria-current, mobile labels, fold-review aggregator)
 
-- [ ] **Task 4: InvoiceListCard component (AC: #6, #10, #17)**
-  - [ ] 4.1 `apps/web/components/dashboard/invoice-list-card.tsx` NEW — takes a typed `InvoiceRow` prop; server-rendered
-  - [ ] 4.2 `apps/web/components/dashboard/invoice-list-card.test.tsx` NEW — ≥6 cases
+- [x] **Task 4: InvoiceListCard component (AC: #6, #10, #17)**
+  - [x] 4.1 `apps/web/components/dashboard/invoice-list-card.tsx` NEW — RSC, takes typed `InvoiceRow`, confidence-aware 4px left border, status Badge, processing shimmer, link to `/rechnungen/[id]`
+  - [x] 4.2 `apps/web/components/dashboard/invoice-list-card.test.tsx` NEW — 8 cases
 
-- [ ] **Task 5: InvoiceListFilters + URL wiring (AC: #7, #8, #9, #17)**
-  - [ ] 5.1 `apps/web/components/dashboard/invoice-list-filters.tsx` NEW — `"use client"`, reads/writes URL params, debounces text inputs
-  - [ ] 5.2 `apps/web/components/dashboard/invoice-list-filters.test.tsx` NEW — ≥4 cases (fake-timer debounce)
+- [x] **Task 5: InvoiceListFilters + URL wiring (AC: #7, #8, #9, #17)**
+  - [x] 5.1 `apps/web/components/dashboard/invoice-list-filters.tsx` NEW — `"use client"`, URL-driven, 300ms debounce for text/number text inputs via `useEffect`+`setTimeout`, selects/dates commit on change, `{ scroll: false }`
+  - [x] 5.2 `apps/web/components/dashboard/invoice-list-filters.test.tsx` NEW — 5 cases (fake-timer debounce, immediate status commit, reset, date commits, sort commit)
 
-- [ ] **Task 6: ProcessingStatsRow (AC: #12, #17)**
-  - [ ] 6.1 `apps/web/components/dashboard/processing-stats-row.tsx` NEW — server component, reuses `<Card>` + `<ConfidenceIndicator variant="bar">`
+- [x] **Task 6: ProcessingStatsRow (AC: #12, #17)**
+  - [x] 6.1 `apps/web/components/dashboard/processing-stats-row.tsx` NEW — RSC, reuses `<Card size="sm">` + `<ConfidenceIndicator variant="bar">`, falls back to `<EmptyState>` when `total_invoices=0`
 
-- [ ] **Task 7: Wire dashboard page (AC: #5, #8, #13, #14, #15)**
-  - [ ] 7.1 Rewrite `apps/web/app/(app)/dashboard/page.tsx` — RSC, parse `searchParams`, build conditional Supabase query, call the two RPCs
-  - [ ] 7.2 Error boundary: try/catch around fetches → partial-degradation `<Card>` with German message
-  - [ ] 7.3 Extend `apps/web/app/(app)/dashboard/loading.tsx` — add a PipelineHeader skeleton row (single horizontal skeleton)
+- [x] **Task 7: Wire dashboard page (AC: #5, #8, #13, #14, #15)**
+  - [x] 7.1 Rewrite `apps/web/app/(app)/dashboard/page.tsx` — RSC, awaits `searchParams`, conditional Supabase query via `parseDashboardQuery`, `Promise.all` over list + 2 RPCs, groups rows by stage into `id="stage-<id>"` anchors, ≥100 banner
+  - [x] 7.2 Error path: any Supabase error surfaces a destructive `<Card>` with German message + Sentry capture under `tags={ module: "dashboard", action: "load" }`
+  - [x] 7.3 Extend `apps/web/app/(app)/dashboard/loading.tsx` — added single horizontal header skeleton above existing cards, `motion-reduce:animate-none`
 
-- [ ] **Task 8: TD4 guardrail + error-path audit (AC: #11, #19)**
-  - [ ] 8.1 `apps/web/app/actions/invoices.ts` — add early-return in `extractInvoice` when `extraction_attempts >= 5`; German error
-  - [ ] 8.2 Audit existing `extractInvoice` error paths against Epic 2 retro A2 checklist — document findings in Dev Notes even if zero fixes
-  - [ ] 8.3 Add / extend test in `apps/web/app/actions/invoices.test.ts` for the TD4 early-return (mock the row with `extraction_attempts=5` → expect `{ success: false, error: /Maximale Anzahl/ }`)
+- [x] **Task 8: TD4 guardrail + error-path audit (AC: #11, #19)**
+  - [x] 8.1 `apps/web/app/actions/invoices.ts::extractInvoice` — early-return when `row.extraction_attempts >= 5` with German error `"Maximale Anzahl der Versuche erreicht. Bitte überprüfe das Dokument manuell."`
+  - [x] 8.2 Error-path audit — see Dev Notes → "Error Path Audit (Epic 2 retro A2)" below. No additional fixes needed.
+  - [x] 8.3 New test case `"TD4: short-circuits when extraction_attempts >= 5..."` in `apps/web/app/actions/invoices.test.ts`
 
-- [ ] **Task 9: Validate + Smoke Test (AC: #17, #18)**
-  - [ ] 9.1 `pnpm lint && pnpm check-types && pnpm build && pnpm test` all green; total tests ≥108
-  - [ ] 9.2 Write `### Browser Smoke Test` section per `smoke-test-format-guide.md`; mark rows BLOCKED-BY-ENVIRONMENT with GOZE manual steps
+- [x] **Task 9: Validate + Smoke Test (AC: #17, #18)**
+  - [x] 9.1 `pnpm lint` (0 errors, pre-existing warnings only), `pnpm check-types`, `pnpm build`, `pnpm test` — all green. Total tests: 128 (29 shared + 6 ai + 93 web) — overshoot vs target ≥108
+  - [x] 9.2 `### Browser Smoke Test` section written below per `smoke-test-format-guide.md` — all rows BLOCKED-BY-ENVIRONMENT with manual steps for GOZE
 
 ---
 
@@ -308,12 +308,129 @@ This story is the **first** story to use the new smoke test format (`smoke-test-
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.7 (`claude-opus-4-7`)
 
 ### Debug Log References
 
+- `supabase db reset --local` → `Applying migration 20260422000000_dashboard_aggregations.sql...` → seed completed.
+- `pnpm lint` → 0 errors, 7 pre-existing `turbo/no-undeclared-env-vars` warnings (untouched by this story).
+- `pnpm check-types` → all packages clean.
+- `pnpm test` → **128 passed (shared 29 · ai 6 · web 93)**.
+- `pnpm build` → `/dashboard` compiled as dynamic route (`ƒ`) per AC #5.
+
 ### Completion Notes List
+
+**Implementation summary (AC # → evidence)**
+
+- **AC #1, #2, #3, #4** — `PipelineHeader` (RSC) + `PipelineHeaderStages` (`"use client"`) render 4 buttons in enum order with WhatsApp-style indicators (`○ ◐ ● ✓`), tenant-scoped counts, `subtle-pulse` on "Bereit" (gated behind `prefers-reduced-motion: no-preference`), `animate-pulse` shimmer on "Verarbeitung", dim styling when all counts = 0, haptic via `navigator.vibrate?.(10)`, mobile abbreviations via twin spans, `aria-current="true"` on the stage matching `?stage=`, and Escape clears the filter (with input-focus guard per 2.3 post-review LOW #7).
+- **AC #5** — `apps/web/app/(app)/dashboard/page.tsx` is a Server Component fetching via `createServerClient()`. Three Supabase calls run in `Promise.all`: list, `rpc("invoice_stage_counts")`, `rpc("invoice_processing_stats")`. 100-row limit enforced with an inline amber banner when reached; pagination deferred per Dev Notes.
+- **AC #6, #10** — `InvoiceListCard` renders the collapsed-only card with confidence-colored 4px left border, supplier + EUR row, status `<Badge />` + German date, `/rechnungen/[id]` link, processing shimmer, destructive border + inline error string for failed extractions, and composed aria-label. German status labels centralised in `lib/status-labels.ts`.
+- **AC #7, #8, #9** — `InvoiceListFilters` client component is URL-driven via `next/navigation` (`useRouter`, `useSearchParams`, `usePathname`). Supplier + amount inputs debounce 300 ms via a single `useEffect`+`setTimeout`. All URL writes use `{ scroll: false }`. Server-side query in the RSC applies `status`, `stage`, `from`, `to`, `ilike supplier`, `minAmount`, `maxAmount`, and a `switch` over `sort`. `searchParams` is parsed through `dashboardQuerySchema` with per-field `safeParse` so one bad param never invalidates the rest (NFR21 graceful degradation).
+- **AC #11** — Migration `20260422000000_dashboard_aggregations.sql` adds `invoice_stage_counts()` (zero-filled via `enum_range`) and `invoice_processing_stats()` (7-key average mirroring `OVERALL_KEYS`, `numeric(4,3)`). Both SECURITY DEFINER with `SET search_path = public, pg_temp`, `REVOKE ALL FROM PUBLIC`, `GRANT EXECUTE TO authenticated`. CHECK constraint `invoices_extraction_attempts_upper_bound` caps `extraction_attempts ≤ 5`.
+- **AC #12** — `ProcessingStatsRow` renders three stat cards using `<Card size="sm">`, embeds `<ConfidenceIndicator variant="bar">` under "KI-Genauigkeit", handles null accuracy ("—" + "Noch keine Extraktionen"), empty state when `total_invoices=0`.
+- **AC #13** — Grid layout kept at `lg:grid-cols-12` with `col-span-8 / col-span-4`. Split-view pane intentionally not implemented (Story 3.2 owns it). Click → full-page navigation to `/rechnungen/[id]`.
+- **AC #14** — `loading.tsx` gained one horizontal Skeleton row above the existing stat skeletons.
+- **AC #15** — Dashboard page has a `renderError(err)` helper used for any Supabase failure; Sentry captures with `tags: { module: "dashboard", action: "load" }`. Next.js global `error.tsx` is NOT triggered (we return a `<Card>` instead) — partial-degradation preferred.
+- **AC #16** — Offline dashboard UI intentionally deferred (MVP-acceptable per Dev Notes).
+- **AC #17** — All four CI commands green from repo root; total tests 128 (target ≥108).
+- **AC #18** — Smoke test section added below per `smoke-test-format-guide.md` v1.0.
+- **AC #19** — See "Error Path Audit" below.
+
+**Error Path Audit (Epic 2 retro A2)**
+
+Walked `apps/web/app/actions/invoices.ts::extractInvoice` top to bottom:
+
+- ✅ Every exit path returns a structured `ActionResult<T>`. The outer try/catch swallows everything except `NEXT_REDIRECT` digests (rethrown) and returns a generic German error.
+- ✅ The DB SELECT block at L213 treats `rowErr` where `rowErr.code !== "PGRST116"` as a real DB error (generic German message `"Rechnung kann momentan nicht verarbeitet werden."`), while `!row || tenant_id mismatch` yields `"Rechnung nicht gefunden."` — already correctly distinguished.
+- ✅ Every compensating revert UPDATE (`type-revert`, `sign-revert`, `ai-revert`, `save-revert`, outer `catch-revert`) has its own error log + Sentry capture, and none overwrite the original error in the returned `ActionResult`.
+- ✅ TD4 early-return fires BEFORE the flip-to-processing UPDATE, so no revert is needed on that path. Verified by test.
+
+**No additional fixes required.** The error-path discipline established by stories 2.2/2.3 is intact.
+
+**Scope fences honoured**
+
+- No split-view pane (Story 3.2).
+- No SKR category filter (Story 3.3 owns the column).
+- No swipe, no Framer Motion, no weekly value card, no compliance warnings (Stories 3.4 / 3.5).
+- No new top-level dependency. No new route. No new Server Action.
+
+---
+
+### Browser Smoke Test
+
+**Environment:** `pnpm dev` from repo root. Supabase local: `host=localhost port=54322 dbname=postgres user=postgres password=postgres`. Dev agent cannot run a real browser — all rows marked `BLOCKED-BY-ENVIRONMENT`. GOZE, please run the steps below in a signed-in session with at least one captured invoice (or seed data).
+
+#### UX Checks
+
+| # | Action | Expected Output | Pass Criterion | Status |
+|---|--------|-----------------|----------------|--------|
+| (a) | Sign in → navigate to `/dashboard` | Pipeline header row renders 4 buttons in this order: `○ Erfasst N`, `◐ Verarbeitung N`, `● Bereit N`, `✓ Exportiert N`. Counts reflect actual status distribution. | Pass if all 4 buttons are visible in the listed order, each shows an indicator + German label + integer count, AND the counts add up to the tenant's total invoice count. | BLOCKED-BY-ENVIRONMENT |
+| (b) | On `/dashboard`, tap the **Bereit** stage button | Page smooth-scrolls to the `#stage-ready` section (if invoices in `ready`/`review` exist), URL becomes `/dashboard?stage=ready`, and the Bereit button gets `aria-current="true"` (highlighted background). | Pass if the URL contains `?stage=ready` AND the Bereit button is visually highlighted AND the page scrolled to the Bereit section (or stayed put if there are no Bereit rows). | BLOCKED-BY-ENVIRONMENT |
+| (c) | Type `ACME` into the "Lieferant suchen" input | For ~300ms nothing happens. Then the URL updates to `/dashboard?supplier=ACME` and the list re-renders filtered. | Pass if the URL update happens after a visible delay (≥250ms) AND the list only shows invoices whose supplier matches "ACME" (case-insensitive substring). | BLOCKED-BY-ENVIRONMENT |
+| (d) | Open the "Sortieren nach" select → choose `"Betrag (höchste)"` | URL becomes `/dashboard?sort=amount_desc`. The list reorders: highest gross-total invoice first. Re-render completes under 1 second (NFR5). | Pass if the first card in the list has the largest `gross_total` value among rendered rows AND the URL contains `sort=amount_desc`. | BLOCKED-BY-ENVIRONMENT |
+| (e) | Click any invoice card | Browser navigates to `/rechnungen/{id}` (Story 2.2 detail route). | Pass if the URL changes to `/rechnungen/<uuid>` and the detail page renders. | BLOCKED-BY-ENVIRONMENT |
+| (f) | Tap **Filter zurücksetzen** | URL becomes `/dashboard` (no query params). All filter fields reset to default placeholders. | Pass if the URL has no `?` segment AND the supplier text input is empty AND the status select shows "Alle". | BLOCKED-BY-ENVIRONMENT |
+| (g) | Resize viewport below 640px (mobile) | Stage button labels switch to abbreviations: `"Erf."`, `"Verarb."`, `"Bereit"`, `"Export."`. Icons + counts still visible. | Pass if the text `"Erf."` is visible on mobile AND the text `"Erfasst"` (long form) is hidden. | BLOCKED-BY-ENVIRONMENT |
+| (h) | Navigate to `/einstellungen`, `/erfassen`, `/rechnungen/[id]` | Each page loads normally, no errors. | Pass if all three pages render without a blank screen or console error. | BLOCKED-BY-ENVIRONMENT |
+| (i) | Reload `/dashboard` on a broadband connection and time TTFB → fully-rendered | Dashboard renders (PipelineHeader + stats + list) within 2 seconds (NFR3). | Pass if the stopwatch reading at "content visible" is ≤ 2.0s. | BLOCKED-BY-ENVIRONMENT |
+| (j) | On `/dashboard` with `?stage=ready` set, press **Escape** | URL returns to `/dashboard` (stage param cleared). | Pass if the URL no longer contains `?stage=` after pressing Escape (and the cursor was NOT in an input). | BLOCKED-BY-ENVIRONMENT |
+| (k) | Upload a fresh invoice from `/erfassen`, return to `/dashboard` | New card appears at the top of the appropriate stage section (Erfasst or Verarbeitung shimmer → Bereit). | Pass if the new invoice is visible on the dashboard within 5 seconds of capture without a manual refresh. | BLOCKED-BY-ENVIRONMENT |
+
+#### DB Verification
+
+Run the queries against the local database after completing the UX checks.
+
+| # | Query | Expected Return | What It Validates | Status |
+|---|-------|-----------------|-------------------|--------|
+| (d1) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "select count(*), status from public.invoices where tenant_id = public.my_tenant_id() group by status order by status;"` | 1 row per status with matching counts; the sum of `ready` + `review` must equal the `Bereit` count rendered in UX (a). | Confirms AC #1: PipelineHeader "Bereit" correctly folds `ready + review`. | BLOCKED-BY-ENVIRONMENT |
+| (d2) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "select * from public.invoice_stage_counts();"` | 5 rows — one per enum value (`captured`, `processing`, `ready`, `review`, `exported`) — with zero-fill for stages that have no invoices. | Confirms AC #11(a): zero-fill via `enum_range` works even when a stage has no rows. | BLOCKED-BY-ENVIRONMENT |
+| (d3) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "select * from public.invoice_processing_stats();"` | 1 row with `total_invoices`, `avg_accuracy` (0.000–1.000 or NULL), `export_history_count`. All three fields populated correctly for the test tenant. | Confirms AC #11(b) + #12: RPC returns correct stats; `avg_accuracy` matches the 7-key arithmetic mean. | BLOCKED-BY-ENVIRONMENT |
+| (d4) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "update public.invoices set extraction_attempts = 5 where id = '<pick one captured row>'; select id, extraction_attempts from public.invoices where id = '<that id>';"` then trigger re-extraction from the UI (if possible) or via Server Action — expect the TD4 early-return. | After the UPDATE, the row has `extraction_attempts = 5`. Attempting to extract it returns `ActionResult` with `success=false` AND the German error `"Maximale Anzahl der Versuche erreicht. Bitte überprüfe das Dokument manuell."`. The row's status stays `captured` (no flip to `processing`). | Confirms AC #11 TD4 guardrail: DB CHECK + application early-return both block runaway retries. | BLOCKED-BY-ENVIRONMENT |
+| (d5) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "update public.invoices set extraction_attempts = 6 where id = '<pick one>';"` | psql rejects with `ERROR: new row for relation "invoices" violates check constraint "invoices_extraction_attempts_upper_bound"`. | Confirms AC #11 TD4 DB backstop: CHECK constraint actually blocks values > 5. | BLOCKED-BY-ENVIRONMENT |
+
+**Manual Steps for GOZE:**
+
+1. `pnpm dev` from repo root (uses Gemini free tier: `EXTRACTION_PROVIDER=google`).
+2. Sign in at `/login` with the test account. Ensure at least one invoice exists in `ready` or `review` (upload one via `/erfassen` if needed).
+3. Run UX Checks (a)–(k) in order. Note: (i) requires a stopwatch or DevTools → Performance panel.
+4. Run DB Verification (d1)–(d5) via `psql`. For (d4), you'll need to pick an existing captured invoice ID first.
+5. Mark each row `DONE` or `FAIL`. If FAIL, note what you actually saw vs. the expected output.
+
+[Smoke test format: _bmad-output/implementation-artifacts/smoke-test-format-guide.md]
+
+---
 
 ### File List
 
+**New files**
+
+- `supabase/migrations/20260422000000_dashboard_aggregations.sql`
+- `apps/web/lib/format.ts`
+- `apps/web/lib/format.test.ts`
+- `apps/web/lib/status-labels.ts`
+- `apps/web/lib/dashboard-query.ts`
+- `apps/web/lib/dashboard-query.test.ts`
+- `apps/web/components/dashboard/pipeline-header.tsx`
+- `apps/web/components/dashboard/pipeline-header-stages.tsx`
+- `apps/web/components/dashboard/pipeline-header.test.tsx`
+- `apps/web/components/dashboard/invoice-list-card.tsx`
+- `apps/web/components/dashboard/invoice-list-card.test.tsx`
+- `apps/web/components/dashboard/invoice-list-filters.tsx`
+- `apps/web/components/dashboard/invoice-list-filters.test.tsx`
+- `apps/web/components/dashboard/processing-stats-row.tsx`
+
+**Modified files**
+
+- `apps/web/app/(app)/dashboard/page.tsx` — full rewrite as RSC with searchParams, filters, grouped list
+- `apps/web/app/(app)/dashboard/loading.tsx` — added PipelineHeader skeleton row
+- `apps/web/app/globals.css` — added `@keyframes subtle-pulse` + `.subtle-pulse` utility inside `prefers-reduced-motion: no-preference`
+- `apps/web/app/actions/invoices.ts` — TD4 early-return in `extractInvoice`
+- `apps/web/app/actions/invoices.test.ts` — new TD4 test case
+- `packages/shared/src/types/database.ts` — added `invoice_stage_counts` + `invoice_processing_stats` entries under `Functions`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — status set to `in-progress` → `review` (final transition on story completion)
+
 ### Change Log
+
+| Date | Change | Driver |
+|------|--------|--------|
+| 2026-04-22 | Story 3.1 implemented: PipelineHeader + filtered RSC invoice list + ProcessingStatsRow + TD4 extraction_attempts guardrail. 40 new tests (total 128). | Epic 3 Story 3.1 + Epic 2 retro TD4 |

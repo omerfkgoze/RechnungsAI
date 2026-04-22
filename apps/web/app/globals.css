@@ -251,6 +251,25 @@
   animation-delay: calc(var(--i, 0) * 120ms);
 }
 
+/* Story 3.1: PipelineHeader "Bereit" attention pulse (AC #2).
+   Slow opacity pulse — gated behind prefers-reduced-motion: no-preference so
+   users who opted out get no animation at all. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes subtle-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  .subtle-pulse {
+    animation: subtle-pulse 2s ease-in-out infinite;
+  }
+}
+
 /* Respect reduced motion system preference */
 @media (prefers-reduced-motion: reduce) {
   *,

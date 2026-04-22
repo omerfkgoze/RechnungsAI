@@ -189,6 +189,21 @@ export type Database = {
         Returns: undefined
       }
       my_tenant_id: { Args: never; Returns: string }
+      invoice_stage_counts: {
+        Args: never
+        Returns: {
+          status: Database["public"]["Enums"]["invoice_status"]
+          count: number
+        }[]
+      }
+      invoice_processing_stats: {
+        Args: never
+        Returns: {
+          total_invoices: number
+          avg_accuracy: number | null
+          export_history_count: number
+        }[]
+      }
     }
     Enums: {
       invoice_status:

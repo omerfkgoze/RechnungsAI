@@ -244,6 +244,17 @@ export async function extractInvoice(
       };
     }
 
+    // TD4 (Story 3.1 / Epic 2 retro): cap runaway retries. DB CHECK constraint
+    // is the backstop; this early-return delivers the user-facing German
+    // message before we flip to 'processing'.
+    if ((row.extraction_attempts ?? 0) >= 5) {
+      return {
+        success: false,
+        error:
+          "Maximale Anzahl der Versuche erreicht. Bitte überprüfe das Dokument manuell.",
+      };
+    }
+
     // Optimistic lock: only flip if status is still 'captured'. Prevents TOCTOU
     // race when two concurrent calls both read 'captured' before either writes.
     const { data: flipped, error: flipErr } = await supabase

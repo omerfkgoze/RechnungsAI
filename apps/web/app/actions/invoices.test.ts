@@ -356,6 +356,32 @@ describe("extractInvoice", () => {
     expect(revert?.extraction_error).toContain("überlastet");
   });
 
+  it("TD4: short-circuits when extraction_attempts >= 5 with German error", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-1",
+        status: "captured",
+        file_path: "x",
+        file_type: "application/pdf",
+        original_filename: "x.pdf",
+        extraction_attempts: 5,
+      },
+      error: null,
+    });
+    const result = await extractInvoice(VALID_UUID);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/Maximale Anzahl/);
+    }
+    // Must NOT flip to 'processing' nor call the AI extractor
+    expect(aiExtractMock).not.toHaveBeenCalled();
+    const patches = invoiceUpdateEqMock.mock.calls.map(
+      (c) => c[0] as Record<string, unknown>,
+    );
+    expect(patches.find((p) => p.status === "processing")).toBeUndefined();
+  });
+
   it("returns 'Rechnung nicht gefunden' when row is missing", async () => {
     invoiceSelectSingleMock.mockResolvedValueOnce({ data: null, error: null });
     const result = await extractInvoice(VALID_UUID);
