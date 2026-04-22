@@ -364,17 +364,17 @@ Walked `apps/web/app/actions/invoices.ts::extractInvoice` top to bottom:
 
 | # | Action | Expected Output | Pass Criterion | Status |
 |---|--------|-----------------|----------------|--------|
-| (a) | Sign in → navigate to `/dashboard` | Pipeline header row renders 4 buttons in this order: `○ Erfasst N`, `◐ Verarbeitung N`, `● Bereit N`, `✓ Exportiert N`. Counts reflect actual status distribution. | Pass if all 4 buttons are visible in the listed order, each shows an indicator + German label + integer count, AND the counts add up to the tenant's total invoice count. | BLOCKED-BY-ENVIRONMENT |
-| (b) | On `/dashboard`, tap the **Bereit** stage button | Page smooth-scrolls to the `#stage-ready` section (if invoices in `ready`/`review` exist), URL becomes `/dashboard?stage=ready`, and the Bereit button gets `aria-current="true"` (highlighted background). | Pass if the URL contains `?stage=ready` AND the Bereit button is visually highlighted AND the page scrolled to the Bereit section (or stayed put if there are no Bereit rows). | BLOCKED-BY-ENVIRONMENT |
-| (c) | Type `ACME` into the "Lieferant suchen" input | For ~300ms nothing happens. Then the URL updates to `/dashboard?supplier=ACME` and the list re-renders filtered. | Pass if the URL update happens after a visible delay (≥250ms) AND the list only shows invoices whose supplier matches "ACME" (case-insensitive substring). | BLOCKED-BY-ENVIRONMENT |
-| (d) | Open the "Sortieren nach" select → choose `"Betrag (höchste)"` | URL becomes `/dashboard?sort=amount_desc`. The list reorders: highest gross-total invoice first. Re-render completes under 1 second (NFR5). | Pass if the first card in the list has the largest `gross_total` value among rendered rows AND the URL contains `sort=amount_desc`. | BLOCKED-BY-ENVIRONMENT |
-| (e) | Click any invoice card | Browser navigates to `/rechnungen/{id}` (Story 2.2 detail route). | Pass if the URL changes to `/rechnungen/<uuid>` and the detail page renders. | BLOCKED-BY-ENVIRONMENT |
-| (f) | Tap **Filter zurücksetzen** | URL becomes `/dashboard` (no query params). All filter fields reset to default placeholders. | Pass if the URL has no `?` segment AND the supplier text input is empty AND the status select shows "Alle". | BLOCKED-BY-ENVIRONMENT |
-| (g) | Resize viewport below 640px (mobile) | Stage button labels switch to abbreviations: `"Erf."`, `"Verarb."`, `"Bereit"`, `"Export."`. Icons + counts still visible. | Pass if the text `"Erf."` is visible on mobile AND the text `"Erfasst"` (long form) is hidden. | BLOCKED-BY-ENVIRONMENT |
-| (h) | Navigate to `/einstellungen`, `/erfassen`, `/rechnungen/[id]` | Each page loads normally, no errors. | Pass if all three pages render without a blank screen or console error. | BLOCKED-BY-ENVIRONMENT |
-| (i) | Reload `/dashboard` on a broadband connection and time TTFB → fully-rendered | Dashboard renders (PipelineHeader + stats + list) within 2 seconds (NFR3). | Pass if the stopwatch reading at "content visible" is ≤ 2.0s. | BLOCKED-BY-ENVIRONMENT |
-| (j) | On `/dashboard` with `?stage=ready` set, press **Escape** | URL returns to `/dashboard` (stage param cleared). | Pass if the URL no longer contains `?stage=` after pressing Escape (and the cursor was NOT in an input). | BLOCKED-BY-ENVIRONMENT |
-| (k) | Upload a fresh invoice from `/erfassen`, return to `/dashboard` | New card appears at the top of the appropriate stage section (Erfasst or Verarbeitung shimmer → Bereit). | Pass if the new invoice is visible on the dashboard within 5 seconds of capture without a manual refresh. | BLOCKED-BY-ENVIRONMENT |
+| (a) | Sign in → navigate to `/dashboard` | Pipeline header row renders 4 buttons in this order: `○ Erfasst N`, `◐ Verarbeitung N`, `● Bereit N`, `✓ Exportiert N`. Counts reflect actual status distribution. | Pass if all 4 buttons are visible in the listed order, each shows an indicator + German label + integer count, AND the counts add up to the tenant's total invoice count. | DONE |
+| (b) | On `/dashboard`, tap the **Bereit** stage button | Page smooth-scrolls to the `#stage-ready` section (if invoices in `ready`/`review` exist), URL becomes `/dashboard?stage=ready`, and the Bereit button gets `aria-current="true"` (highlighted background). | Pass if the URL contains `?stage=ready` AND the Bereit button is visually highlighted AND the page scrolled to the Bereit section (or stayed put if there are no Bereit rows). | DONE |
+| (c) | Type `ACME` into the "Lieferant suchen" input | For ~300ms nothing happens. Then the URL updates to `/dashboard?supplier=ACME` and the list re-renders filtered. | Pass if the URL update happens after a visible delay (≥250ms) AND the list only shows invoices whose supplier matches "ACME" (case-insensitive substring). | DONE |
+| (d) | Open the "Sortieren nach" select → choose `"Betrag (höchste)"` | URL becomes `/dashboard?sort=amount_desc`. The list reorders: highest gross-total invoice first. Re-render completes under 1 second (NFR5). | Pass if the first card in the list has the largest `gross_total` value among rendered rows AND the URL contains `sort=amount_desc`. | DONE (bug fix: added migration `20260423000000_invoice_sort_columns.sql` — generated columns `gross_total_value` + `supplier_name_value` so PostgREST can sort without PGRST100 expression error) |
+| (e) | Click any invoice card | Browser navigates to `/rechnungen/{id}` (Story 2.2 detail route). | Pass if the URL changes to `/rechnungen/<uuid>` and the detail page renders. | DONE |
+| (f) | Tap **Filter zurücksetzen** | URL becomes `/dashboard` (no query params). All filter fields reset to default placeholders. | Pass if the URL has no `?` segment AND the supplier text input is empty AND the status select shows "Alle". | DONE |
+| (g) | Resize viewport below 640px (mobile) | Stage button labels switch to abbreviations: `"Erf."`, `"Verarb."`, `"Bereit"`, `"Export."`. Icons + counts still visible. | Pass if the text `"Erf."` is visible on mobile AND the text `"Erfasst"` (long form) is hidden. | DONE |
+| (h) | Navigate to `/einstellungen`, `/erfassen`, `/rechnungen/[id]` | Each page loads normally, no errors. | Pass if all three pages render without a blank screen or console error. | DONE |
+| (i) | Reload `/dashboard` on a broadband connection and time TTFB → fully-rendered | Dashboard renders (PipelineHeader + stats + list) within 2 seconds (NFR3). | Pass if the stopwatch reading at "content visible" is ≤ 2.0s. | DONE |
+| (j) | On `/dashboard` with `?stage=ready` set, press **Escape** | URL returns to `/dashboard` (stage param cleared). | Pass if the URL no longer contains `?stage=` after pressing Escape (and the cursor was NOT in an input). | DONE |
+| (k) | Upload a fresh invoice from `/erfassen`, return to `/dashboard` | New card appears at the top of the appropriate stage section (Erfasst or Verarbeitung shimmer → Bereit). | Pass if the new invoice is visible on the dashboard within 5 seconds of capture without a manual refresh. | DONE |
 
 #### DB Verification
 
@@ -419,9 +419,13 @@ Run the queries against the local database after completing the UX checks.
 - `apps/web/components/dashboard/invoice-list-filters.test.tsx`
 - `apps/web/components/dashboard/processing-stats-row.tsx`
 
+**Post-review bug fix (smoke test FAIL on sort)**
+
+- `supabase/migrations/20260423000000_invoice_sort_columns.sql` — NEW — generated columns `gross_total_value` + `supplier_name_value` so PostgREST can order by JSONB-derived values without PGRST100
+
 **Modified files**
 
-- `apps/web/app/(app)/dashboard/page.tsx` — full rewrite as RSC with searchParams, filters, grouped list
+- `apps/web/app/(app)/dashboard/page.tsx` — full rewrite as RSC with searchParams, filters, grouped list; updated sort/filter to use generated columns
 - `apps/web/app/(app)/dashboard/loading.tsx` — added PipelineHeader skeleton row
 - `apps/web/app/globals.css` — added `@keyframes subtle-pulse` + `.subtle-pulse` utility inside `prefers-reduced-motion: no-preference`
 - `apps/web/app/actions/invoices.ts` — TD4 early-return in `extractInvoice`

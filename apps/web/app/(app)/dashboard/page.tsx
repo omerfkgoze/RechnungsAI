@@ -62,16 +62,11 @@ export default async function DashboardPage({
     q = q.ilike("invoice_data->supplier_name->>value", `%${query.supplier}%`);
   }
   if (query.minAmount !== undefined) {
-    q = q.gte(
-      "(invoice_data->'gross_total'->>'value')::numeric",
-      query.minAmount,
-    );
+    // gross_total_value is a generated column (see migration 20260423000000)
+    q = q.gte("gross_total_value", query.minAmount);
   }
   if (query.maxAmount !== undefined) {
-    q = q.lte(
-      "(invoice_data->'gross_total'->>'value')::numeric",
-      query.maxAmount,
-    );
+    q = q.lte("gross_total_value", query.maxAmount);
   }
 
   switch (query.sort) {
@@ -79,19 +74,14 @@ export default async function DashboardPage({
       q = q.order("created_at", { ascending: true });
       break;
     case "amount_desc":
-      q = q.order("(invoice_data->'gross_total'->>'value')::numeric", {
-        ascending: false,
-        nullsFirst: false,
-      });
+      // gross_total_value / supplier_name_value: generated columns (migration 20260423000000)
+      q = q.order("gross_total_value", { ascending: false, nullsFirst: false });
       break;
     case "amount_asc":
-      q = q.order("(invoice_data->'gross_total'->>'value')::numeric", {
-        ascending: true,
-        nullsFirst: false,
-      });
+      q = q.order("gross_total_value", { ascending: true, nullsFirst: false });
       break;
     case "supplier_asc":
-      q = q.order("invoice_data->'supplier_name'->>'value'", {
+      q = q.order("supplier_name_value", {
         ascending: true,
         nullsFirst: false,
       });
