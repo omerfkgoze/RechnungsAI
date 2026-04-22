@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-04-21 (prep-td3 → done)"
+last_updated: "2026-04-22 (story 3-1 → ready-for-dev)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -94,8 +94,8 @@ development_status:
   prep-td3-smoke-test-guide-prototype-reference: done                  # A1 action item: redesigned smoke test format template reference for future Stories
 
   # Epic 3: Invoice Review, Approval, and Dashboard
-  epic-3: backlog
-  3-1-pipeline-dashboard-and-invoice-list: backlog
+  epic-3: in-progress
+  3-1-pipeline-dashboard-and-invoice-list: ready-for-dev
   3-2-invoice-detail-view-and-field-editing: backlog
   3-3-skr-categorization-and-bu-schluessel-mapping: backlog
   3-4-swipe-to-approve-and-confidence-based-review-queue: backlog
