@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  CORRECTABLE_FIELD_PATHS,
   INVOICE_ACCEPTED_MIME,
   invoiceUploadInputSchema,
   overallConfidence,
@@ -425,5 +426,256 @@ export async function extractInvoice(
       success: false,
       error: "Extraktion fehlgeschlagen. Bitte erneut versuchen.",
     };
+  }
+}
+
+const CORRECT_LOG = "[invoices:correct_field]";
+const SIGN_URL_LOG = "[invoices:sign_url]";
+
+export async function correctInvoiceField(input: {
+  invoiceId: string;
+  fieldPath: string;
+  newValue: string | number | null;
+  priorUpdatedAt: string;
+  isRestoreToAi?: boolean;
+  aiConfidence?: number;
+}): Promise<ActionResult<{ newConfidence: number }>> {
+  const { invoiceId, fieldPath, newValue, priorUpdatedAt, isRestoreToAi, aiConfidence } = input;
+
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+
+  if (!(CORRECTABLE_FIELD_PATHS as readonly string[]).includes(fieldPath)) {
+    return { success: false, error: "Ungültiges Feld." };
+  }
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(CORRECT_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, status, invoice_data, updated_at, invoice_data->supplier_name->>value")
+      .eq("id", invoiceId)
+      .single();
+
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(CORRECT_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "correct_field" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    if (row.status === "exported") {
+      return {
+        success: false,
+        error: "Exportierte Rechnungen können nicht mehr bearbeitet werden.",
+      };
+    }
+
+    if (row.updated_at !== priorUpdatedAt) {
+      return {
+        success: false,
+        error: "Rechnung wurde zwischenzeitlich geändert. Bitte Seite neu laden.",
+      };
+    }
+
+    const invoiceData = row.invoice_data as Record<string, unknown> | null;
+    if (!invoiceData) {
+      return { success: false, error: "Keine Extraktionsdaten vorhanden." };
+    }
+
+    // Deep-clone and apply the correction at the given path.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updated: any = structuredClone(invoiceData);
+    const newConfidence = isRestoreToAi ? (aiConfidence ?? 1.0) : 1.0;
+    const reason = isRestoreToAi ? "Nutzer hat AI-Wert wiederhergestellt" : "Vom Nutzer korrigiert";
+
+    const pathParts = fieldPath.split(".");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let cursor: any = updated;
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      const part = pathParts[i]!;
+      if (part === "line_items" && i + 1 < pathParts.length) {
+        const idx = Number(pathParts[i + 1]);
+        if (!Number.isNaN(idx) && Array.isArray(cursor.line_items)) {
+          cursor = cursor.line_items[idx];
+          i++; // skip index part
+        } else {
+          return { success: false, error: "Ungültiges Feld." };
+        }
+      } else {
+        cursor = cursor[part];
+      }
+    }
+    const lastKey = pathParts[pathParts.length - 1]!;
+    const previousValue = cursor[lastKey] ? structuredClone(cursor[lastKey]) : null;
+    cursor[lastKey] = { value: newValue, confidence: newConfidence, reason };
+
+    // Optimistic concurrency: only update if updated_at hasn't changed.
+    const { data: updateData, error: updateErr } = await supabase
+      .from("invoices")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ invoice_data: updated as any, updated_at: new Date().toISOString() })
+      .eq("id", invoiceId)
+      .eq("updated_at", priorUpdatedAt)
+      .select("id")
+      .maybeSingle();
+
+    if (updateErr) {
+      console.error(CORRECT_LOG, "update-failed", updateErr);
+      Sentry.captureException(updateErr, {
+        tags: { module: "invoices", action: "correct_field" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht gespeichert werden." };
+    }
+    if (!updateData) {
+      return {
+        success: false,
+        error: "Rechnung wurde zwischenzeitlich geändert. Bitte Seite neu laden.",
+      };
+    }
+
+    // Insert audit row — failure here is non-fatal (user's correction already landed).
+    const supplierName = (invoiceData as Record<string, { value?: string | null }>).supplier_name?.value ?? null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const correctedValue: any = cursor[lastKey];
+    const { error: auditErr } = await supabase.from("invoice_field_corrections").insert({
+      tenant_id: tenantId,
+      invoice_id: invoiceId,
+      supplier_name: supplierName,
+      field_path: fieldPath,
+      previous_value: previousValue,
+      corrected_value: correctedValue,
+      corrected_to_ai: isRestoreToAi ?? false,
+    });
+    if (auditErr) {
+      console.error(CORRECT_LOG, "audit-insert-failed", auditErr);
+      Sentry.captureException(auditErr, {
+        tags: { module: "invoices", action: "correct_field" },
+        extra: { invoiceId, fieldPath },
+      });
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/rechnungen/${invoiceId}`);
+    return { success: true, data: { newConfidence } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(CORRECT_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "correct_field" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
+  }
+}
+
+export async function getInvoiceSignedUrl(
+  invoiceId: string,
+): Promise<ActionResult<{ url: string; fileType: string }>> {
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(SIGN_URL_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, file_path, file_type")
+      .eq("id", invoiceId)
+      .single();
+
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(SIGN_URL_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "sign_url" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("invoices")
+      .createSignedUrl(row.file_path, 60);
+
+    if (signErr || !signed?.signedUrl) {
+      console.error(SIGN_URL_LOG, "sign-failed", signErr);
+      Sentry.captureException(signErr ?? new Error("sign-url-failed"), {
+        tags: { module: "invoices", action: "sign_url" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Dokument-URL konnte nicht erzeugt werden." };
+    }
+
+    return { success: true, data: { url: signed.signedUrl, fileType: row.file_type } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(SIGN_URL_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "sign_url" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
   }
 }

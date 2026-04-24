@@ -34,6 +34,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      invoice_field_corrections: {
+        Row: {
+          id: string
+          tenant_id: string
+          invoice_id: string
+          supplier_name: string | null
+          field_path: string
+          previous_value: Json | null
+          corrected_value: Json
+          corrected_to_ai: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          invoice_id: string
+          supplier_name?: string | null
+          field_path: string
+          previous_value?: Json | null
+          corrected_value: Json
+          corrected_to_ai?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          invoice_id?: string
+          supplier_name?: string | null
+          field_path?: string
+          previous_value?: Json | null
+          corrected_value?: Json
+          corrected_to_ai?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_field_corrections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_field_corrections_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           created_at: string

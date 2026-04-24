@@ -63,6 +63,29 @@ export const invoiceSchema = z.object({
 
 export type Invoice = z.infer<typeof invoiceSchema>;
 
+export const CORRECTABLE_FIELD_PATHS: readonly string[] = [
+  "invoice_number",
+  "invoice_date",
+  "supplier_name",
+  "supplier_address",
+  "supplier_tax_id",
+  "recipient_name",
+  "recipient_address",
+  "net_total",
+  "vat_total",
+  "gross_total",
+  "currency",
+  "payment_terms",
+  ...Array.from({ length: 20 }, (_, i) => [
+    `line_items.${i}.description`,
+    `line_items.${i}.quantity`,
+    `line_items.${i}.unit_price`,
+    `line_items.${i}.net_amount`,
+    `line_items.${i}.vat_rate`,
+    `line_items.${i}.vat_amount`,
+  ]).flat(),
+] as const;
+
 const OVERALL_KEYS: Array<keyof Invoice> = [
   "invoice_number",
   "invoice_date",

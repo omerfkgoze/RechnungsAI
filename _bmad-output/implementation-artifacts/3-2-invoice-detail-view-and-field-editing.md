@@ -1,6 +1,6 @@
 # Story 3.2: Invoice Detail View and Field Editing
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -168,54 +168,54 @@ so that I can trust what I am approving and train the AI on my suppliers without
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Shared helpers + migration (AC: #4, #11, #16, #17)**
-  - [ ] 1.1 `apps/web/lib/invoice-fields.ts` NEW — export `LABELS`, `FIELD_ORDER`, `CORRECTABLE_FIELD_PATHS` (derived).
-  - [ ] 1.2 `packages/shared/src/schemas/invoice.ts` — export `CORRECTABLE_FIELD_PATHS: readonly string[]` covering the 12 top-level fields + `line_items.${number}.{description,quantity,unit_price,net_amount,vat_rate,vat_amount}` pattern.
-  - [ ] 1.3 `apps/web/lib/format.ts` — add `formatValue(key, value, currency)` + `safeCurrency` migrated from `extraction-results-client.tsx`; extend `formatEur` if needed; tests updated.
-  - [ ] 1.4 `supabase/migrations/20260424000000_invoice_field_corrections.sql` NEW — table + RLS + indexes + append-only grants; `alter publication supabase_realtime add table public.invoices;` if not yet included.
-  - [ ] 1.5 `supabase/migrations/20260424100000_invoice_sort_columns_safe_cast.sql` NEW — drop + recreate `gross_total_value` / `supplier_name_value` with safe `CASE WHEN ~ '^-?[0-9]+(\.[0-9]+)?$'` cast; recreate 3.1 indexes.
-  - [ ] 1.6 `packages/shared/src/types/database.ts` — add `invoice_field_corrections` entry by hand.
-  - [ ] 1.7 `supabase db reset` green locally.
+- [x] **Task 1: Shared helpers + migration (AC: #4, #11, #16, #17)**
+  - [x] 1.1 `apps/web/lib/invoice-fields.ts` NEW — export `LABELS`, `FIELD_ORDER`, `CORRECTABLE_FIELD_PATHS` (derived).
+  - [x] 1.2 `packages/shared/src/schemas/invoice.ts` — export `CORRECTABLE_FIELD_PATHS: readonly string[]` covering the 12 top-level fields + `line_items.${number}.{description,quantity,unit_price,net_amount,vat_rate,vat_amount}` pattern.
+  - [x] 1.3 `apps/web/lib/format.ts` — add `formatValue(key, value, currency)` + `safeCurrency` migrated from `extraction-results-client.tsx`; extend `formatEur` if needed; tests updated.
+  - [x] 1.4 `supabase/migrations/20260424000000_invoice_field_corrections.sql` NEW — table + RLS + indexes + append-only grants; `alter publication supabase_realtime add table public.invoices;` if not yet included.
+  - [x] 1.5 `supabase/migrations/20260424100000_invoice_sort_columns_safe_cast.sql` NEW — drop + recreate `gross_total_value` / `supplier_name_value` with safe `CASE WHEN ~ '^-?[0-9]+(\.[0-9]+)?$'` cast; recreate 3.1 indexes.
+  - [x] 1.6 `packages/shared/src/types/database.ts` — add `invoice_field_corrections` entry by hand.
+  - [x] 1.7 `supabase db reset` green locally.
 
-- [ ] **Task 2: Server Actions (AC: #6, #8, #11, #19)**
-  - [ ] 2.1 `correctInvoiceField` in `apps/web/app/actions/invoices.ts` — auth + tenant + row fetch + `fieldPath` allow-list + optimistic concurrency on `updated_at` + jsonb deep-set + `invoice_field_corrections` insert + `revalidatePath`.
-  - [ ] 2.2 `getInvoiceSignedUrl` in same file — auth + tenant check + `createSignedUrl(file_path, 60)` + return `{ url, fileType }`.
-  - [ ] 2.3 Tests in `apps/web/app/actions/invoices.test.ts` — ≥7 cases covering allow-list, exported rejection, jsonb shape, concurrency, restore-to-AI, signed-URL tenant isolation, error branches.
+- [x] **Task 2: Server Actions (AC: #6, #8, #11, #19)**
+  - [x] 2.1 `correctInvoiceField` in `apps/web/app/actions/invoices.ts` — auth + tenant + row fetch + `fieldPath` allow-list + optimistic concurrency on `updated_at` + jsonb deep-set + `invoice_field_corrections` insert + `revalidatePath`.
+  - [x] 2.2 `getInvoiceSignedUrl` in same file — auth + tenant check + `createSignedUrl(file_path, 60)` + return `{ url, fileType }`.
+  - [x] 2.3 Tests in `apps/web/app/actions/invoices.test.ts` — ≥7 cases covering allow-list, exported rejection, jsonb shape, concurrency, restore-to-AI, signed-URL tenant isolation, error branches.
 
-- [ ] **Task 3: `<EditableField />` client component (AC: #4, #5, #9, #10)**
-  - [ ] 3.1 `apps/web/components/invoice/editable-field.tsx` NEW — props `{ invoiceId, fieldPath, label, value, initialAiValue, aiConfidence, currency, inputKind, isExported }`. Enter/Escape handlers. Uses `useTransition` for submit.
-  - [ ] 3.2 German-locale decimal parser extracted to `apps/web/lib/format.ts::parseGermanDecimal(input: string): number | null`.
-  - [ ] 3.3 Tests in `editable-field.test.tsx` — ≥6 cases.
+- [x] **Task 3: `<EditableField />` client component (AC: #4, #5, #9, #10)**
+  - [x] 3.1 `apps/web/components/invoice/editable-field.tsx` NEW — props `{ invoiceId, fieldPath, label, value, initialAiValue, aiConfidence, currency, inputKind, isExported }`. Enter/Escape handlers. Uses `useTransition` for submit.
+  - [x] 3.2 German-locale decimal parser extracted to `apps/web/lib/format.ts::parseGermanDecimal(input: string): number | null`.
+  - [x] 3.3 Tests in `editable-field.test.tsx` — ≥6 cases.
 
-- [ ] **Task 4: `<SourceDocumentViewer />` (AC: #8)**
-  - [ ] 4.1 `apps/web/components/invoice/source-document-viewer.tsx` NEW — Sheet-based; fetches signed URL on first open; renders image / pdf / xml branches; shows extracted-value panel.
-  - [ ] 4.2 Sheet installation: confirm shadcn `<Sheet>` is present (`apps/web/components/ui/sheet.tsx`); if missing, `pnpm --filter web dlx shadcn@latest add sheet` — document the install step.
-  - [ ] 4.3 Tests in `source-document-viewer.test.tsx` — ≥4 cases.
+- [x] **Task 4: `<SourceDocumentViewer />` (AC: #8)**
+  - [x] 4.1 `apps/web/components/invoice/source-document-viewer.tsx` NEW — Sheet-based; fetches signed URL on first open; renders image / pdf / xml branches; shows extracted-value panel.
+  - [x] 4.2 Sheet installation: confirmed shadcn `<Sheet>` was present (`apps/web/components/ui/sheet.tsx`). No install needed.
+  - [x] 4.3 Tests in `source-document-viewer.test.tsx` — ≥4 cases.
 
-- [ ] **Task 5: `<InvoiceDetailPane />` + page wiring (AC: #1, #3, #12)**
-  - [ ] 5.1 `apps/web/components/invoice/invoice-detail-pane.tsx` NEW (RSC) — renders confidence-bordered card, field rows (delegates to `<EditableField />`), line-items table (6 cols with VAT rate), `<ConfidenceIndicator variant="badge">` header.
-  - [ ] 5.2 `apps/web/components/invoice/detail-pane-extraction-bootstrap.tsx` NEW — `"use client"`, replicates the auto-`extractInvoice` `useEffect` from today's `ExtractionResultsClient` (StrictMode-safe ref guard).
-  - [ ] 5.3 Rewrite `apps/web/app/(app)/rechnungen/[id]/page.tsx` — uses `<InvoiceDetailPane />` + bootstrap child.
-  - [ ] 5.4 Tests in `invoice-detail-pane.test.tsx` — ≥5 cases.
-  - [ ] 5.5 DELETE `apps/web/components/invoice/extraction-results-client.tsx` once no importers remain.
+- [x] **Task 5: `<InvoiceDetailPane />` + page wiring (AC: #1, #3, #12)**
+  - [x] 5.1 `apps/web/components/invoice/invoice-detail-pane.tsx` NEW (RSC) — renders confidence-bordered card, field rows (delegates to `<EditableField />`), line-items table (6 cols with VAT rate), `<ConfidenceIndicator variant="badge">` header.
+  - [x] 5.2 `apps/web/components/invoice/detail-pane-extraction-bootstrap.tsx` NEW — `"use client"`, replicates the auto-`extractInvoice` `useEffect` from today's `ExtractionResultsClient` (StrictMode-safe ref guard).
+  - [x] 5.3 Rewrite `apps/web/app/(app)/rechnungen/[id]/page.tsx` — uses `<InvoiceDetailPane />` + bootstrap child.
+  - [x] 5.4 Tests in `invoice-detail-pane.test.tsx` — ≥5 cases.
+  - [x] 5.5 DELETE `apps/web/components/invoice/extraction-results-client.tsx` once no importers remain.
 
-- [ ] **Task 6: Split-view on `/dashboard` (AC: #2, #16)**
-  - [ ] 6.1 `apps/web/components/dashboard/invoice-list-card-link.tsx` NEW — client wrapper using `matchMedia('(min-width: 1024px)')` inside `useEffect` to intercept on desktop.
-  - [ ] 6.2 `apps/web/app/(app)/dashboard/page.tsx` — read `selected` param, render right column `<aside className="hidden lg:block">` with `<InvoiceDetailPane />` when set; adjust grid to `lg:grid-cols-[380px_1fr]`.
-  - [ ] 6.3 ESC keyboard handler on dashboard client wrapper clears `?selected`.
-  - [ ] 6.4 `<DashboardRealtimeRefresher />` NEW — client child; Supabase `.channel("invoices-tenant-{id}").on("postgres_changes", {...}, ...)`; 500ms-debounced `router.refresh()`; cleanup on unmount.
+- [x] **Task 6: Split-view on `/dashboard` (AC: #2, #16)**
+  - [x] 6.1 `apps/web/components/dashboard/invoice-list-card-link.tsx` NEW — client wrapper using `matchMedia('(min-width: 1024px)')` inside `useEffect` to intercept on desktop.
+  - [x] 6.2 `apps/web/app/(app)/dashboard/page.tsx` — read `selected` param, render right column `<aside className="hidden lg:block">` with `<InvoiceDetailPane />` when set; adjust grid to `lg:grid-cols-[380px_1fr]`.
+  - [x] 6.3 ESC keyboard handler on dashboard client wrapper clears `?selected`.
+  - [x] 6.4 `<DashboardRealtimeRefresher />` NEW — client child; Supabase `.channel("invoices-tenant-{id}").on("postgres_changes", {...}, ...)`; 500ms-debounced `router.refresh()`; cleanup on unmount.
 
-- [ ] **Task 7: AI-learning message + toast infra probe (AC: #7)**
-  - [ ] 7.1 Check if shadcn `<Toaster>` is wired (`apps/web/app/layout.tsx`). If yes: use it. If no: fall back to inline muted text per AC #7 — document in Dev Notes.
+- [x] **Task 7: AI-learning message + toast infra probe (AC: #7)**
+  - [x] 7.1 `<Toaster>` is NOT wired in `apps/web/app/layout.tsx`. Inline muted text `"Gespeichert."` is used for 2s. Documented in Dev Notes under "AI-Learning Toast Decision".
 
-- [ ] **Task 8: Validate + Smoke Test (AC: #14, #15, #18)**
-  - [ ] 8.1 `pnpm lint`, `pnpm check-types`, `pnpm build`, `pnpm test` all green — test total ≥153.
-  - [ ] 8.2 `### Browser Smoke Test` section per `smoke-test-format-guide.md` — UX rows BLOCKED-BY-ENVIRONMENT with manual steps for GOZE; DB rows executable.
+- [x] **Task 8: Validate + Smoke Test (AC: #14, #15, #18)**
+  - [x] 8.1 `pnpm lint`, `pnpm check-types`, `pnpm build`, `pnpm test` all green — test total 176 (≥153).
+  - [x] 8.2 `### Browser Smoke Test` section per `smoke-test-format-guide.md` — UX rows BLOCKED-BY-ENVIRONMENT with manual steps for GOZE; DB rows executable.
 
-- [ ] **Task 9: Tech debt + error-path audit (AC: #16, #19)**
-  - [ ] 9.1 P12 realtime shipped OR explicitly cut via correct-course.
-  - [ ] 9.2 P14 safe cast migration shipped and verified.
-  - [ ] 9.3 Error Path Audit for `correctInvoiceField` + `getInvoiceSignedUrl` documented in Dev Notes.
+- [x] **Task 9: Tech debt + error-path audit (AC: #16, #19)**
+  - [x] 9.1 P12 realtime shipped via `<DashboardRealtimeRefresher />` (Task 6.4).
+  - [x] 9.2 P14 safe cast migration shipped (`20260424100000_invoice_sort_columns_safe_cast.sql`) and verified via `supabase db reset`.
+  - [x] 9.3 Error Path Audit for `correctInvoiceField` + `getInvoiceSignedUrl` documented in Dev Notes.
 
 ---
 
@@ -329,10 +329,115 @@ Ship whichever is cheapest. If `<Toaster>` is not already in `layout.tsx`, use i
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6
 
 ### Debug Log References
 
 ### Completion Notes List
 
+**Story 3.2 implemented on 2026-04-24.**
+
+#### AI-Learning Toast Decision
+`<Toaster>` (sonner) is **NOT** wired in `apps/web/app/layout.tsx`. Fell back to inline muted text `"Gespeichert."` that fades after 2s. No new dep added.
+
+#### Cutover Strategy
+Single-commit cutover used (Option 1). `extraction-results-client.tsx` deleted in the same changeset as the new `<InvoiceDetailPane />` wire-up.
+
+#### Tech Debt Resolved
+- **P12 (realtime dashboard)** — `<DashboardRealtimeRefresher />` added as client child of `/dashboard`. Subscribes to `invoices` table `postgres_changes` on the tenant channel, calls `router.refresh()` debounced 500ms. Added `alter publication supabase_realtime add table public.invoices;` in the `invoice_field_corrections` migration.
+- **P14 (safe cast)** — Migration `20260424100000_invoice_sort_columns_safe_cast.sql` drops and recreates `gross_total_value`/`supplier_name_value` with `CASE WHEN ~ '^-?[0-9]+(\.[0-9]+)?$'` guard. `supabase db reset` confirmed clean.
+
+#### Error Path Audit — `correctInvoiceField`
+- ✅ Every exit path returns `ActionResult<T>`
+- ✅ DB SELECT error distinguished from "not found" (PGRST116 check)
+- ✅ `fieldPath` allow-list rejects unknown paths with German `"Ungültiges Feld."`
+- ✅ Optimistic-concurrency miss returns `"Rechnung wurde zwischenzeitlich geändert. Bitte Seite neu laden."`
+- ✅ `exported` rejection fires BEFORE any UPDATE
+- ✅ `invoice_field_corrections` INSERT failure is non-fatal — logged + Sentry, still returns `{success: true}`
+- ✅ Outer try/catch blocks `NEXT_REDIRECT` re-throw
+
+#### Error Path Audit — `getInvoiceSignedUrl`
+- ✅ Every exit path returns `ActionResult<T>`
+- ✅ DB SELECT error distinguished from "not found" (PGRST116 check)
+- ✅ Tenant isolation enforced (`row.tenant_id !== tenantId` guard)
+- ✅ Sentry tags: `{ module: "invoices", action: "sign_url" }`
+- ✅ Log prefix `[invoices:sign_url]`
+
+#### Test Results
+- Total tests: **176** (128 → 176, target was ≥153) ✅
+- New test files: 4 (`invoice-fields.test.ts`, `editable-field.test.tsx`, `source-document-viewer.test.tsx`, `invoice-detail-pane.test.tsx`)
+- New test cases in `invoices.test.ts`: 10 (7 `correctInvoiceField` + 3 `getInvoiceSignedUrl`)
+
+### Browser Smoke Test
+
+**Environment:** `pnpm dev` from repo root. Supabase local: `host=localhost port=54322 dbname=postgres user=postgres password=postgres`.
+
+#### UX Checks
+
+| # | Action | Expected Output | Pass Criterion | Status |
+|---|--------|----------------|----------------|--------|
+| (a) | Sign in → open `/dashboard` on mobile viewport (< 1024px) → tap an invoice card | Browser navigates to `/rechnungen/{id}`, renders `<InvoiceDetailPane />` with confidence-bordered card and all field labels visible. `<AiDisclaimer />` banner at top. | Pass if the URL changes to `/rechnungen/{id}` and the page shows at least 12 field label rows (Rechnungsnummer, Lieferant, Brutto…) | DONE |
+| (b) | Sign in → open `/dashboard` on `lg+` viewport (≥ 1024px) → click an invoice card | URL updates to `/dashboard?selected={id}`, right pane renders `<InvoiceDetailPane />`, left list column is constrained to ~380px. No page navigation. | Pass if the URL contains `?selected=` AND the detail pane appears to the right of the list AND the list remains visible on the left. | DONE (1. lg+ ekrandayken sorunsuz calisiyor, sadece right panel acildiginda "InvoiceListFilters" icerisindeki placeholders degreler tam olarak gorunmuyor ve UI'i cirkin gosteriyor. 2. lg+ ekrandayken right paneldeki aoverall confidence degeri kirmizi, yesil, amber noktalar ile ayni hizada gorunmuyor. bu overall score'i bu noktalar ile ayni hizaya getir) |
+| (c) | From the `lg+` detail pane, tap an amber or red confidence field | Field row switches from read-only text to an inline input. Input is pre-filled with the AI value. Appropriate keyboard type opens (e.g. decimal keypad for Brutto). | Pass if the input is visible, pre-filled, and focused without a page navigation. | DONE |
+| (d) | In the edit form from (c), type a new value → tap `[Übernehmen]` | Edit form collapses. A green checkmark `✓` appears next to the field value for ~1s, then fades. Field now shows the new value. `"Gespeichert."` text appears briefly. | Pass if the new value is visible, the checkmark appears and fades, and no error message is shown. | DONE |
+| (e) | In edit mode, tap `[AI-Wert wiederherstellen]` | Input value reverts to the original AI value. No server call is made. `[Übernehmen]` button reflects the restored state. | Pass if the input shows the AI value immediately (no loading indicator) and `[Übernehmen]` remains clickable. | DONE |
+| (f) | Tap an amber/red `<ConfidenceIndicator>` dot | A bottom sheet (mobile) or right sheet (md+) opens titled `"Quelldokument"`. The source image/PDF/XML is rendered. The close button `✕` is visible. | Pass if the sheet opens with a document preview and the field label + AI value are shown in the summary below the document. | DONE (x symbol seems in UI duplicate but functionality is ok) |
+| (g) | On `lg+` with `?selected={id}` in URL, press **Escape** | URL changes back to `/dashboard` (no `?selected`). Right pane closes; left column fills the width or right column shows the summary widgets. | Pass if the URL no longer contains `?selected` after pressing Escape. | DONE |
+| (h) | Open the same invoice in two tabs. In Tab 1: edit a field → tap `[Übernehmen]`. Then in Tab 2: edit the same field → tap `[Übernehmen]` | Tab 2 shows: `"Rechnung wurde zwischenzeitlich geändert. Bitte Seite neu laden."` with a `[Seite neu laden]` link/button. Tab 2's correction is NOT saved. | Pass if the German concurrency message appears in Tab 2 and the field value in Tab 2 reflects Tab 1's correction after reload. | DONE |
+| (i) | Edit an invoice that has `status=exported` (or manually set it in psql). Tap a field. | Field does NOT enter edit mode. A muted banner `"Exportierte Rechnungen können nicht mehr bearbeitet werden."` is visible. | Pass if no input appears when tapping fields and the exported banner is shown. | DONE |
+| (j) | Upload a new invoice from a second tab while viewing `/dashboard` in Tab 1 | Tab 1's invoice list updates within ~1–2 seconds showing the new invoice (captured status) without manual refresh. | Pass if the new invoice row appears in the list without a manual page reload. | DONE |
+| (k) | Navigate to `/einstellungen` and `/erfassen` | Both pages render without error. No regressions in layout or functionality. | Pass if both pages load with no console errors and their usual content. | DONE |
+
+**Manual Steps for GOZE:**
+1. `pnpm dev` from repo root
+2. Sign in at `/login`
+3. Run checks (a)–(k) in order
+4. For check (h): use two separate browser windows
+5. For check (i): `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "UPDATE invoices SET status='exported' WHERE id='<your-test-invoice-id>';"` — restore after check
+6. Mark each check `DONE` or `FAIL` with notes on what you saw
+
+#### DB Verification
+
+| # | Query | Expected Return | What It Validates | Status |
+|---|-------|----------------|-------------------|--------|
+| (d1) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "SELECT count(*) FROM public.invoice_field_corrections;"` | `count` increments by 1 after each `[Übernehmen]` tap (run before and after correction) | Confirms AC #11: `invoice_field_corrections` row is appended on every field save. | DONE |
+| (d2) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "SELECT corrected_to_ai FROM public.invoice_field_corrections ORDER BY created_at DESC LIMIT 1;"` | `corrected_to_ai` = `t` after a restore-to-AI correction, `f` after a normal correction | Confirms AC #9: `corrected_to_ai` flag is correctly set. | DONE |
+| (d3) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "SELECT invoice_data->'supplier_name'->>'value', invoice_data->'supplier_name'->>'confidence' FROM public.invoices WHERE id='<edited-invoice-id>';"` | `value` = corrected supplier name; `confidence` = `1.000` for user-corrected, AI confidence for restore. | Confirms AC #6: `invoice_data` JSONB updated correctly with confidence values. | DONE |
+| (d4) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "SELECT column_name, generation_expression FROM information_schema.columns WHERE table_name='invoices' AND is_generated='ALWAYS';"` | `gross_total_value` row has `generation_expression` containing `CASE WHEN` and `'^-?[0-9]+(\.[0-9]+)?$'`; same for `supplier_name_value` but without the cast. | Confirms P14/AC #16: generated columns use the safe cast. | DONE |
+| (d5) | First insert test row: `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "INSERT INTO public.invoices (id, tenant_id, status, file_path, file_type, original_filename, invoice_data) SELECT gen_random_uuid(), tenant_id, 'captured', 'test/test.pdf', 'application/pdf', 'test.pdf', '{\"gross_total\":{\"value\":\"1.234,56\",\"confidence\":0.5,\"reason\":null},\"supplier_name\":{\"value\":null,\"confidence\":0.5,\"reason\":null}}' FROM public.invoices LIMIT 1 RETURNING id;"` | INSERT succeeds (no error). `gross_total_value` for that row is `NULL` (German string → safe cast). | Confirms P14: non-numeric `gross_total` value (German locale string) does not crash the INSERT. | DONE |
+
 ### File List
+
+- `supabase/migrations/20260424000000_invoice_field_corrections.sql` — NEW
+- `supabase/migrations/20260424100000_invoice_sort_columns_safe_cast.sql` — NEW
+- `apps/web/lib/invoice-fields.ts` — NEW
+- `apps/web/lib/invoice-fields.test.ts` — NEW
+- `apps/web/lib/format.ts` — MODIFIED (added `safeCurrency`, `parseGermanDecimal`, `formatValue`)
+- `apps/web/lib/format.test.ts` — MODIFIED (added safeCurrency, parseGermanDecimal, formatValue tests)
+- `apps/web/vitest.setup.ts` — MODIFIED (added window.matchMedia stub)
+- `apps/web/components/invoice/editable-field.tsx` — NEW
+- `apps/web/components/invoice/editable-field.test.tsx` — NEW
+- `apps/web/components/invoice/source-document-viewer.tsx` — NEW
+- `apps/web/components/invoice/source-document-viewer.test.tsx` — NEW
+- `apps/web/components/invoice/source-document-viewer-wrapper.tsx` — NEW
+- `apps/web/components/invoice/invoice-detail-pane.tsx` — NEW
+- `apps/web/components/invoice/invoice-detail-pane.test.tsx` — NEW
+- `apps/web/components/invoice/detail-pane-extraction-bootstrap.tsx` — NEW
+- `apps/web/components/invoice/extraction-results-client.tsx` — DELETED
+- `apps/web/components/dashboard/invoice-list-card.tsx` — MODIFIED (uses InvoiceListCardLink)
+- `apps/web/components/dashboard/invoice-list-card.test.tsx` — MODIFIED (added next/navigation mock)
+- `apps/web/components/dashboard/invoice-list-card-link.tsx` — NEW
+- `apps/web/components/dashboard/dashboard-realtime-refresher.tsx` — NEW
+- `apps/web/components/dashboard/dashboard-esc-handler.tsx` — NEW
+- `apps/web/app/(app)/rechnungen/[id]/page.tsx` — MODIFIED (swapped ExtractionResultsClient → InvoiceDetailPane)
+- `apps/web/app/(app)/dashboard/page.tsx` — MODIFIED (split-view grid, selected param, realtime refresher)
+- `apps/web/app/actions/invoices.ts` — MODIFIED (added correctInvoiceField, getInvoiceSignedUrl)
+- `apps/web/app/actions/invoices.test.ts` — MODIFIED (added correctInvoiceField + getInvoiceSignedUrl tests)
+- `packages/shared/src/schemas/invoice.ts` — MODIFIED (exported CORRECTABLE_FIELD_PATHS)
+- `packages/shared/src/types/database.ts` — MODIFIED (added invoice_field_corrections table types)
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| 2026-04-24 | Story 3.2 implemented: InvoiceDetailPane RSC, EditableField with inline editing, SourceDocumentViewer, split-view dashboard, correctInvoiceField + getInvoiceSignedUrl server actions, invoice_field_corrections audit table, safe cast migration (P14), realtime refresher (P12). 176 tests total. | claude-sonnet-4-6 |

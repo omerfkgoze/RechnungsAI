@@ -1,5 +1,38 @@
-// German-locale formatters shared across dashboard components.
-// Extracted for Story 3.1 — do NOT duplicate into individual components.
+import type { Invoice } from "@rechnungsai/shared";
+
+export function safeCurrency(code: string | undefined | null): string {
+  return /^[A-Z]{3}$/.test(code ?? "") ? (code as string) : "EUR";
+}
+
+export function parseGermanDecimal(input: string): number | null {
+  const trimmed = input.trim();
+  if (trimmed === "") return null;
+  let normalized: string;
+  if (trimmed.includes(",")) {
+    // German locale: dots are thousands separators, comma is decimal
+    normalized = trimmed.replace(/\./g, "").replace(",", ".");
+  } else {
+    // Machine format: decimal point, no thousands separator
+    normalized = trimmed;
+  }
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function formatValue(
+  key: keyof Invoice,
+  value: unknown,
+  currency?: string,
+): string {
+  if (value === null || value === undefined) return "—";
+  if (key === "net_total" || key === "vat_total" || key === "gross_total") {
+    return formatEur(typeof value === "number" ? value : Number(value), currency);
+  }
+  if (key === "invoice_date" && typeof value === "string") {
+    return formatDateDe(value);
+  }
+  return String(value);
+}
 
 export function formatEur(
   value: number | null | undefined,

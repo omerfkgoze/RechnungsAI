@@ -31,6 +31,7 @@ const userSingleMock = vi.fn();
 const authGetUserMock = vi.fn();
 const invoiceSelectSingleMock = vi.fn();
 const invoiceUpdateEqMock = vi.fn();
+const fieldCorrectionInsertMock = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerClient: vi.fn(async () => ({
@@ -49,13 +50,16 @@ vi.mock("@/lib/supabase/server", () => ({
             select: () => ({ single: insertSingleMock }),
           }),
           select: () => ({
-            eq: () => ({ single: invoiceSelectSingleMock }),
+            eq: (col: string, val: unknown) => ({
+              single: invoiceSelectSingleMock,
+              eq: () => ({ single: invoiceSelectSingleMock }),
+            }),
           }),
           update: (patch: unknown) => ({
             eq: (col: string, val: unknown) => {
               const call = () => invoiceUpdateEqMock(patch, col, val);
               return {
-                // Second .eq() for optimistic-lock flip: .eq(id).eq(status).select().maybeSingle()
+                // Second .eq() for optimistic-lock flip or concurrency guard
                 eq: () => ({ select: () => ({ single: call, maybeSingle: call }) }),
                 // Direct await: await supabase.from('invoices').update().eq()
                 then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
@@ -63,6 +67,11 @@ vi.mock("@/lib/supabase/server", () => ({
               };
             },
           }),
+        };
+      }
+      if (table === "invoice_field_corrections") {
+        return {
+          insert: (values: unknown) => fieldCorrectionInsertMock(values),
         };
       }
       return {};
@@ -77,7 +86,7 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-import { extractInvoice, uploadInvoice } from "./invoices";
+import { correctInvoiceField, extractInvoice, getInvoiceSignedUrl, uploadInvoice } from "./invoices";
 
 function makeFile(
   name: string,
@@ -387,5 +396,184 @@ describe("extractInvoice", () => {
     const result = await extractInvoice(VALID_UUID);
     expect(result.success).toBe(false);
     if (!result.success) expect(result.error).toBe("Rechnung nicht gefunden.");
+  });
+});
+
+function makeInvoiceRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: VALID_UUID,
+    tenant_id: "tenant-1",
+    status: "ready",
+    invoice_data: {
+      supplier_name: { value: "ACME GmbH", confidence: 0.99, reason: null },
+      gross_total: { value: 119, confidence: 0.99, reason: null },
+    },
+    updated_at: "2026-04-24T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("correctInvoiceField", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authGetUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    userSingleMock.mockResolvedValue({ data: { tenant_id: "tenant-1" }, error: null });
+    invoiceSelectSingleMock.mockResolvedValue({ data: makeInvoiceRow(), error: null });
+    invoiceUpdateEqMock.mockResolvedValue({ data: { id: VALID_UUID }, error: null });
+    fieldCorrectionInsertMock.mockResolvedValue({ error: null });
+  });
+
+  it("rejects invalid fieldPath not in allow-list", async () => {
+    const result = await correctInvoiceField({
+      invoiceId: VALID_UUID,
+      fieldPath: "__proto__",
+      newValue: "hack",
+      priorUpdatedAt: "2026-04-24T10:00:00.000Z",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toBe("Ungültiges Feld.");
+  });
+
+  it("rejects when invoice status is 'exported'", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: makeInvoiceRow({ status: "exported" }),
+      error: null,
+    });
+    const result = await correctInvoiceField({
+      invoiceId: VALID_UUID,
+      fieldPath: "supplier_name",
+      newValue: "New GmbH",
+      priorUpdatedAt: "2026-04-24T10:00:00.000Z",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("Exportierte Rechnungen");
+    expect(invoiceUpdateEqMock).not.toHaveBeenCalled();
+  });
+
+  it("happy path: writes expected jsonb shape with confidence=1.0 and reason", async () => {
+    const result = await correctInvoiceField({
+      invoiceId: VALID_UUID,
+      fieldPath: "supplier_name",
+      newValue: "Neuer Lieferant GmbH",
+      priorUpdatedAt: "2026-04-24T10:00:00.000Z",
+    });
+    expect(result.success).toBe(true);
+    const updatedPatch = invoiceUpdateEqMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    const invoiceData = updatedPatch.invoice_data as Record<string, { value: unknown; confidence: number; reason: string } | undefined>;
+    expect(invoiceData.supplier_name?.value).toBe("Neuer Lieferant GmbH");
+    expect(invoiceData.supplier_name?.confidence).toBe(1.0);
+    expect(invoiceData.supplier_name?.reason).toBe("Vom Nutzer korrigiert");
+  });
+
+  it("inserts invoice_field_corrections row with corrected_to_ai=false for normal correction", async () => {
+    await correctInvoiceField({
+      invoiceId: VALID_UUID,
+      fieldPath: "supplier_name",
+      newValue: "Corrected GmbH",
+      priorUpdatedAt: "2026-04-24T10:00:00.000Z",
+    });
+    const inserted = fieldCorrectionInsertMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(inserted.corrected_to_ai).toBe(false);
+    expect(inserted.field_path).toBe("supplier_name");
+    expect(inserted.invoice_id).toBe(VALID_UUID);
+  });
+
+  it("restore-to-AI path writes corrected_to_ai=true and preserves original AI confidence", async () => {
+    await correctInvoiceField({
+      invoiceId: VALID_UUID,
+      fieldPath: "supplier_name",
+      newValue: "ACME GmbH",
+      priorUpdatedAt: "2026-04-24T10:00:00.000Z",
+      isRestoreToAi: true,
+      aiConfidence: 0.85,
+    });
+    const updatedPatch = invoiceUpdateEqMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    const invoiceData = updatedPatch.invoice_data as Record<string, { confidence: number; reason: string } | undefined>;
+    expect(invoiceData.supplier_name?.confidence).toBe(0.85);
+    expect(invoiceData.supplier_name?.reason).toBe("Nutzer hat AI-Wert wiederhergestellt");
+    const inserted = fieldCorrectionInsertMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(inserted.corrected_to_ai).toBe(true);
+  });
+
+  it("concurrency guard: stale updated_at returns German error without writing", async () => {
+    // Update returns no rows (0 affected = concurrency miss)
+    invoiceUpdateEqMock.mockResolvedValueOnce({ data: null, error: null });
+    const result = await correctInvoiceField({
+      invoiceId: VALID_UUID,
+      fieldPath: "supplier_name",
+      newValue: "Concurrent GmbH",
+      priorUpdatedAt: "2026-04-24T10:00:00.000Z",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("zwischenzeitlich");
+  });
+
+  it("returns error when invoice is not found (PGRST116 code)", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({ data: null, error: null });
+    const result = await correctInvoiceField({
+      invoiceId: VALID_UUID,
+      fieldPath: "gross_total",
+      newValue: 200,
+      priorUpdatedAt: "2026-04-24T10:00:00.000Z",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("nicht gefunden");
+  });
+
+  it("rejects invalid UUID with German message", async () => {
+    const result = await correctInvoiceField({
+      invoiceId: "not-a-uuid",
+      fieldPath: "supplier_name",
+      newValue: "Test",
+      priorUpdatedAt: "2026-04-24T10:00:00.000Z",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("Ungültige");
+  });
+});
+
+describe("getInvoiceSignedUrl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authGetUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    userSingleMock.mockResolvedValue({ data: { tenant_id: "tenant-1" }, error: null });
+    invoiceSelectSingleMock.mockResolvedValue({
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-1",
+        file_path: "tenant-1/abc.pdf",
+        file_type: "application/pdf",
+      },
+      error: null,
+    });
+    createSignedUrlMock.mockResolvedValue({
+      data: { signedUrl: "https://signed.example/abc.pdf" },
+      error: null,
+    });
+  });
+
+  it("returns signed URL and file type for valid tenant invoice", async () => {
+    const result = await getInvoiceSignedUrl(VALID_UUID);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.url).toContain("signed.example");
+      expect(result.data.fileType).toBe("application/pdf");
+    }
+  });
+
+  it("returns 'Rechnung nicht gefunden' for non-tenant invoice", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: { id: VALID_UUID, tenant_id: "other-tenant", file_path: "x", file_type: "application/pdf" },
+      error: null,
+    });
+    const result = await getInvoiceSignedUrl(VALID_UUID);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("nicht gefunden");
+  });
+
+  it("rejects invalid UUID", async () => {
+    const result = await getInvoiceSignedUrl("invalid");
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("Ungültige");
   });
 });

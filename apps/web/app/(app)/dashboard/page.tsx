@@ -17,6 +17,9 @@ import {
   ProcessingStatsRow,
   type ProcessingStats,
 } from "@/components/dashboard/processing-stats-row";
+import { DashboardRealtimeRefresher } from "@/components/dashboard/dashboard-realtime-refresher";
+import { DashboardEscHandler } from "@/components/dashboard/dashboard-esc-handler";
+import { InvoiceDetailPane } from "@/components/invoice/invoice-detail-pane";
 import { parseDashboardQuery } from "@/lib/dashboard-query";
 import {
   PIPELINE_STAGES,
@@ -36,6 +39,7 @@ export default async function DashboardPage({
 }) {
   const raw = searchParams ? await searchParams : {};
   const query = parseDashboardQuery(raw);
+  const selectedId = typeof raw?.selected === "string" ? raw.selected : null;
 
   let supabase;
   try {
@@ -132,6 +136,30 @@ export default async function DashboardPage({
       q = q.order("created_at", { ascending: false }).order("id", { ascending: false });
   }
 
+  // Fetch selected invoice for split-view pane (lg+ only; hidden via CSS on mobile).
+  let selectedInvoice: {
+    id: string;
+    status: InvoiceRow["status"];
+    invoice_data: Invoice | null;
+    extraction_error: string | null;
+    updated_at: string;
+  } | null = null;
+
+  if (selectedId) {
+    const { data } = await supabase
+      .from("invoices")
+      .select("id, status, invoice_data, extraction_error, updated_at")
+      .eq("id", selectedId)
+      .eq("tenant_id", tenantId)
+      .single();
+    if (data) {
+      selectedInvoice = {
+        ...data,
+        invoice_data: (data.invoice_data as unknown as Invoice | null) ?? null,
+      };
+    }
+  }
+
   const [listRes, stageRes, statsRes] = await Promise.all([
     q,
     supabase.rpc("invoice_stage_counts"),
@@ -160,65 +188,85 @@ export default async function DashboardPage({
   const truncated = rows.length >= LIST_LIMIT;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-12 lg:gap-6">
-      <section className="flex flex-col gap-4 lg:col-span-8">
-        <PipelineHeader stageCounts={stageCounts} activeStage={activeStage} />
+    <>
+      <DashboardRealtimeRefresher tenantId={tenantId} />
+      {selectedInvoice && <DashboardEscHandler />}
+      <div className={selectedInvoice ? "grid gap-4 lg:grid-cols-[380px_1fr] lg:gap-6" : "grid gap-4 lg:grid-cols-12 lg:gap-6"}>
+        <section className={selectedInvoice ? "flex flex-col gap-4 w-full lg:w-[380px] shrink-0" : "flex flex-col gap-4 lg:col-span-8"}>
+          <PipelineHeader stageCounts={stageCounts} activeStage={activeStage} />
 
-        <InvoiceListFilters />
+          <InvoiceListFilters />
 
-        {conflict ? (
-          <div
-            role="status"
-            className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-body-sm text-foreground"
-          >
-            Status- und Stage-Filter widersprechen sich. Stage-Filter wird
-            ignoriert.
-          </div>
-        ) : null}
+          {conflict ? (
+            <div
+              role="status"
+              className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-body-sm text-foreground"
+            >
+              Status- und Stage-Filter widersprechen sich. Stage-Filter wird
+              ignoriert.
+            </div>
+          ) : null}
 
-        {truncated ? (
-          <div
-            role="status"
-            className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-body-sm text-foreground"
-          >
-            Es werden die neuesten 100 Rechnungen angezeigt. Die vollständige
-            Ansicht kommt mit dem Archiv.
-          </div>
-        ) : null}
+          {truncated ? (
+            <div
+              role="status"
+              className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-body-sm text-foreground"
+            >
+              Es werden die neuesten 100 Rechnungen angezeigt. Die vollständige
+              Ansicht kommt mit dem Archiv.
+            </div>
+          ) : null}
 
-        {rows.length === 0 ? (
-          <Card>
-            <CardContent>
-              <EmptyState
-                title="Noch keine Rechnungen"
-                description="Hier erscheinen deine Rechnungen, sobald du sie erfasst hast."
-              />
-            </CardContent>
-          </Card>
-        ) : (
-          <GroupedInvoiceList rows={rows} />
-        )}
-      </section>
-
-      <div className="flex flex-col gap-4 lg:col-span-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Deine Woche auf einen Blick</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-body-sm text-muted-foreground">
-              Zusammenfassung startet, sobald du deine ersten Rechnungen
-              verarbeitet hast.
-            </p>
-          </CardContent>
-        </Card>
-
-        <section aria-label="Verarbeitungsstatistik" className="flex flex-col gap-3">
-          <h2 className="text-h3">Verarbeitungsstatistik</h2>
-          <ProcessingStatsRow stats={statsRow} />
+          {rows.length === 0 ? (
+            <Card>
+              <CardContent>
+                <EmptyState
+                  title="Noch keine Rechnungen"
+                  description="Hier erscheinen deine Rechnungen, sobald du sie erfasst hast."
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <GroupedInvoiceList rows={rows} />
+          )}
         </section>
+
+        {selectedInvoice ? (
+          <aside
+            className="hidden lg:block overflow-y-auto"
+            style={{ height: "calc(100vh - 8rem)" }}
+          >
+            <InvoiceDetailPane
+              invoiceId={selectedInvoice.id}
+              status={selectedInvoice.status}
+              invoice={selectedInvoice.invoice_data}
+              extractionError={selectedInvoice.extraction_error}
+              updatedAt={selectedInvoice.updated_at}
+              isExported={selectedInvoice.status === "exported"}
+            />
+          </aside>
+        ) : (
+          <div className="flex flex-col gap-4 lg:col-span-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Deine Woche auf einen Blick</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-body-sm text-muted-foreground">
+                  Zusammenfassung startet, sobald du deine ersten Rechnungen
+                  verarbeitet hast.
+                </p>
+              </CardContent>
+            </Card>
+
+            <section aria-label="Verarbeitungsstatistik" className="flex flex-col gap-3">
+              <h2 className="text-h3">Verarbeitungsstatistik</h2>
+              <ProcessingStatsRow stats={statsRow} />
+            </section>
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }
 

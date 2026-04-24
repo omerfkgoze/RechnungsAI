@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   confidenceLevel,
   overallConfidence,
@@ -11,6 +10,7 @@ import {
   INVOICE_STATUS_LABEL_DE,
   type InvoiceStatus,
 } from "@/lib/status-labels";
+import { InvoiceListCardLink } from "./invoice-list-card-link";
 
 export type InvoiceRow = {
   id: string;
@@ -70,15 +70,13 @@ export function InvoiceListCard({ row }: { row: InvoiceRow }) {
 
   const pulse = isPending ? "animate-pulse motion-reduce:animate-none" : "";
 
+  const linkClass = cn(
+    "block rounded-lg border-l-4 bg-card px-4 py-3 ring-1 ring-foreground/10 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+    borderClass(row),
+  );
+
   return (
-    <Link
-      href={`/rechnungen/${row.id}`}
-      aria-label={ariaLabel}
-      className={cn(
-        "block rounded-lg border-l-4 bg-card px-4 py-3 ring-1 ring-foreground/10 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        borderClass(row),
-      )}
-    >
+    <InvoiceListCardLink invoiceId={row.id} ariaLabel={ariaLabel} className={linkClass}>
       <div className="flex items-center justify-between gap-3">
         <p className={cn("font-medium text-body truncate", pulse)}>
           {supplier}
@@ -105,6 +103,6 @@ export function InvoiceListCard({ row }: { row: InvoiceRow }) {
           KI-Extraktion fehlgeschlagen: {row.extraction_error}
         </p>
       ) : null}
-    </Link>
+    </InvoiceListCardLink>
   );
 }

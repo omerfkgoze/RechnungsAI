@@ -9,6 +9,10 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
+}));
+
 function field<T>(value: T, confidence: number) {
   return { value, confidence, reason: null };
 }
