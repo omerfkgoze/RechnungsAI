@@ -57,7 +57,7 @@ begin
   return query
     select
       count(*)::bigint as total_invoices,
-      avg(
+      (avg(
         (
           coalesce((invoice_data->'invoice_number'->>'confidence')::numeric, 0)
         + coalesce((invoice_data->'invoice_date'->>'confidence')::numeric, 0)
@@ -67,8 +67,8 @@ begin
         + coalesce((invoice_data->'net_total'->>'confidence')::numeric, 0)
         + coalesce((invoice_data->'currency'->>'confidence')::numeric, 0)
         ) / 7.0
-      )::numeric(4,3) filter (where invoice_data is not null) as avg_accuracy,
-      count(*) filter (where status = 'exported')::bigint as export_history_count
+      ) filter (where invoice_data is not null))::numeric(4,3) as avg_accuracy,
+      (count(*) filter (where status = 'exported'))::bigint as export_history_count
     from public.invoices
     where tenant_id = public.my_tenant_id();
 end;

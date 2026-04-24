@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-04-23 (story 3-1 code review → in-progress; 22 patches applied, 2 deferred, GOZE smoke tests pending)"
+last_updated: "2026-04-24 (story 3-1 done; syntax fix in hardening migration, smoke tests passed by GOZE, P12+P14 deferred to Story 3.2)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -95,7 +95,7 @@ development_status:
 
   # Epic 3: Invoice Review, Approval, and Dashboard
   epic-3: in-progress
-  3-1-pipeline-dashboard-and-invoice-list: in-progress
+  3-1-pipeline-dashboard-and-invoice-list: done
   3-2-invoice-detail-view-and-field-editing: backlog
   3-3-skr-categorization-and-bu-schluessel-mapping: backlog
   3-4-swipe-to-approve-and-confidence-based-review-queue: backlog
