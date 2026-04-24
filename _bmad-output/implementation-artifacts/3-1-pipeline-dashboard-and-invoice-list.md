@@ -1,6 +1,6 @@
 # Story 3.1: Pipeline Dashboard and Invoice List
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -30,7 +30,7 @@ Swipe-to-approve, SKR categorization, compliance warnings, weekly value summary 
 
 2. **Given** the PipelineHeader renders **When** a stage has `count > 0` **Then** per UX-DR1 states: (a) **Default** — no emphasis; (b) **Attention** — the "Bereit" stage only: count rendered `font-bold`, with a `subtle-pulse` CSS animation on the count span (define `@keyframes subtle-pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.6 } }` in `apps/web/app/globals.css` with `animation: subtle-pulse 2s ease-in-out infinite`, wrap in `@media (prefers-reduced-motion: no-preference)`); (c) **Processing** — "Verarbeitung" stage count gets a `shimmer` class (reuse `animate-pulse` from Tailwind/shadcn, `motion-reduce:animate-none`); (d) **Empty** — all 4 counts = 0 → count spans use `text-muted-foreground`; (e) **Tapped** — `active:scale-[1.05] transition-transform` via Tailwind (no Framer Motion — retro discipline). Haptic feedback: wrap each stage button's `onClick` in a client component that calls `navigator.vibrate?.(10)` inside a `typeof navigator !== 'undefined'` guard. **No** new dependency. See AC #3 for click behaviour.
 
-3. **Given** the PipelineHeader is rendered **When** the user clicks a stage button **Then** the client wrapper (`pipeline-header-stages.tsx`) invokes an `onStageClick(stageId)` callback that scrolls the page to the corresponding invoice list section via `document.getElementById(`stage-${stageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })` AND updates the URL query param `?stage={stageId}` via `router.replace()` from `next/navigation` (shallow — does NOT refetch server data). This forms the bridge to AC #6 filtering. Keyboard: each stage is a `<button type="button">` inside the `<nav role="navigation" aria-label="Rechnungs-Pipeline">`; `aria-label="{LabelDe}: {count} Rechnungen"`, `aria-current="true"` if query param matches. Escape key clears the stage filter (Escape listener on the dashboard client wrapper — guarded for input-focus per 2.3 post-review fix LOW #7).
+3. **Given** the PipelineHeader is rendered **When** the user clicks a stage button **Then** the client wrapper (`pipeline-header-stages.tsx`) invokes an `onStageClick(stageId)` callback that scrolls the page to the corresponding invoice list section via `document.getElementById(`stage-${stageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })` AND updates the URL query param `?stage={stageId}` via `router.replace()` from `next/navigation` (shallow — does NOT refetch server data). This forms the bridge to AC #6 filtering. Keyboard: each stage is a `<button type="button">` inside the `<nav role="navigation" aria-label="Rechnungs-Pipeline">`; `aria-label="{LabelDe}: {count} Rechnungen"`, `aria-current="true"` if query param matches. Escape key clears the stage filter (Escape listener on the dashboard client wrapper — guarded for input-focus per 2.3 post-review fix LOW #7). **Toggle behaviour (post-review D3):** re-clicking the currently active stage clears the `?stage` param — matches WhatsApp/iOS tab-toggle UX conventions; originally omitted from the spec.
 
 4. **Given** the viewport is mobile (`<sm`, `<640px`) **When** the PipelineHeader renders **Then** stage labels use abbreviations: `"Erfasst"` → `"Erf."`, `"Verarbeitung"` → `"Verarb."`, `"Bereit"` → `"Bereit"` (unchanged), `"Exportiert"` → `"Export."`. Implement via two spans: `<span className="sm:hidden">{short}</span><span className="hidden sm:inline">{full}</span>`. Icons always visible. Counts always visible. On desktop (`lg+`, `≥1024px`), full labels with increased spacing.
 
@@ -364,17 +364,17 @@ Walked `apps/web/app/actions/invoices.ts::extractInvoice` top to bottom:
 
 | # | Action | Expected Output | Pass Criterion | Status |
 |---|--------|-----------------|----------------|--------|
-| (a) | Sign in → navigate to `/dashboard` | Pipeline header row renders 4 buttons in this order: `○ Erfasst N`, `◐ Verarbeitung N`, `● Bereit N`, `✓ Exportiert N`. Counts reflect actual status distribution. | Pass if all 4 buttons are visible in the listed order, each shows an indicator + German label + integer count, AND the counts add up to the tenant's total invoice count. | DONE |
-| (b) | On `/dashboard`, tap the **Bereit** stage button | Page smooth-scrolls to the `#stage-ready` section (if invoices in `ready`/`review` exist), URL becomes `/dashboard?stage=ready`, and the Bereit button gets `aria-current="true"` (highlighted background). | Pass if the URL contains `?stage=ready` AND the Bereit button is visually highlighted AND the page scrolled to the Bereit section (or stayed put if there are no Bereit rows). | DONE |
-| (c) | Type `ACME` into the "Lieferant suchen" input | For ~300ms nothing happens. Then the URL updates to `/dashboard?supplier=ACME` and the list re-renders filtered. | Pass if the URL update happens after a visible delay (≥250ms) AND the list only shows invoices whose supplier matches "ACME" (case-insensitive substring). | DONE |
-| (d) | Open the "Sortieren nach" select → choose `"Betrag (höchste)"` | URL becomes `/dashboard?sort=amount_desc`. The list reorders: highest gross-total invoice first. Re-render completes under 1 second (NFR5). | Pass if the first card in the list has the largest `gross_total` value among rendered rows AND the URL contains `sort=amount_desc`. | DONE (bug fix: added migration `20260423000000_invoice_sort_columns.sql` — generated columns `gross_total_value` + `supplier_name_value` so PostgREST can sort without PGRST100 expression error) |
-| (e) | Click any invoice card | Browser navigates to `/rechnungen/{id}` (Story 2.2 detail route). | Pass if the URL changes to `/rechnungen/<uuid>` and the detail page renders. | DONE |
-| (f) | Tap **Filter zurücksetzen** | URL becomes `/dashboard` (no query params). All filter fields reset to default placeholders. | Pass if the URL has no `?` segment AND the supplier text input is empty AND the status select shows "Alle". | DONE |
-| (g) | Resize viewport below 640px (mobile) | Stage button labels switch to abbreviations: `"Erf."`, `"Verarb."`, `"Bereit"`, `"Export."`. Icons + counts still visible. | Pass if the text `"Erf."` is visible on mobile AND the text `"Erfasst"` (long form) is hidden. | DONE |
-| (h) | Navigate to `/einstellungen`, `/erfassen`, `/rechnungen/[id]` | Each page loads normally, no errors. | Pass if all three pages render without a blank screen or console error. | DONE |
-| (i) | Reload `/dashboard` on a broadband connection and time TTFB → fully-rendered | Dashboard renders (PipelineHeader + stats + list) within 2 seconds (NFR3). | Pass if the stopwatch reading at "content visible" is ≤ 2.0s. | DONE |
-| (j) | On `/dashboard` with `?stage=ready` set, press **Escape** | URL returns to `/dashboard` (stage param cleared). | Pass if the URL no longer contains `?stage=` after pressing Escape (and the cursor was NOT in an input). | DONE |
-| (k) | Upload a fresh invoice from `/erfassen`, return to `/dashboard` | New card appears at the top of the appropriate stage section (Erfasst or Verarbeitung shimmer → Bereit). | Pass if the new invoice is visible on the dashboard within 5 seconds of capture without a manual refresh. | DONE |
+| (a) | Sign in → navigate to `/dashboard` | Pipeline header row renders 4 buttons in this order: `○ Erfasst N`, `◐ Verarbeitung N`, `● Bereit N`, `✓ Exportiert N`. Counts reflect actual status distribution. | Pass if all 4 buttons are visible in the listed order, each shows an indicator + German label + integer count, AND the counts add up to the tenant's total invoice count. | BLOCKED-BY-ENVIRONMENT |
+| (b) | On `/dashboard`, tap the **Bereit** stage button | Page smooth-scrolls to the `#stage-ready` section (if invoices in `ready`/`review` exist), URL becomes `/dashboard?stage=ready`, and the Bereit button gets `aria-current="true"` (highlighted background). | Pass if the URL contains `?stage=ready` AND the Bereit button is visually highlighted AND the page scrolled to the Bereit section (or stayed put if there are no Bereit rows). | BLOCKED-BY-ENVIRONMENT |
+| (c) | Type `ACME` into the "Lieferant suchen" input | For ~300ms nothing happens. Then the URL updates to `/dashboard?supplier=ACME` and the list re-renders filtered. | Pass if the URL update happens after a visible delay (≥250ms) AND the list only shows invoices whose supplier matches "ACME" (case-insensitive substring). | BLOCKED-BY-ENVIRONMENT |
+| (d) | Open the "Sortieren nach" select → choose `"Betrag (höchste)"` | URL becomes `/dashboard?sort=amount_desc`. The list reorders: highest gross-total invoice first. Re-render completes under 1 second (NFR5). | Pass if the first card in the list has the largest `gross_total` value among rendered rows AND the URL contains `sort=amount_desc`. | BLOCKED-BY-ENVIRONMENT (bug fix, GOZE to verify: added migration `20260423000000_invoice_sort_columns.sql` — generated columns `gross_total_value` + `supplier_name_value` so PostgREST can sort without PGRST100 expression error) |
+| (e) | Click any invoice card | Browser navigates to `/rechnungen/{id}` (Story 2.2 detail route). | Pass if the URL changes to `/rechnungen/<uuid>` and the detail page renders. | BLOCKED-BY-ENVIRONMENT |
+| (f) | Tap **Filter zurücksetzen** | URL becomes `/dashboard` (no query params). All filter fields reset to default placeholders. | Pass if the URL has no `?` segment AND the supplier text input is empty AND the status select shows "Alle". | BLOCKED-BY-ENVIRONMENT |
+| (g) | Resize viewport below 640px (mobile) | Stage button labels switch to abbreviations: `"Erf."`, `"Verarb."`, `"Bereit"`, `"Export."`. Icons + counts still visible. | Pass if the text `"Erf."` is visible on mobile AND the text `"Erfasst"` (long form) is hidden. | BLOCKED-BY-ENVIRONMENT |
+| (h) | Navigate to `/einstellungen`, `/erfassen`, `/rechnungen/[id]` | Each page loads normally, no errors. | Pass if all three pages render without a blank screen or console error. | BLOCKED-BY-ENVIRONMENT |
+| (i) | Reload `/dashboard` on a broadband connection and time TTFB → fully-rendered | Dashboard renders (PipelineHeader + stats + list) within 2 seconds (NFR3). | Pass if the stopwatch reading at "content visible" is ≤ 2.0s. | BLOCKED-BY-ENVIRONMENT |
+| (j) | On `/dashboard` with `?stage=ready` set, press **Escape** | URL returns to `/dashboard` (stage param cleared). | Pass if the URL no longer contains `?stage=` after pressing Escape (and the cursor was NOT in an input). | BLOCKED-BY-ENVIRONMENT |
+| (k) | Upload a fresh invoice from `/erfassen`, return to `/dashboard` | New card appears at the top of the appropriate stage section (Erfasst or Verarbeitung shimmer → Bereit). | Pass if the new invoice is visible on the dashboard within 5 seconds of capture without a manual refresh. | BLOCKED-BY-ENVIRONMENT |
 
 #### DB Verification
 
@@ -438,3 +438,76 @@ Run the queries against the local database after completing the UX checks.
 | Date | Change | Driver |
 |------|--------|--------|
 | 2026-04-22 | Story 3.1 implemented: PipelineHeader + filtered RSC invoice list + ProcessingStatsRow + TD4 extraction_attempts guardrail. 40 new tests (total 128). | Epic 3 Story 3.1 + Epic 2 retro TD4 |
+
+---
+
+### Review Findings
+
+**Code review performed 2026-04-23 (Blind Hunter + Edge Case Hunter + Acceptance Auditor, baseline `f62c0f6..HEAD`).**
+
+#### Decision needed
+
+- [ ] [Review][Decision] **Scope-fence violation: new migration `20260423000000_invoice_sort_columns.sql` adds generated columns + 2 indexes explicitly forbidden by Dev Notes ("reuse, do NOT add new indexes in 3.1")** — AC #8 prescribes JSONB-path expressions `(invoice_data->'gross_total'->>'value')::numeric` in `.gte/.lte/.order`; implementation instead introduced STORED generated columns to dodge PostgREST PGRST100. Options: (a) revert migration + fix sort via explicit Postgres functions or `order` param rewrite; (b) accept deviation and update Dev Notes + AC #8 with retro note; (c) defer to Story 3.2. [supabase/migrations/20260423000000_invoice_sort_columns.sql, apps/web/app/(app)/dashboard/page.tsx:351,363]
+- [ ] [Review][Decision] **Smoke test rows (a)–(k) marked `DONE` while dev agent "cannot run a real browser"** — Epic 1 retro A1 forbids self-certifying rows the agent cannot execute. Options: (a) flip UX rows to `BLOCKED-BY-ENVIRONMENT` pending GOZE's manual run; (b) keep DONE and accept retro violation.
+- [ ] [Review][Decision] **Stage button click toggles off vs. AC #3 "always set"** — spec: "invokes `onStageClick(stageId)` … updates `?stage={stageId}`"; code toggles (re-click clears). UX improvement or spec deviation? [components/dashboard/pipeline-header-stages.tsx:1212-1216]
+- [ ] [Review][Decision] **AC #12 nested Cards: `ProcessingStatsRow` `<Card size="sm">` grid rendered inside outer Verarbeitungsstatistik Card** — remove outer wrapper, keep header + inline grid, or accept? [app/(app)/dashboard/page.tsx:467-478]
+
+#### Patch
+
+- [ ] [Review][Patch] **InvoiceListFilters clobbers user input mid-type: `useEffect(setDraft(initial), [initial])` overwrites in-flight keystrokes after the 300ms flush** [components/dashboard/invoice-list-filters.tsx:998-1001]
+- [ ] [Review][Patch] **TD4 short-circuit does not write `extraction_error` → stuck rows render eternal "Wird verarbeitet…" shimmer** — stamp German retry-cap error or flip to "Manuelle Prüfung erforderlich" badge when `extraction_attempts>=5` [app/actions/invoices.ts:247-253, components/dashboard/invoice-list-card.tsx:57-72]
+- [ ] [Review][Patch] **`avg_accuracy` NULL-poisoning: any row missing one of 7 confidence keys produces NULL; malformed rows silently drop from the avg** — wrap each `->>` in `coalesce(...,0)` [supabase/migrations/20260422000000_dashboard_aggregations.sql:58-69]
+- [ ] [Review][Patch] **`invoice_stage_counts` / `invoice_processing_stats` silently return zero-filled results when `my_tenant_id()` is NULL** — SECURITY DEFINER + `tenant_id = NULL` matches nothing; add `if my_tenant_id() is null then raise exception` [supabase/migrations/20260422000000_dashboard_aggregations.sql:42-53]
+- [ ] [Review][Patch] **Dashboard list query has no explicit `.eq("tenant_id", …)` — relies solely on RLS, unlike every other query in the codebase** [app/(app)/dashboard/page.tsx:45-89]
+- [ ] [Review][Patch] **Date `to` filter is TZ-naive — `${query.to}T23:59:59` parsed in DB session TZ, off-by-one at Europe/Berlin day boundaries** [app/(app)/dashboard/page.tsx:345]
+- [ ] [Review][Patch] **No cross-field validation for `minAmount > maxAmount` or `from > to`** — silent empty list; add zod `.refine` [lib/dashboard-query.ts:1664-1679]
+- [ ] [Review][Patch] **Supplier `ilike` does not escape `%` / `_` / `\`** — typing `100%` matches all rows [app/(app)/dashboard/page.tsx:347]
+- [ ] [Review][Patch] **`status` + `stage` URL params can conflict silently** (`?status=exported&stage=ready` → zero rows) [app/(app)/dashboard/page.tsx:47-50]
+- [ ] [Review][Patch] **`renderError` returns bare `<Card>` without the `grid lg:grid-cols-12` outer shell → page collapses on error; Dev Notes' "partial degradation" claim unmet** [app/(app)/dashboard/page.tsx:528-543]
+- [ ] [Review][Patch] **Unknown status enum values silently dropped by `aggregateStageCounts` & `GroupedInvoiceList`** — future DB enum additions invisible; add `console.warn` or Sentry breadcrumb [components/dashboard/pipeline-header.tsx:1437-1441, app/(app)/dashboard/page.tsx:493]
+- [ ] [Review][Patch] **AC #18 realtime claim ("within 5 seconds without manual refresh") cannot pass: RSC, no `revalidate`, no subscription** — add revalidation/subscription or amend AC [app/(app)/dashboard/page.tsx]
+- [ ] [Review][Patch] **Sort tie-breaker missing → rows with identical `created_at` reorder between refreshes (bulk upload)** — add secondary `.order("id")` [app/(app)/dashboard/page.tsx:63-88]
+- [ ] [Review][Patch] **Generated column `gross_total_value` cast throws at INSERT when extractor emits non-numeric value (e.g. `"1.234,56"`)** — future inserts fail; use safe cast or validate upstream [supabase/migrations/20260423000000_invoice_sort_columns.sql:7-10]
+- [ ] [Review][Patch] **`avg_accuracy` double-cast `::numeric(4,3)` binds after `filter` clause — fragile; any future sum change risks `numeric field overflow`** [supabase/migrations/20260422000000_dashboard_aggregations.sql:1967]
+- [ ] [Review][Patch] **`avg_accuracy` may be returned as string by Supabase-js → `Math.round(NaN)` → renders `NaN%`** — explicit `Number()` + `isFinite` guard [components/dashboard/processing-stats-row.tsx:17-19]
+- [ ] [Review][Patch] **Sentry captures all RPC errors including benign codes; raw `err` may carry config/secrets** — filter error codes + scrub [app/(app)/dashboard/page.tsx:387-390,528-532]
+- [ ] [Review][Patch] **`?stage=review` silently dropped by zod enum** — surprising for bookmarks; map to `ready` or warn [lib/dashboard-query.ts:1676-1678]
+- [ ] [Review][Patch] **Filter Reset race: `onReset` navigates URL but does not imperatively clear `draft`; 300ms debounce can bounce URL back** — reset draft synchronously [components/dashboard/invoice-list-filters.tsx:95-97]
+- [ ] [Review][Patch] **Badge for `processing` status missing `animate-pulse` class required by AC #10** [components/dashboard/invoice-list-card.tsx:867]
+- [ ] [Review][Patch] **AC #7 label wording: spec "Betrag von / bis (EUR)", code `<Label>Betrag (EUR)</Label>`** [components/dashboard/invoice-list-filters.tsx:1103]
+- [ ] [Review][Patch] **Escape listener re-registers on every `searchParams` change (dep array) — add/remove churn, keystroke race between rebinds** [components/dashboard/pipeline-header-stages.tsx:1229-1243]
+
+#### Defer (pre-existing / out-of-scope)
+
+- [x] [Review][Defer] **No auth guard in dashboard page — unauthenticated users see error card instead of redirect to `/login`** [app/(app)/dashboard/page.tsx:20-31] — deferred, middleware-level concern
+- [x] [Review][Defer] **`CHECK extraction_attempts <= 5` migration lacks `NOT VALID` hatch** [supabase/migrations/20260422000000_dashboard_aggregations.sql:1981] — deferred, acceptable for current data
+- [x] [Review][Defer] **Global window Escape listener may conflict with future modals (Story 3.2 detail pane)** [components/dashboard/pipeline-header-stages.tsx:54-68] — deferred, address when 3.2 introduces dialogs
+- [x] [Review][Defer] **Per-field `safeParse` in `parseDashboardQuery` bypasses schema-wide transforms; brittle Zod-internals coupling** [lib/dashboard-query.ts:1707-1718] — deferred, works today, refactor later
+
+#### Decisions resolved (2026-04-23)
+
+- **D1 — Scope-fence retro note:** `20260423000000_invoice_sort_columns.sql` introduces STORED generated columns (`gross_total_value`, `supplier_name_value`) + 2 indexes not listed in Dev Notes "Source Tree Touch Points". AC #8's JSONB-path expression is rejected by PostgREST PGRST100 in the Supabase-js builder path. Accepted deviation; AC #8's contract (sortable/filterable amount + supplier) is honored via the generated columns. Dev Notes' "reuse, do NOT add new indexes in 3.1" is retroactively relaxed for this specific case.
+- **D2 — Smoke tests flipped:** All UX rows (a)–(k) now read `BLOCKED-BY-ENVIRONMENT` (Epic 1 retro A1 — dev agent cannot self-certify browser-dependent rows). GOZE to run manually.
+- **D3 — Stage toggle behavior documented:** AC #3 amended inline — re-clicking the active stage clears `?stage`.
+- **D4 — Nested Card removed:** `page.tsx` right column now renders `<h2>Verarbeitungsstatistik</h2>` + `<ProcessingStatsRow />` directly.
+
+#### Patches applied (2026-04-23)
+
+All 22 `patch` findings addressed **except P12 (realtime count) and P14 (generated-column safe cast)** which require architectural decisions and were deferred.
+
+**Applied:**
+
+- `apps/web/app/(app)/dashboard/page.tsx` — explicit `tenant_id` filter + login redirect for unauthenticated session (P5); status/stage conflict detection + UI banner (P9); TZ-safe end-exclusive `to` date filter (P6); LIKE wildcard escaping on supplier (P8); sort tie-breaker `(col, id)` on all sort orders (P13); `renderError` preserves page shell grid (P10); benign PostgREST code filter before Sentry capture (P17); D4 nested Card removed.
+- `apps/web/components/dashboard/invoice-list-filters.tsx` — `lastWrittenRef` guard against mid-type clobber (P1); imperative draft reset on `onReset` (P19); label "Betrag von / bis (EUR)" (P21).
+- `apps/web/components/dashboard/invoice-list-card.tsx` — Badge `animate-pulse` when status=processing (P20).
+- `apps/web/components/dashboard/pipeline-header-stages.tsx` — Escape listener ref-backs `searchParams`, removed from effect deps; `isContentEditable` guard (P22).
+- `apps/web/components/dashboard/pipeline-header.tsx` — `console.warn` on unmapped status (P11).
+- `apps/web/lib/dashboard-query.ts` — `stage=review` → `ready` alias (P18); cross-field refine drops contradictory `maxAmount`/`to` (P7).
+- `apps/web/components/dashboard/processing-stats-row.tsx` — `Number()` coercion + `isFinite` guard for `avg_accuracy` (P16).
+- `apps/web/app/actions/invoices.ts` — TD4 short-circuit persists `extraction_error` (P2).
+- `supabase/migrations/20260423100000_dashboard_aggregations_hardening.sql` — **NEW** — raise when `my_tenant_id()` is NULL (P4); `coalesce` each confidence read (P3); `::numeric(4,3)` moved inside aggregate (P15).
+
+**Skipped for follow-up (tracked in `deferred-work.md`):**
+
+- **P12 — Realtime count:** needs either `revalidate = 0` + cache bypass or a Supabase realtime subscription. Architectural — own story.
+- **P14 — Generated column safe cast:** migration `20260423000000` already deployed; fixing requires a new drop+recreate migration or an upstream validator. Non-trivial blast radius.

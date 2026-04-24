@@ -246,13 +246,23 @@ export async function extractInvoice(
 
     // TD4 (Story 3.1 / Epic 2 retro): cap runaway retries. DB CHECK constraint
     // is the backstop; this early-return delivers the user-facing German
-    // message before we flip to 'processing'.
+    // message before we flip to 'processing'. Also persist the message to
+    // `extraction_error` so the dashboard card renders the retry-cap state
+    // instead of an eternal "Wird verarbeitet…" shimmer.
     if ((row.extraction_attempts ?? 0) >= 5) {
-      return {
-        success: false,
-        error:
-          "Maximale Anzahl der Versuche erreicht. Bitte überprüfe das Dokument manuell.",
-      };
+      const capMsg =
+        "Maximale Anzahl der Versuche erreicht. Bitte überprüfe das Dokument manuell.";
+      if (row.status === "captured") {
+        const { error: stampErr } = await supabase
+          .from("invoices")
+          .update({ extraction_error: capMsg })
+          .eq("id", invoiceId)
+          .eq("status", "captured");
+        if (stampErr) {
+          console.error(EXTRACT_LOG, "cap-stamp-failed", stampErr);
+        }
+      }
+      return { success: false, error: capMsg };
     }
 
     // Optimistic lock: only flip if status is still 'captured'. Prevents TOCTOU

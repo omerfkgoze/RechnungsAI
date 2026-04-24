@@ -20,6 +20,14 @@ export function aggregateStageCounts(
     const n = typeof r.count === "bigint" ? Number(r.count) : r.count;
     if (r.status === "review") acc.ready += n;
     else if (r.status in acc) acc[r.status as PipelineStage] += n;
+    else if (n > 0) {
+      // Guard against DB enum drift: a new status value that the client
+      // doesn't know about would otherwise silently disappear from counts.
+      console.warn(
+        "[pipeline-header] unmapped invoice status — counts will be short",
+        { status: r.status, count: n },
+      );
+    }
   }
   return acc;
 }

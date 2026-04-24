@@ -17,10 +17,14 @@ export function ProcessingStatsRow({ stats }: { stats: ProcessingStats }) {
       />
     );
   }
+  // Supabase-js may surface numeric as a string for precision-sensitive
+  // drivers; coerce defensively so we don't render `NaN%`.
+  const accuracyRaw =
+    stats.avg_accuracy === null ? null : Number(stats.avg_accuracy);
   const accuracyPct =
-    stats.avg_accuracy === null
+    accuracyRaw === null || !Number.isFinite(accuracyRaw)
       ? null
-      : Math.round(stats.avg_accuracy * 100);
+      : Math.round(accuracyRaw * 100);
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       <Card size="sm">
@@ -49,7 +53,7 @@ export function ProcessingStatsRow({ stats }: { stats: ProcessingStats }) {
               <div className="mt-2">
                 <ConfidenceIndicator
                   variant="bar"
-                  confidence={stats.avg_accuracy ?? 0}
+                  confidence={accuracyRaw ?? 0}
                   fieldName="KI-Gesamtgenauigkeit"
                   explanation={null}
                 />

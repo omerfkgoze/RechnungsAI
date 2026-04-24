@@ -1,5 +1,14 @@
 # Deferred Work
 
+## Deferred from: code review of 3-1-pipeline-dashboard-and-invoice-list (2026-04-23)
+
+- [ ] No auth guard in dashboard page — unauthenticated users see German error card instead of redirect to `/login` [apps/web/app/(app)/dashboard/page.tsx:20-31]. Middleware-level concern.
+- [ ] `CHECK (extraction_attempts <= 5)` migration added without `NOT VALID` safety hatch [supabase/migrations/20260422000000_dashboard_aggregations.sql:1981]. Currently acceptable; revisit if any row breaches.
+- [ ] Global `window` Escape listener in PipelineHeaderStages may conflict with future modals (Story 3.2 detail pane) [apps/web/components/dashboard/pipeline-header-stages.tsx:54-68]. Address when 3.2 introduces dialogs.
+- [ ] Per-field `safeParse` loop in `parseDashboardQuery` bypasses schema-wide transforms and couples to Zod internals [apps/web/lib/dashboard-query.ts:1707-1718]. Refactor to a single `schema.safeParse(flat)` with `.partial()`.
+- [ ] **P12 — Dashboard realtime count** — AC #18 smoke-test row (k) claims "within 5 seconds of capture without a manual refresh". The current RSC dashboard has no `revalidate` or realtime subscription. Decide: (a) `export const revalidate = 0` + tag-based revalidation from server actions; (b) client-side Supabase `realtime.channel("invoices")` subscription that refreshes counts; (c) amend AC #18 to drop the realtime claim. [apps/web/app/(app)/dashboard/page.tsx]
+- [ ] **P14 — Generated column safe cast** — `gross_total_value` / `supplier_name_value` STORED columns cast `invoice_data -> 'gross_total' ->> 'value'` to NUMERIC at INSERT time. If the AI extractor ever emits German-formatted strings (`"1.234,56"`) or non-numeric placeholders (`"n/a"`), every future insert fails. Needs either a new migration to recreate the columns with a safe/validating cast (`CASE WHEN ... ~ '^[0-9.]+$' THEN ...::NUMERIC END`), or an upstream validator in the extractor pipeline. [supabase/migrations/20260423000000_invoice_sort_columns.sql]
+
 ## Deferred from: code review of 2-3-batch-invoice-upload (2026-04-21)
 
 - [ ] Per-file `submitBlob` serializes uploads in multi-file picker path [apps/web/components/capture/camera-capture-shell.tsx onGalleryChange ~526-548] — `for..of + await` serializes 20 uploads plus their retry ladders (1s/3s/5s), potentially blowing NFR2 60s p95 budget on slow networks. Spec wording is ambiguous ("await each enqueue before the next … uploads themselves run in parallel"). Needs design call: keep serial for store-ordering stability, or parallelize with `Promise.all(files.map(...))` / batched fan-out.

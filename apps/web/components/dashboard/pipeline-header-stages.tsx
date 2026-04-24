@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
   PIPELINE_STAGES,
@@ -52,22 +52,35 @@ export function PipelineHeaderStages({
   );
 
   // Escape clears the stage filter, but only when the user is not typing into
-  // an input/textarea/select (follows 2.3 post-review LOW #7 guard).
+  // an input/textarea/select. Ref-backed reads of searchParams so we don't
+  // re-bind the window listener on every URL change (churn + missed keypresses
+  // between unmount/remount).
+  const searchParamsRef = useRef(searchParams);
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       const target = e.target as HTMLElement | null;
-      const tag = target?.tagName.toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") return;
-      if (!searchParams?.get("stage")) return;
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      const tag = target?.tagName?.toLowerCase();
+      if (
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        (target as HTMLElement | null)?.isContentEditable
+      )
+        return;
+      const sp = searchParamsRef.current;
+      if (!sp?.get("stage")) return;
+      const params = new URLSearchParams(sp.toString());
       params.delete("stage");
       const qs = params.toString();
       router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pathname, router, searchParams]);
+  }, [pathname, router]);
 
   return (
     <ul className="grid grid-cols-4 gap-1 sm:gap-2">

@@ -88,7 +88,16 @@ export function InvoiceListCard({ row }: { row: InvoiceRow }) {
         </p>
       </div>
       <div className="mt-1 flex items-center justify-between gap-3">
-        <Badge variant={STATUS_VARIANT[row.status]}>{statusLabel}</Badge>
+        <Badge
+          variant={STATUS_VARIANT[row.status]}
+          className={
+            row.status === "processing"
+              ? "animate-pulse motion-reduce:animate-none"
+              : undefined
+          }
+        >
+          {statusLabel}
+        </Badge>
         <span className="text-caption text-muted-foreground">{dateLabel}</span>
       </div>
       {showError ? (

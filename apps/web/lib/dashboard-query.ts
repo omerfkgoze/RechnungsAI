@@ -44,8 +44,12 @@ export const dashboardQuerySchema = z.object({
   from: isoDate.optional(),
   to: isoDate.optional(),
   sort: z.enum(SORT_VALUES).optional(),
+  // `review` is not a pipeline stage (folds into "Bereit"). Accept it as an
+  // alias at the URL layer and remap to `ready` so shared bookmarks don't
+  // silently no-op.
   stage: z
-    .enum(["captured", "processing", "ready", "exported"])
+    .enum(["captured", "processing", "ready", "review", "exported"])
+    .transform((s) => (s === "review" ? ("ready" as const) : s))
     .optional(),
 });
 
@@ -87,5 +91,20 @@ export function parseDashboardQuery(
       result[key] = parsed.data;
     }
   }
+
+  // Cross-field sanity: contradictory ranges produce a silent empty list,
+  // which looks like missing data. Drop the narrower bound so at least the
+  // filter UI stays usable. (A UX error banner is a future enhancement.)
+  if (
+    result.minAmount !== undefined &&
+    result.maxAmount !== undefined &&
+    result.minAmount > result.maxAmount
+  ) {
+    delete result.maxAmount;
+  }
+  if (result.from && result.to && result.from > result.to) {
+    delete result.to;
+  }
+
   return result;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
@@ -29,8 +29,17 @@ export function InvoiceListFilters() {
 
   const [draft, setDraft] = useState<Draft>(initial);
 
+  // Track the value we last wrote to the URL so that the initial→draft sync
+  // effect only runs when the URL changed from outside this component (e.g.
+  // Reset button or deep-link), not when it echoes back a write we just made.
+  // This fixes mid-type clobber where 300ms flush overwrites in-flight input.
+  const lastWrittenRef = useRef(initial);
   useEffect(() => {
-    setDraft(initial);
+    const sameAsLastWrite =
+      initial.supplier === lastWrittenRef.current.supplier &&
+      initial.minAmount === lastWrittenRef.current.minAmount &&
+      initial.maxAmount === lastWrittenRef.current.maxAmount;
+    if (!sameAsLastWrite) setDraft(initial);
   }, [initial]);
 
   const writeParams = useCallback(
@@ -59,7 +68,10 @@ export function InvoiceListFilters() {
       if ((sp.get("maxAmount") ?? "") !== draft.maxAmount) {
         next.maxAmount = draft.maxAmount || null;
       }
-      if (Object.keys(next).length > 0) writeParams(next);
+      if (Object.keys(next).length > 0) {
+        lastWrittenRef.current = { ...draft };
+        writeParams(next);
+      }
     }, 300);
     return () => clearTimeout(id);
   }, [draft, paramString, writeParams]);
@@ -71,6 +83,9 @@ export function InvoiceListFilters() {
   const currentTo = new URLSearchParams(paramString).get("to") ?? "";
 
   const onReset = () => {
+    const cleared: Draft = { supplier: "", minAmount: "", maxAmount: "" };
+    lastWrittenRef.current = cleared;
+    setDraft(cleared);
     router.replace(pathname, { scroll: false });
   };
 
@@ -133,7 +148,7 @@ export function InvoiceListFilters() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label>Betrag (EUR)</Label>
+          <Label>Betrag von / bis (EUR)</Label>
           <div className="flex items-center gap-2">
             <Input
               type="number"
