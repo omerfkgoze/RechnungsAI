@@ -96,7 +96,7 @@ development_status:
   # Epic 3: Invoice Review, Approval, and Dashboard
   epic-3: in-progress
   3-1-pipeline-dashboard-and-invoice-list: done
-  3-2-invoice-detail-view-and-field-editing: backlog
+  3-2-invoice-detail-view-and-field-editing: ready-for-dev
   3-3-skr-categorization-and-bu-schluessel-mapping: backlog
   3-4-swipe-to-approve-and-confidence-based-review-queue: backlog
   3-5-compliance-warnings-and-weekly-value-summary: backlog
