@@ -54,8 +54,8 @@ describe("CORRECTABLE_FIELD_PATHS", () => {
     expect(CORRECTABLE_FIELD_PATHS).toContain("line_items.0.vat_rate");
   });
 
-  it("snapshot: adding a new path is a deliberate change", () => {
-    // Guard against accidental reduction of the allow-list.
-    expect(CORRECTABLE_FIELD_PATHS.length).toBeGreaterThanOrEqual(132);
+  it("snapshot: adding or removing a path is a deliberate change", () => {
+    // 12 top-level + 20 line items × 6 sub-fields = 132. Any change breaks this assertion.
+    expect(CORRECTABLE_FIELD_PATHS.length).toBe(132);
   });
 });

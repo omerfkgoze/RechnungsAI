@@ -474,7 +474,7 @@ export async function correctInvoiceField(input: {
 
     const { data: row, error: rowErr } = await supabase
       .from("invoices")
-      .select("id, tenant_id, status, invoice_data, updated_at, invoice_data->supplier_name->>value")
+      .select("id, tenant_id, status, invoice_data, updated_at")
       .eq("id", invoiceId)
       .single();
 
@@ -530,6 +530,10 @@ export async function correctInvoiceField(input: {
         }
       } else {
         cursor = cursor[part];
+        if (cursor === null || cursor === undefined) {
+          console.error(CORRECT_LOG, "path-traversal-null", { fieldPath, part });
+          return { success: false, error: "Ungültiges Feld." };
+        }
       }
     }
     const lastKey = pathParts[pathParts.length - 1]!;

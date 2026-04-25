@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -13,17 +12,6 @@ type Props = {
 
 export function InvoiceListCardLink({ invoiceId, ariaLabel, className, children }: Props) {
   const router = useRouter();
-  const isLgRef = useRef(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    isLgRef.current = mq.matches;
-    const handler = (e: MediaQueryListEvent) => {
-      isLgRef.current = e.matches;
-    };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   return (
     <Link
@@ -31,7 +19,8 @@ export function InvoiceListCardLink({ invoiceId, ariaLabel, className, children 
       aria-label={ariaLabel}
       className={className}
       onClick={(e) => {
-        if (isLgRef.current) {
+        // Read matchMedia at click time to avoid stale-ref on first render.
+        if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
           e.preventDefault();
           router.replace(`?selected=${invoiceId}`, { scroll: false });
         }

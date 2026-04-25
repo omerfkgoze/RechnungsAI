@@ -112,6 +112,16 @@ export function SourceDocumentViewer({
 }: Props) {
   const [urlState, setUrlState] = useState<UrlState>({ status: "idle" });
   const openedOnce = useRef(false);
+  // Dynamically set sheet side: bottom on mobile, right on md+ (≥768px).
+  const [side, setSide] = useState<"bottom" | "right">("bottom");
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    setSide(mq.matches ? "right" : "bottom");
+    const handler = (e: MediaQueryListEvent) => setSide(e.matches ? "right" : "bottom");
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -138,7 +148,12 @@ export function SourceDocumentViewer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="md:data-[side=bottom]:h-auto md:data-[side=right]:h-full flex flex-col max-h-[90vh] overflow-hidden p-0">
+      {/* showCloseButton={false}: we render our own close button in the header */}
+      <SheetContent
+        side={side}
+        showCloseButton={false}
+        className="flex flex-col overflow-hidden p-0 max-h-[90vh] data-[side=right]:max-h-none"
+      >
         <SheetHeader className="px-4 pt-4 pb-2 border-b shrink-0 flex-row items-center justify-between">
           <SheetTitle>Quelldokument</SheetTitle>
           <button

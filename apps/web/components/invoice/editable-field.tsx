@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,9 @@ function parseInput(raw: string, inputKind: InputKind): { ok: true; value: strin
   }
   if (inputKind === "date") {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { ok: false, error: "Ungültiges Datum — bitte YYYY-MM-DD." };
+    const d = new Date(raw + "T00:00:00Z");
+    if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== raw)
+      return { ok: false, error: "Ungültiges Datum — bitte YYYY-MM-DD." };
     return { ok: true, value: raw };
   }
   if (inputKind === "taxid") {
@@ -69,22 +72,34 @@ export function EditableField({
   isExported,
   updatedAt,
 }: Props) {
+  // Freeze the AI value on first mount so "restore" always targets the original AI value,
+  // not the current (possibly user-corrected) server value passed via props.
+  const [frozenAiValue] = useState(initialAiValue);
+
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState(toInputString(value, inputKind));
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  // Tracks whether the user explicitly clicked "AI-Wert wiederherstellen" without typing since.
+  const [restoredAi, setRestoredAi] = useState(false);
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentValue = toInputString(value, inputKind);
-  const aiValueStr = toInputString(initialAiValue, inputKind);
+  const frozenAiStr = toInputString(frozenAiValue, inputKind);
+
+  // Close edit mode when the field becomes exported mid-session (safe in effect, not render).
+  useEffect(() => {
+    if (isExported && editing) setEditing(false);
+  }, [isExported, editing]);
 
   function openEdit() {
     if (isExported) return;
     setInputValue(currentValue);
     setInlineError(null);
+    setRestoredAi(false);
     setEditing(true);
     setTimeout(() => inputRef.current?.focus(), 0);
   }
@@ -92,11 +107,13 @@ export function EditableField({
   function cancelEdit() {
     setEditing(false);
     setInlineError(null);
+    setRestoredAi(false);
     setInputValue(currentValue);
   }
 
   function restoreAiValue() {
-    setInputValue(aiValueStr);
+    setInputValue(frozenAiStr);
+    setRestoredAi(true);
     setInlineError(null);
     setTimeout(() => inputRef.current?.focus(), 0);
   }
@@ -112,9 +129,11 @@ export function EditableField({
     }
   }
 
-  function handleSubmit(isRestore = false) {
-    const rawInput = isRestore ? aiValueStr : inputValue;
-    const parsed = parseInput(rawInput, inputKind);
+  function handleSubmit() {
+    // isRestore is true only when user explicitly clicked "AI-Wert wiederherstellen"
+    // and hasn't typed anything different since — so we preserve original AI confidence.
+    const isRestore = restoredAi && inputValue === frozenAiStr;
+    const parsed = parseInput(inputValue, inputKind);
     if (!parsed.ok) {
       setInlineError(parsed.error);
       return;
@@ -143,22 +162,18 @@ export function EditableField({
       }
 
       setEditing(false);
+      setRestoredAi(false);
       setShowSuccess(true);
       setSavedMessage("Gespeichert.");
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => {
         setShowSuccess(false);
         setSavedMessage(null);
-      }, 2000);
+      }, 1000);
     });
   }
 
-  const isUnchangedFromAi = inputValue === aiValueStr && value !== initialAiValue;
   const isUnchangedFromCurrent = inputValue === currentValue;
-
-  if (isExported && editing) {
-    setEditing(false);
-  }
 
   if (!editing) {
     return (
@@ -211,6 +226,7 @@ export function EditableField({
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);
+            if (e.target.value !== frozenAiStr) setRestoredAi(false);
             if (inlineError) {
               const parsed = parseInput(e.target.value, inputKind);
               if (parsed.ok) setInlineError(null);
@@ -236,7 +252,7 @@ export function EditableField({
           variant="default"
           size="sm"
           className="bg-confidence-high hover:bg-confidence-high/90 text-white h-7 text-xs"
-          onClick={() => handleSubmit(false)}
+          onClick={handleSubmit}
           disabled={isPending || isUnchangedFromCurrent}
           aria-disabled={isPending || isUnchangedFromCurrent}
         >
@@ -247,8 +263,8 @@ export function EditableField({
           size="sm"
           className="h-7 text-xs"
           onClick={restoreAiValue}
-          disabled={isPending || inputValue === aiValueStr}
-          aria-disabled={isPending || inputValue === aiValueStr}
+          disabled={isPending || inputValue === frozenAiStr}
+          aria-disabled={isPending || inputValue === frozenAiStr}
         >
           AI-Wert wiederherstellen
         </Button>

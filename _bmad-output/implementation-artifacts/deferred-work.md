@@ -1,5 +1,11 @@
 # Deferred Work
 
+## Deferred from: code review of 3-2-invoice-detail-view-and-field-editing (2026-04-24)
+
+- [ ] SourceDocumentViewer TTL cache ineffective: `SourceDocumentViewerWrapper` unmounts `<SourceDocumentViewer>` on close, resetting `openedOnce.current`; the 55s re-use branch in the useEffect is unreachable. Every tap fetches a fresh signed URL. Move URL state up to wrapper or use a persistent parent to restore TTL behaviour. [apps/web/components/invoice/source-document-viewer.tsx + source-document-viewer-wrapper.tsx]
+- [ ] `revalidatePath("/dashboard")` called from `correctInvoiceField` without `type: "layout"` — may not invalidate RSC cache for `/dashboard?selected=<id>` query-param pages depending on Next.js cache configuration. Monitor after Story 3.3 if stale detail pane data surfaces. [apps/web/app/actions/invoices.ts]
+- [ ] Safe-cast migration regex `'^-?[0-9]+(\.[0-9]+)?$'` in `gross_total_value` generated column yields NULL for scientific-notation values (e.g. `1.5e3`) or non-standard AI output formats. Currently safe since the AI extractor emits plain decimal strings. Revisit if extractor format changes. [supabase/migrations/20260424100000_invoice_sort_columns_safe_cast.sql]
+
 ## Deferred from: code review of 3-1-pipeline-dashboard-and-invoice-list (2026-04-23)
 
 - [ ] No auth guard in dashboard page — unauthenticated users see German error card instead of redirect to `/login` [apps/web/app/(app)/dashboard/page.tsx:20-31]. Middleware-level concern.

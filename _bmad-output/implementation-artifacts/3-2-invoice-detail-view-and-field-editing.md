@@ -1,6 +1,6 @@
 # Story 3.2: Invoice Detail View and Field Editing
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -347,7 +347,29 @@ Single-commit cutover used (Option 1). `extraction-results-client.tsx` deleted i
 - **P12 (realtime dashboard)** — `<DashboardRealtimeRefresher />` added as client child of `/dashboard`. Subscribes to `invoices` table `postgres_changes` on the tenant channel, calls `router.refresh()` debounced 500ms. Added `alter publication supabase_realtime add table public.invoices;` in the `invoice_field_corrections` migration.
 - **P14 (safe cast)** — Migration `20260424100000_invoice_sort_columns_safe_cast.sql` drops and recreates `gross_total_value`/`supplier_name_value` with `CASE WHEN ~ '^-?[0-9]+(\.[0-9]+)?$'` guard. `supabase db reset` confirmed clean.
 
-#### Error Path Audit — `correctInvoiceField`
+##### Review Findings Resolution (2026-04-25)
+
+- ✅ Resolved review finding [Patch]: State mutation during render → moved `setEditing(false)` to `useEffect`
+- ✅ Resolved review finding [Patch]: Invalid PostgREST select expression → removed `invoice_data->supplier_name->>value` from select string
+- ✅ Resolved review finding [Patch]: `initialAiValue` freeze → added `const [frozenAiValue] = useState(initialAiValue)` to capture AI value on mount
+- ✅ Resolved review finding [Patch]: `isRestoreToAi` always false → added `restoredAi` state, computed `isRestore` internally in `handleSubmit`
+- ✅ Resolved review finding [Patch]: Checkmark timer 2000ms → 1000ms
+- ✅ Resolved review finding [Patch]: Duplicate close button → passed `showCloseButton={false}` to SheetContent
+- ✅ Resolved review finding [Patch]: isExported banner scope → moved outside `invoice !== null` branch
+- ✅ Resolved review finding [Patch]: Line-item cells not editable → wrapped each cell with `<EditableField>` (description/text, quantity/vat_rate/quantity-kind, monetary/decimal-kind)
+- ✅ Resolved review finding [Patch]: cursor null in path traversal → added null/undefined check with targeted log
+- ✅ Resolved review finding [Patch]: DashboardEscHandler no target check → added `e.defaultPrevented` + input/textarea/select guard
+- ✅ Resolved review finding [Patch]: Sheet side always bottom → added `useState`+`useEffect` matchMedia to dynamically set right/bottom
+- ✅ Resolved review finding [Patch]: selectedId without UUID validation → added UUID regex guard before Supabase query
+- ✅ Resolved review finding [Patch]: `isUnchangedFromAi` dead variable → removed; `restoredAi` state cleanly tracks restore intent
+- ✅ Resolved review finding [Patch]: Date validation accepts invalid dates → added `new Date()` bounds check after regex
+- ✅ Resolved review finding [Patch]: CORRECTABLE_FIELD_PATHS snapshot `≥132` → changed to exact `.toBe(132)`
+- ✅ Resolved review finding [Patch]: InvoiceListCardLink stale ref → removed ref/useEffect, reads `matchMedia` directly in click handler
+- ✅ Resolved review finding [Patch]: InvoiceListFilters overflow in 380px → removed `lg:grid-cols-3`, kept `sm:grid-cols-2` max
+- ✅ Resolved review finding [Patch]: Confidence badge alignment → wrapped in `shrink-0 self-center` div, added `leading-none` to h1
+- ✅ Resolved review finding [Patch/Nice-to-have]: Selected card highlight → `isSelected` prop on `InvoiceListCard`, passed from `GroupedInvoiceList`
+
+### Error Path Audit — `correctInvoiceField`
 - ✅ Every exit path returns `ActionResult<T>`
 - ✅ DB SELECT error distinguished from "not found" (PGRST116 check)
 - ✅ `fieldPath` allow-list rejects unknown paths with German `"Ungültiges Feld."`
@@ -377,7 +399,7 @@ Single-commit cutover used (Option 1). `extraction-results-client.tsx` deleted i
 | # | Action | Expected Output | Pass Criterion | Status |
 |---|--------|----------------|----------------|--------|
 | (a) | Sign in → open `/dashboard` on mobile viewport (< 1024px) → tap an invoice card | Browser navigates to `/rechnungen/{id}`, renders `<InvoiceDetailPane />` with confidence-bordered card and all field labels visible. `<AiDisclaimer />` banner at top. | Pass if the URL changes to `/rechnungen/{id}` and the page shows at least 12 field label rows (Rechnungsnummer, Lieferant, Brutto…) | DONE |
-| (b) | Sign in → open `/dashboard` on `lg+` viewport (≥ 1024px) → click an invoice card | URL updates to `/dashboard?selected={id}`, right pane renders `<InvoiceDetailPane />`, left list column is constrained to ~380px. No page navigation. | Pass if the URL contains `?selected=` AND the detail pane appears to the right of the list AND the list remains visible on the left. | DONE (1. lg+ ekrandayken sorunsuz calisiyor, sadece right panel acildiginda "InvoiceListFilters" icerisindeki placeholders degreler tam olarak gorunmuyor ve UI'i cirkin gosteriyor. 2. lg+ ekrandayken right paneldeki aoverall confidence degeri kirmizi, yesil, amber noktalar ile ayni hizada gorunmuyor. bu overall score'i bu noktalar ile ayni hizaya getir) |
+| (b) | Sign in → open `/dashboard` on `lg+` viewport (≥ 1024px) → click an invoice card | URL updates to `/dashboard?selected={id}`, right pane renders `<InvoiceDetailPane />`, left list column is constrained to ~380px. No page navigation. | Pass if the URL contains `?selected=` AND the detail pane appears to the right of the list AND the list remains visible on the left. | DONE (1. lg+ ekrandayken sorunsuz calisiyor, sadece right panel acildiginda "InvoiceListFilters" icerisindeki placeholders degreler tam olarak gorunmuyor ve UI'i cirkin gosteriyor. 2. lg+ ekrandayken right paneldeki aoverall confidence degeri kirmizi, yesil, amber noktalar ile ayni hizada gorunmuyor. bu overall score'i bu noktalar ile ayni hizaya getir. 3. lg+ ekrandayken sol taraftaki secili current invoice user'a belirtilmiyor. UI/UX icin nice-to-have) |
 | (c) | From the `lg+` detail pane, tap an amber or red confidence field | Field row switches from read-only text to an inline input. Input is pre-filled with the AI value. Appropriate keyboard type opens (e.g. decimal keypad for Brutto). | Pass if the input is visible, pre-filled, and focused without a page navigation. | DONE |
 | (d) | In the edit form from (c), type a new value → tap `[Übernehmen]` | Edit form collapses. A green checkmark `✓` appears next to the field value for ~1s, then fades. Field now shows the new value. `"Gespeichert."` text appears briefly. | Pass if the new value is visible, the checkmark appears and fades, and no error message is shown. | DONE |
 | (e) | In edit mode, tap `[AI-Wert wiederherstellen]` | Input value reverts to the original AI value. No server call is made. `[Übernehmen]` button reflects the restored state. | Pass if the input shows the AI value immediately (no loading indicator) and `[Übernehmen]` remains clickable. | DONE |
@@ -436,8 +458,35 @@ Single-commit cutover used (Option 1). `extraction-results-client.tsx` deleted i
 - `packages/shared/src/schemas/invoice.ts` — MODIFIED (exported CORRECTABLE_FIELD_PATHS)
 - `packages/shared/src/types/database.ts` — MODIFIED (added invoice_field_corrections table types)
 
+### Review Findings
+
+- [x] [Review][Patch] State mutation during render: `setEditing(false)` called unconditionally in render body → infinite loop when `isExported=true` and `editing=true` [apps/web/components/invoice/editable-field.tsx]
+- [x] [Review][Patch] Invalid PostgREST select expression `invoice_data->supplier_name->>value` in `correctInvoiceField` — breaks every field correction with 400 error [apps/web/app/actions/invoices.ts]
+- [x] [Review][Patch] `initialAiValue` always equals `value` in InvoiceDetailPane — "AI-Wert wiederherstellen" restores corrected value not AI original; fix with `useState` freeze in EditableField [apps/web/components/invoice/invoice-detail-pane.tsx + editable-field.tsx]
+- [x] [Review][Patch] `isRestoreToAi` always false: `handleSubmit(false)` hardcoded, restore path never calls `handleSubmit(true)` → `corrected_to_ai` always `false` in audit table; AC #9 violated [apps/web/components/invoice/editable-field.tsx]
+- [x] [Review][Patch] Checkmark timer 2000ms; spec AC #7 requires exactly 1000ms for green checkmark fade [apps/web/components/invoice/editable-field.tsx]
+- [x] [Review][Patch] Duplicate close button: custom `✕` button + shadcn SheetContent built-in close render simultaneously → two X icons; AC #18(f) smoke test confirmed [apps/web/components/invoice/source-document-viewer.tsx]
+- [x] [Review][Patch] `isExported` banner inside `invoice !== null` branch — banner missing when `status=exported` and `invoice_data=null` [apps/web/components/invoice/invoice-detail-pane.tsx]
+- [x] [Review][Patch] Line-item cells render as plain `<td>`, no `<EditableField>` wrapper — line items not editable despite AC #4 and CORRECTABLE_FIELD_PATHS covering them [apps/web/components/invoice/invoice-detail-pane.tsx]
+- [x] [Review][Patch] `cursor` can become `undefined` in path traversal (mid-path null field) — throws TypeError, caught as generic error with no targeted logging [apps/web/app/actions/invoices.ts]
+- [x] [Review][Patch] `DashboardEscHandler` fires on ALL keydown without `e.target` or `e.defaultPrevented` check — ESC in filter inputs/modals triggers unintended navigation [apps/web/components/dashboard/dashboard-esc-handler.tsx]
+- [x] [Review][Patch] SourceDocumentViewer Sheet `side` always `"bottom"` — CSS data-attribute override doesn't switch the sheet; spec AC #8 requires right sheet on `md+` [apps/web/components/invoice/source-document-viewer.tsx]
+- [x] [Review][Patch] `selectedId` query param used in Supabase query without UUID format validation — non-UUID string silently discards DB error (no Sentry, no log) [apps/web/app/(app)/dashboard/page.tsx]
+- [x] [Review][Patch] `isUnchangedFromAi` always `false` (dead variable) — becomes meaningful after `initialAiValue` fix; expression `value !== initialAiValue` structurally never true with current prop wiring [apps/web/components/invoice/editable-field.tsx]
+- [x] [Review][Patch] Date validation regex `/^\d{4}-\d{2}-\d{2}$/` accepts invalid dates like `2024-13-01` — no month/day bounds check [apps/web/components/invoice/editable-field.tsx]
+- [x] [Review][Patch] `CORRECTABLE_FIELD_PATHS` snapshot test uses `≥132` — guards against removal but not addition; AC #14 requires deliberate commit on any change [apps/web/lib/invoice-fields.test.ts]
+- [x] [Review][Patch] `InvoiceListCardLink` stale ref: `isLgRef.current = false` on first render — first click on lg+ before `useEffect` fires follows mobile navigation path [apps/web/components/dashboard/invoice-list-card-link.tsx]
+- [x] [Review][Patch] Smoke (b): `InvoiceListFilters` placeholder metinleri 380px liste kolonuna sığmıyor — split-view aktifken filtre inputları taşıyor ve UI bozuluyor; `InvoiceListFilters` içindeki input/placeholder genişliklerini dar kol için uyarla [apps/web/components/dashboard/invoice-list-filters.tsx]
+- [x] [Review][Patch] Smoke (b): `InvoiceDetailPane` header'ında overall confidence badge "Rechnung" başlık metniyle aynı hizada değil — `flex items-center` hizalama sorunu [apps/web/components/invoice/invoice-detail-pane.tsx]
+- [x] [Review][Patch] Smoke (b): lg+ ekrandayken sol taraftaki secili current invoice user'a belirtilmiyor. UI/UX icin nice-to-have
+- [x] [Review][Defer] SourceDocumentViewer TTL cache ineffective: component unmounts on close, `openedOnce.current` resets; 55s re-use branch unreachable in practice — deferred, design decision
+- [x] [Review][Defer] `revalidatePath("/dashboard")` may not invalidate `?selected=` query-param pages in Next.js RSC cache — deferred, pre-existing Next.js cache behaviour
+- [x] [Review][Defer] Safe-cast migration regex `'^-?[0-9]+(\.[0-9]+)?$'` yields NULL for scientific notation / non-standard formats — deferred, AI extractor emits standard numeric strings
+
 ## Change Log
 
 | Date | Change | Author |
 |------|--------|--------|
 | 2026-04-24 | Story 3.2 implemented: InvoiceDetailPane RSC, EditableField with inline editing, SourceDocumentViewer, split-view dashboard, correctInvoiceField + getInvoiceSignedUrl server actions, invoice_field_corrections audit table, safe cast migration (P14), realtime refresher (P12). 176 tests total. | claude-sonnet-4-6 |
+| 2026-04-24 | Code review complete: 16 patch findings, 3 deferred, 8 dismissed. Story moved to in-progress. | claude-sonnet-4-6 |
+| 2026-04-25 | All 19 review findings resolved: render-body mutation, PostgREST select fix, AI-value freeze, isRestoreToAi wiring, 1000ms timer, duplicate close button, exported banner scope, line-item EditableField, cursor null check, ESC handler guard, sheet side dynamic, UUID validation, dead variable cleanup, date bounds, snapshot exact, stale ref removal, filter grid, badge alignment, selected card highlight. 141 tests pass. | claude-sonnet-4-6 |

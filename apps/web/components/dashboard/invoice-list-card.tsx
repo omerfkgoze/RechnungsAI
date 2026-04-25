@@ -47,7 +47,7 @@ function borderClass(row: InvoiceRow): string {
   return "border-l-confidence-low";
 }
 
-export function InvoiceListCard({ row }: { row: InvoiceRow }) {
+export function InvoiceListCard({ row, isSelected }: { row: InvoiceRow; isSelected?: boolean }) {
   const isPending =
     row.invoice_data === null &&
     (row.status === "captured" || row.status === "processing");
@@ -73,6 +73,7 @@ export function InvoiceListCard({ row }: { row: InvoiceRow }) {
   const linkClass = cn(
     "block rounded-lg border-l-4 bg-card px-4 py-3 ring-1 ring-foreground/10 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
     borderClass(row),
+    isSelected && "bg-muted/40 ring-2 ring-primary/50",
   );
 
   return (

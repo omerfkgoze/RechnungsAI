@@ -8,9 +8,15 @@ export function DashboardEscHandler() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        router.replace("/dashboard", { scroll: false });
-      }
+      if (e.key !== "Escape") return;
+      if (e.defaultPrevented) return;
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) return;
+      router.replace("/dashboard", { scroll: false });
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

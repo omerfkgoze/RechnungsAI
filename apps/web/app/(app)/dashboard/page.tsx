@@ -39,7 +39,9 @@ export default async function DashboardPage({
 }) {
   const raw = searchParams ? await searchParams : {};
   const query = parseDashboardQuery(raw);
-  const selectedId = typeof raw?.selected === "string" ? raw.selected : null;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const selectedId =
+    typeof raw?.selected === "string" && UUID_RE.test(raw.selected) ? raw.selected : null;
 
   let supabase;
   try {
@@ -227,7 +229,7 @@ export default async function DashboardPage({
               </CardContent>
             </Card>
           ) : (
-            <GroupedInvoiceList rows={rows} />
+            <GroupedInvoiceList rows={rows} selectedId={selectedId} />
           )}
         </section>
 
@@ -272,7 +274,7 @@ export default async function DashboardPage({
 
 // Group rows by pipeline stage so "scroll to #stage-<id>" lands at a real
 // anchor. `review` shows under the "Bereit" bucket per AC #1.
-function GroupedInvoiceList({ rows }: { rows: InvoiceRow[] }) {
+function GroupedInvoiceList({ rows, selectedId }: { rows: InvoiceRow[]; selectedId?: string | null }) {
   const byStage: Record<PipelineStage, InvoiceRow[]> = {
     captured: [],
     processing: [],
@@ -304,6 +306,7 @@ function GroupedInvoiceList({ rows }: { rows: InvoiceRow[] }) {
                     ...row,
                     invoice_data: row.invoice_data as Invoice | null,
                   }}
+                  isSelected={row.id === selectedId}
                 />
               </li>
             ))}

@@ -1,12 +1,11 @@
 import { confidenceLevel, overallConfidence, type Invoice, type InvoiceStatus } from "@rechnungsai/shared";
 import { cn } from "@/lib/utils";
 import { LABELS, FIELD_ORDER } from "@/lib/invoice-fields";
-import { formatValue } from "@/lib/format";
+import { formatValue, formatEur } from "@/lib/format";
 import { ConfidenceIndicator } from "./confidence-indicator";
 import { EditableField, type InputKind } from "./editable-field";
 import { DetailPaneExtractionBootstrap } from "./detail-pane-extraction-bootstrap";
 import { SourceDocumentViewerWrapper } from "./source-document-viewer-wrapper";
-import { formatEur } from "@/lib/format";
 
 type Props = {
   invoiceId: string;
@@ -28,6 +27,12 @@ function inputKindFor(key: keyof Invoice): InputKind {
   if (key === "invoice_date") return "date";
   if (key === "supplier_tax_id") return "taxid";
   if (key === "currency") return "currency-code";
+  return "text";
+}
+
+function lineItemInputKind(field: string): InputKind {
+  if (field === "unit_price" || field === "net_amount" || field === "vat_amount") return "decimal";
+  if (field === "quantity" || field === "vat_rate") return "quantity";
   return "text";
 }
 
@@ -55,16 +60,25 @@ export function InvoiceDetailPane({
       />
 
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold">Rechnung</h1>
+        <h1 className="text-xl font-semibold leading-none">Rechnung</h1>
         {invoice && (
-          <ConfidenceIndicator
-            confidence={overall}
-            variant="badge"
-            fieldName="Gesamt"
-            explanation={null}
-          />
+          <div className="shrink-0 self-center">
+            <ConfidenceIndicator
+              confidence={overall}
+              variant="badge"
+              fieldName="Gesamt"
+              explanation={null}
+            />
+          </div>
         )}
       </div>
+
+      {/* Exported banner shown regardless of whether invoice_data is present */}
+      {isExported && (
+        <div className="mb-4 rounded border border-muted bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+          Exportierte Rechnungen können nicht mehr bearbeitet werden.
+        </div>
+      )}
 
       {isProcessing && !invoice ? (
         <section aria-busy aria-label="Extraktion läuft">
@@ -157,37 +171,40 @@ export function InvoiceDetailPane({
                   <tbody>
                     {invoice.line_items.map((li, idx) => (
                       <tr key={idx} className="border-t">
-                        <td className="py-1 pr-2">{li.description.value ?? "—"}</td>
-                        <td className="py-1 pr-2">{li.quantity.value ?? "—"}</td>
-                        <td className="py-1 pr-2">
-                          {li.unit_price.value !== null
-                            ? formatEur(li.unit_price.value, currencyValue)
-                            : "—"}
-                        </td>
-                        <td className="py-1 pr-2">
-                          {li.net_amount.value !== null
-                            ? formatEur(li.net_amount.value, currencyValue)
-                            : "—"}
-                        </td>
-                        <td className="py-1 pr-2">
-                          {li.vat_rate.value !== null ? `${li.vat_rate.value}%` : "—"}
-                        </td>
-                        <td className="py-1 pr-2">
-                          {li.vat_amount.value !== null
-                            ? formatEur(li.vat_amount.value, currencyValue)
-                            : "—"}
-                        </td>
+                        {(["description", "quantity", "unit_price", "net_amount", "vat_rate", "vat_amount"] as const).map((fieldKey) => {
+                          const liField = li[fieldKey] as { value: string | number | null; confidence: number; reason: string | null };
+                          return (
+                            <td key={fieldKey} className="py-1 pr-2 align-top">
+                              {isExported ? (
+                                liField.value !== null
+                                  ? (fieldKey === "unit_price" || fieldKey === "net_amount" || fieldKey === "vat_amount"
+                                      ? formatEur(liField.value as number, currencyValue)
+                                      : fieldKey === "vat_rate"
+                                        ? `${liField.value}%`
+                                        : String(liField.value))
+                                  : "—"
+                              ) : (
+                                <EditableField
+                                  invoiceId={invoiceId}
+                                  fieldPath={`line_items.${idx}.${fieldKey}`}
+                                  label={fieldKey}
+                                  value={liField.value}
+                                  initialAiValue={liField.value}
+                                  aiConfidence={liField.confidence}
+                                  currencyCode={currencyValue}
+                                  inputKind={lineItemInputKind(fieldKey)}
+                                  isExported={isExported}
+                                  updatedAt={updatedAt}
+                                />
+                              )}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
-
-          {isExported && (
-            <div className="mt-4 rounded border border-muted bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-              Exportierte Rechnungen können nicht mehr bearbeitet werden.
             </div>
           )}
         </section>
