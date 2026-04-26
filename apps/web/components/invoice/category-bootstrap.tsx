@@ -16,11 +16,17 @@ export function CategoryBootstrap({ invoiceId, skrCode, status }: Props) {
   const triggeredRef = useRef(false);
 
   const trigger = useCallback(() => {
-    categorizeInvoice(invoiceId).then((result) => {
-      if (result.success) {
-        router.refresh();
-      }
-    });
+    categorizeInvoice(invoiceId)
+      .then((result) => {
+        if (result.success) {
+          router.refresh();
+        } else {
+          console.error("[category-bootstrap]", result.error);
+        }
+      })
+      .catch((err) => {
+        console.error("[category-bootstrap] unexpected", err);
+      });
   }, [invoiceId, router]);
 
   useEffect(() => {

@@ -28,12 +28,18 @@ export default async function Page({
     .eq("id", user.id)
     .single();
 
+  if (!userRow) {
+    redirect(`/login?returnTo=/rechnungen/${id}`);
+  }
+  const tenantId = userRow.tenant_id;
+
   const { data: invoice } = await supabase
     .from("invoices")
     .select(
       "id, status, file_path, file_type, original_filename, invoice_data, extraction_error, extracted_at, created_at, updated_at, skr_code, bu_schluessel, categorization_confidence",
     )
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .single();
 
   if (!invoice) {
@@ -44,16 +50,16 @@ export default async function Page({
   const supplierName = invoiceData?.supplier_name?.value ?? null;
 
   const [tenantResult, recentCodesResult] = await Promise.all([
-    supabase.from("tenants").select("skr_plan").eq("id", userRow?.tenant_id ?? "").single(),
-    supplierName && userRow
+    supabase.from("tenants").select("skr_plan").eq("id", tenantId).single(),
+    supplierName
       ? supabase
           .from("categorization_corrections")
           .select("corrected_code")
-          .eq("tenant_id", userRow.tenant_id)
+          .eq("tenant_id", tenantId)
           .eq("supplier_name", supplierName)
           .order("created_at", { ascending: false })
           .limit(10)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [] as Array<{ corrected_code: string }> }),
   ]);
 
   const skrPlan = tenantResult.data?.skr_plan ?? "skr03";

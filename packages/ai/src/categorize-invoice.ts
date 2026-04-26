@@ -72,17 +72,20 @@ export async function categorizeInvoice(
     return { success: false, error: "Kategorisierungsergebnis konnte nicht verarbeitet werden." };
   }
 
-  const { skrCode, confidence, buSchluessel } = parsed.data;
+  const normalizedCode = parsed.data.skrCode.trim();
+  const { confidence, buSchluessel } = parsed.data;
 
-  if (!Object.prototype.hasOwnProperty.call(allowedCodes, skrCode)) {
-    const fallbackCode = Object.keys(allowedCodes)[0]!;
-    console.warn(LOG, "unknown-code-fallback", { skrCode, fallbackCode });
+  if (!Object.prototype.hasOwnProperty.call(allowedCodes, normalizedCode)) {
+    // Refuse to persist a silently-wrong code. Returning error keeps skr_code
+    // null so the user sees the categorization is incomplete instead of an
+    // incorrect booking dressed up with low confidence.
+    console.error(LOG, "unknown-code-rejected", { skrCode: parsed.data.skrCode, skrPlan });
     return {
-      success: true,
-      data: { skrCode: fallbackCode, confidence: 0.1, buSchluessel },
+      success: false,
+      error: "Kategorisierung fehlgeschlagen — unbekannter Kontocode.",
     };
   }
 
-  console.info(LOG, "done", { skrCode, confidence });
-  return { success: true, data: { skrCode, confidence, buSchluessel } };
+  console.info(LOG, "done", { skrCode: normalizedCode, confidence });
+  return { success: true, data: { skrCode: normalizedCode, confidence, buSchluessel } };
 }

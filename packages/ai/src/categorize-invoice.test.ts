@@ -66,16 +66,15 @@ describe("categorizeInvoice", () => {
     expect(result.success).toBe(false);
   });
 
-  it("skrCode constrained to SKR03 set when skrPlan is skr03 — unknown code falls back", async () => {
+  it("skrCode constrained to SKR03 set when skrPlan is skr03 — unknown code rejected", async () => {
     mockedGenerateObject.mockResolvedValueOnce({
       object: { skrCode: "9999", confidence: 0.8, buSchluessel: null },
     } as unknown as Awaited<ReturnType<typeof generateObject>>);
 
     const result = await categorizeInvoice({ ...defaultInput, skrPlan: "skr03" });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.skrCode).not.toBe("9999");
-      expect(result.data.confidence).toBe(0.1);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("unbekannter Kontocode");
     }
   });
 

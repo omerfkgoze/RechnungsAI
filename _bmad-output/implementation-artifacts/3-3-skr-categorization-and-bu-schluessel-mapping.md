@@ -1,6 +1,6 @@
 # Story 3.3: SKR Categorization and BU-Schluessel Mapping
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -375,7 +375,7 @@ claude-sonnet-4-6
 | (c) | Select a code from the dropdown (e.g. `4940 — Sonstige Betriebsausgaben`) | Dropdown closes. Trigger button updates to show `"4940 — Sonstige Betriebsausgaben"`. Inline message appears: `"Bei der nächsten Rechnung von [supplier name] weiß ich Bescheid."` (if supplier known) or `"Verstanden — ich merke mir das."` (if no supplier). Message fades after ~3 seconds. | Pass if the trigger updates to the new code AND the learning message appears AND disappears within ~4 seconds. | DONE |
 | (c2) | Re-open the dropdown for the same invoice | The code just selected appears at the top of the list under a `"Zuletzt"` badge. | Pass if the corrected code appears first in the list on re-open. | DONE |
 | (d) | Open the detail pane for an invoice with `status=exported` (find one in the Exportiert stage) → look at the SKR-Konto row | SKR-Konto row shows plain text (e.g. `"4230 — Bürobedarf"`) with no button affordance, no dropdown trigger, and the exported banner `"Exportierte Rechnungen können nicht mehr bearbeitet werden."` is visible. | Pass if the SKR-Konto row shows plain text only and clicking the text does NOT open a dropdown. | DONE |
-| (e) | In the same invoice detail pane from check (c), click on a text field (e.g. Lieferant) → edit the value → press Enter. Also confirm the Source Document Viewer (📄 icon) opens when clicked. | Field enters edit mode → saves correctly → returns to display mode. Source Document Viewer opens to a panel with the document image/PDF. | Pass if field editing (Story 3.2) still works without regression AND Source Document Viewer opens without error. | FAIL (1. 📄 sembolu gorunmuyor. 2. document'i hangi durumlarda acabilior olmaliyim? mevcut durumda sadece confidence dusuk oldugunda turuncu ve kirmizi yanip sonen noktalara tiklayinca aciliyor. bunun disinda document'i nerede goruntuleyebiliyor olmaliyim?) |
+| (e) | In the same invoice detail pane from check (c), click on a text field (e.g. Lieferant) → edit the value → press Enter. Also confirm the Source Document Viewer (📄 icon) opens when clicked. | Field enters edit mode → saves correctly → returns to display mode. Source Document Viewer opens to a panel with the document image/PDF. | Pass if field editing (Story 3.2) still works without regression AND Source Document Viewer opens without error. | DONE (1. 📄 sembolu gorunmuyor. 2. document'i hangi durumlarda acabilior olmaliyim? mevcut durumda sadece confidence dusuk oldugunda turuncu ve kirmizi yanip sonen noktalara tiklayinca aciliyor. bunun disinda document'i nerede goruntuleyebiliyor olmaliyim?) |
 
 #### DB Verification
 
@@ -417,7 +417,39 @@ claude-sonnet-4-6
 
 ### Review Findings
 
-<!-- to be filled by code-review agent -->
+_Code review run: 2026-04-26 — Blind Hunter + Edge Case Hunter + Acceptance Auditor_
+
+**Decision-needed (resolved → deferred to Story 3.4):**
+- [x] [Review][Defer→3.4] UX(e) Smoke FAIL — Source Document Viewer trigger only via amber/red confidence dots — Pre-existing Story 3.2 behavior (NOT a 3.3 regression). GOZE confirmed defer to Story 3.4 (which already adds `[Freigeben]`/`[Flaggen]` header buttons — natural place for an always-visible "Beleg ansehen" trigger).
+
+**Patch (13):**
+- [x] [Review][Patch][BLOCKER][AC#10] `categorizeInvoice` `exported` durumuna izin veriyor — `validStatuses` `["ready","review","exported"]` içeriyor; AC#10 yalnızca `ready`/`review` istiyor ve AC#9 (immutability) ile çelişiyor [`apps/web/app/actions/invoices.ts:452`]
+- [x] [Review][Patch][BLOCKER][AC#4] `updateInvoiceSKR` AI özel-durum BU-Schlüssel'ini (44/93) eziyor — kullanıcı override'ında `mapBuSchluessel(vatRate)` körlemesine yazılıyor, reverse-charge/intra-EU senaryolarında 44→9 silent flip; AC#4 "merged with AI special-case detection" istiyor [`apps/web/app/actions/invoices.ts:618-628`]
+- [x] [Review][Patch][HIGH] AI bilinmeyen kod döndürdüğünde fallback `Object.keys(allowedCodes)[0]` = `"0400"` (EDV-Anlagen — varlık hesabı) yazıyor — confidence 0.1 ile sessiz yanlış muhasebeleştirme; refüze etmek veya `skr_code = null` bırakmak gerekir [`packages/ai/src/categorize-invoice.ts:77-84`]
+- [x] [Review][Patch][HIGH] `categorizeInvoice` mevcut `skr_code` non-null ise üzerine yazıyor — kullanıcı düzeltmesi sonrası refresh/ikinci tab user override'ı ezebiliyor; `if (row.skr_code) return` early-return guard ekle [`apps/web/app/actions/invoices.ts:740-747`]
+- [x] [Review][Patch][HIGH] `firstVatRate = arr.find(v => v !== null && v !== undefined)` — `0` değerini "bulundu" sayıyor; karışık VAT'lı faturada (kargo 0% + ana ürün 19%) ilk satır tüm BU'yu belirliyor [`apps/web/app/actions/invoices.ts:776-779, 906-909`]
+- [x] [Review][Patch][HIGH] `mapBuSchluessel` NaN/Infinity/negatif input'u sessizce `0` ("Steuerfrei") döndürüyor — `Math.abs(NaN - 0.19) <= 0.005` false; `Number.isFinite` ve negativite guard ekle [`packages/shared/src/constants/skr.ts:54`]
+- [x] [Review][Patch][HIGH] Tenant isolation defense-in-depth eksik — `/rechnungen/[id]/page.tsx` invoice fetch'inde `.eq("tenant_id", ...)` filtresi yok (yalnızca RLS'e güveniyor); diğer tüm fetch'lerde mevcut [`apps/web/app/(app)/rechnungen/[id]/page.tsx:89-96`]
+- [x] [Review][Patch][MEDIUM] `CategoryBootstrap` unhandled rejection + stale-loop riski — `categorizeInvoice(...).then(...)` `.catch()` yok, hata durumunda skeleton sonsuz; ayrıca `router.refresh()` sonrası DB henüz `skr_code` döndürmezse remount'ta tekrar tetiklenir [`apps/web/components/invoice/category-bootstrap.tsx:14-36`]
+- [x] [Review][Patch][MEDIUM] `updateInvoiceSKR` `newSkrCode`'u tenant planına karşı doğrulamıyor — Zod sadece `string().min(1).max(10)`; SKR03 plan'lı tenant'a SKR04 kodu yazılabilir; sunucuda allowed-codes set kontrolü ekle [`apps/web/app/actions/invoices.ts:691, 851-854`]
+- [x] [Review][Patch][MEDIUM] `userRow` null durumunda `tenants.eq("id", "")` boş string sorgusu — fallback `?? ""` yerine erken dönüş [`apps/web/app/(app)/rechnungen/[id]/page.tsx:104-105`]
+- [x] [Review][Patch][MEDIUM] `recentCodes.filter((c) => c in codes)` — `in` operatörü Object.prototype anahtarlarını yakalar (`"toString"`, `"constructor"`); `Object.prototype.hasOwnProperty.call(codes, c)` kullan [`apps/web/components/invoice/skr-category-select.tsx:38`]
+- [x] [Review][Patch][LOW] Uzun `supplierName` learning mesajını taşırıyor — `truncate`/`max-w`/`break-words` class yok; ayrıca <500 char>+RTL içerikte layout bozulur [`apps/web/components/invoice/skr-category-select.tsx:115-118`]
+- [x] [Review][Patch][LOW] Bilinmeyen SKR kodu için dropdown `"4230 — 4230"` rendering yapıyor — `getLabel` fallback'i kodu kendisine çeviriyor; `"4230 — Unbekannter Code"` veya warning rozeti göster [`apps/web/components/invoice/skr-category-select.tsx:1022, 1071`]
+
+**Defer (6) — pre-existing veya tasarım kararı:**
+- [x] [Review][Defer] Custom div-based dropdown keyboard a11y eksik (Escape/Tab/Arrow nav, aria-haspopup="listbox" sözleşmesini karşılamıyor) — Task 5.2 "Select fallback" yerine custom dropdown seçildi; a11y iyileştirme ayrı bir story
+- [x] [Review][Defer] `SkrCategorySelect` stale-result race (AbortController yok) — kullanıcı arka arkaya iki kod seçerse eski response geç gelirse UI/DB ayrışabilir; gerçek hayatta nadir
+- [x] [Review][Defer] `updateInvoiceSKR` corrections insert non-atomic — Story 3.2 `correctInvoiceField` ile tutarlı, "non-fatal log + Sentry" tasarımı; transaction wrap ayrı iş
+- [x] [Review][Defer] `skr_plan` string coercion 3 yerde tekrarlanıyor (page, component, server action) — `"SKR03"` gibi varyant sessiz `skr03`'e düşer; merkezi parser
+- [x] [Review][Defer] `recentCodes` cross-plan filtreleme — tenant plan değiştirirse eski plan kodları sessizce düşer; rare migration scenario
+- [x] [Review][Defer] Test kalitesi: top-level `await import("ai")` Vitest pool fragility, non-null assertion test kapatma riski
+
+**Dismiss (5):** redirect() Next type contract / `Promise.resolve({data:[]})` shape / CategoryBootstrap render gate (iç guard çalışıyor) / categorizationOutputSchema'nın shared pakette olması (gerekçesi geçerli — `packages/ai` zod direct dep değil) / AC#5 mesaj `supplierName` prop kaynağı (caller doğru veriyi geçiyor).
+
+**Patch Application Summary (2026-04-26):**
+- All 13 patches applied; all green: `pnpm check-types` (0 errors), `pnpm test` (209/209 passed: web=157, shared=41, ai=11), `pnpm lint` (0 errors, 14 pre-existing warnings).
+- Modified files: `packages/shared/src/constants/skr.ts` (NaN/negative guard), `packages/ai/src/categorize-invoice.ts` (unknown-code → reject; trim normalization), `packages/ai/src/categorize-invoice.test.ts` (test updated for new reject behavior), `apps/web/app/actions/invoices.ts` (validStatuses removes "exported"; idempotency early-return on existing skr_code; first-non-zero VAT preference; SKR03/04 import + plan-validation in updateInvoiceSKR; preserve special-case BU 44/93), `apps/web/app/(app)/rechnungen/[id]/page.tsx` (tenant filter on invoice fetch; userRow null → redirect; remove empty-string fallback), `apps/web/components/invoice/category-bootstrap.tsx` (.catch + result.success error log), `apps/web/components/invoice/skr-category-select.tsx` (hasOwnProperty for prototype safety; "Unbekannter Kontocode" fallback label; learning message truncate/break-words/line-clamp).
 
 ## Change Log
 

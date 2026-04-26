@@ -21,7 +21,10 @@ const LEARNING_MESSAGE_MS = 3000;
 
 function getLabel(skrPlan: "skr03" | "skr04", code: string): string {
   const codes = skrPlan === "skr03" ? SKR03_CODES : SKR04_CODES;
-  return codes[code] ?? code;
+  if (Object.prototype.hasOwnProperty.call(codes, code)) {
+    return codes[code]!;
+  }
+  return "Unbekannter Kontocode";
 }
 
 function buildOptionList(
@@ -32,11 +35,13 @@ function buildOptionList(
   const codes = skrPlan === "skr03" ? SKR03_CODES : SKR04_CODES;
   const lower = filter.toLowerCase();
 
-  const recentSet = new Set(recentCodes.slice(0, 3));
-  const recent = recentCodes
+  // Use hasOwnProperty to avoid Object.prototype keys ("toString", "constructor")
+  // sneaking into the recent list when corrections data is corrupted/migrated.
+  const validRecent = recentCodes
     .slice(0, 3)
-    .filter((c) => c in codes)
-    .map((c) => ({ code: c, label: codes[c]!, isRecent: true }));
+    .filter((c) => Object.prototype.hasOwnProperty.call(codes, c));
+  const recentSet = new Set(validRecent);
+  const recent = validRecent.map((c) => ({ code: c, label: codes[c]!, isRecent: true }));
 
   const rest = Object.entries(codes)
     .filter(([c]) => !recentSet.has(c))
@@ -193,7 +198,10 @@ export function SkrCategorySelect({
       )}
 
       {learningMsg && (
-        <p className="mt-1 text-xs text-muted-foreground" role="status">
+        <p
+          className="mt-1 max-w-xs break-words text-xs text-muted-foreground line-clamp-2"
+          role="status"
+        >
           {learningMsg}
         </p>
       )}

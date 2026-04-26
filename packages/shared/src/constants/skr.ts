@@ -53,6 +53,9 @@ export const BU_SCHLUESSEL_LABELS: Record<number, string> = {
 
 export function mapBuSchluessel(vatRate: number | null): number {
   if (vatRate === null) return 0;
+  // Reject NaN, Infinity, and negative rates — silent "Steuerfrei" classification
+  // for garbage input would corrupt UStVA reporting.
+  if (!Number.isFinite(vatRate) || vatRate < 0) return 0;
   if (Math.abs(vatRate - 0.19) <= 0.005) return 9;
   if (Math.abs(vatRate - 0.07) <= 0.005) return 8;
   return 0;

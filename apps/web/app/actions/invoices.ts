@@ -5,6 +5,8 @@ import {
   INVOICE_ACCEPTED_MIME,
   invoiceUploadInputSchema,
   mapBuSchluessel,
+  SKR03_CODES,
+  SKR04_CODES,
   overallConfidence,
   statusFromOverallConfidence,
   type ActionResult,
@@ -737,9 +739,16 @@ export async function categorizeInvoice(
       return { success: false, error: "Rechnung nicht gefunden." };
     }
 
-    const validStatuses = ["ready", "review", "exported"] as const;
+    const validStatuses = ["ready", "review"] as const;
     if (!(validStatuses as readonly string[]).includes(row.status)) {
       return { success: false, error: "Kategorisierung ist erst nach der Extraktion möglich." };
+    }
+
+    // Idempotency: skip categorization if a code already exists. Prevents
+    // bootstrap loops, second-tab re-fires, and overwriting user corrections.
+    if (row.skr_code !== null) {
+      console.info(CATEGORIZE_LOG, "skip-already-categorized", { invoiceId, skrCode: row.skr_code });
+      return { success: true, data: { skrCode: row.skr_code, confidence: 0, buSchluessel: 0 } };
     }
 
     if (!row.invoice_data) {
@@ -773,10 +782,19 @@ export async function categorizeInvoice(
       .map((li) => li.description?.value ?? "")
       .filter(Boolean) as string[];
 
-    const firstVatRate = (invoiceData.line_items ?? [])
+    // Prefer the first non-zero taxable rate (handles the common case of
+    // shipping/discount lines at 0% preceding a 19% product line). Fall back
+    // to first non-null (which may be 0 for genuinely tax-free invoices).
+    const lineVatRates = (invoiceData.line_items ?? [])
       .map((li) => li.vat_rate?.value)
-      .find((v) => v !== null && v !== undefined) ?? null;
-    const vatRate = typeof firstVatRate === "number" ? firstVatRate : null;
+      .filter((v): v is number => typeof v === "number");
+    const firstNonZero = lineVatRates.find((v) => v > 0);
+    const firstAny = lineVatRates.find((v) => v !== null && v !== undefined);
+    const rawVatRate = firstNonZero ?? firstAny ?? null;
+    const vatRate =
+      typeof rawVatRate === "number" && Number.isFinite(rawVatRate) && rawVatRate >= 0
+        ? rawVatRate
+        : null;
 
     const aiResult = await aiCategorizeInvoice({
       supplierName,
@@ -876,7 +894,7 @@ export async function updateInvoiceSKR(input: {
 
     const { data: row, error: rowErr } = await supabase
       .from("invoices")
-      .select("id, tenant_id, status, invoice_data, skr_code")
+      .select("id, tenant_id, status, invoice_data, skr_code, bu_schluessel")
       .eq("id", invoiceId)
       .single();
 
@@ -899,15 +917,48 @@ export async function updateInvoiceSKR(input: {
       };
     }
 
+    // Validate newSkrCode against the tenant's plan — defends against client
+    // tampering and stale UI on plan switch.
+    const { data: tenantRow, error: tenantErr } = await supabase
+      .from("tenants")
+      .select("skr_plan")
+      .eq("id", tenantId)
+      .single();
+    if (tenantErr || !tenantRow) {
+      console.error(UPDATE_SKR_LOG, "tenant-lookup-failed", tenantErr);
+      return { success: false, error: "Mandantendaten konnten nicht geladen werden." };
+    }
+    const skrPlan: "skr03" | "skr04" =
+      tenantRow.skr_plan === "skr04" ? "skr04" : "skr03";
+    const allowedCodes = skrPlan === "skr03" ? SKR03_CODES : SKR04_CODES;
+    if (!Object.prototype.hasOwnProperty.call(allowedCodes, newSkrCode)) {
+      return { success: false, error: "Ungültiger SKR-Kontocode für diesen Kontenrahmen." };
+    }
+
     const invoiceData = row.invoice_data as {
       line_items?: Array<{ vat_rate?: { value: number | null } }>;
     } | null;
 
-    const firstVatRate = (invoiceData?.line_items ?? [])
+    const lineVatRates = (invoiceData?.line_items ?? [])
       .map((li) => li.vat_rate?.value)
-      .find((v) => v !== null && v !== undefined) ?? null;
-    const vatRate = typeof firstVatRate === "number" ? firstVatRate : null;
-    const buSchluessel = mapBuSchluessel(vatRate);
+      .filter((v): v is number => typeof v === "number");
+    const firstNonZero = lineVatRates.find((v) => v > 0);
+    const firstAny = lineVatRates.find((v) => v !== null && v !== undefined);
+    const rawVatRate = firstNonZero ?? firstAny ?? null;
+    const vatRate =
+      typeof rawVatRate === "number" && Number.isFinite(rawVatRate) && rawVatRate >= 0
+        ? rawVatRate
+        : null;
+    // Preserve AI-detected special cases (44 reverse-charge, 93 intra-EU).
+    // AC#4: deterministic mapping merged with AI special-case detection.
+    // Without this, a user override on a reverse-charge invoice silently
+    // resets BU 44 → 9 and breaks UStVA reporting.
+    const SPECIAL_BU = new Set([44, 93]);
+    const standardBu = mapBuSchluessel(vatRate);
+    const buSchluessel =
+      row.bu_schluessel !== null && SPECIAL_BU.has(row.bu_schluessel)
+        ? row.bu_schluessel
+        : standardBu;
 
     const { error: updateErr } = await supabase
       .from("invoices")
