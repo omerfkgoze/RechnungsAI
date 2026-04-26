@@ -19,8 +19,10 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 const aiExtractMock = vi.fn();
+const aiCategorizeMock = vi.fn();
 vi.mock("@rechnungsai/ai", () => ({
   extractInvoice: (...args: unknown[]) => aiExtractMock(...args),
+  categorizeInvoice: (...args: unknown[]) => aiCategorizeMock(...args),
 }));
 
 const uploadMock = vi.fn();
@@ -28,10 +30,12 @@ const removeMock = vi.fn();
 const createSignedUrlMock = vi.fn();
 const insertSingleMock = vi.fn();
 const userSingleMock = vi.fn();
+const tenantSingleMock = vi.fn();
 const authGetUserMock = vi.fn();
 const invoiceSelectSingleMock = vi.fn();
 const invoiceUpdateEqMock = vi.fn();
 const fieldCorrectionInsertMock = vi.fn();
+const categorizationCorrectionInsertMock = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerClient: vi.fn(async () => ({
@@ -74,6 +78,18 @@ vi.mock("@/lib/supabase/server", () => ({
           insert: (values: unknown) => fieldCorrectionInsertMock(values),
         };
       }
+      if (table === "tenants") {
+        return {
+          select: () => ({
+            eq: () => ({ single: tenantSingleMock }),
+          }),
+        };
+      }
+      if (table === "categorization_corrections") {
+        return {
+          insert: (values: unknown) => categorizationCorrectionInsertMock(values),
+        };
+      }
       return {};
     },
     storage: {
@@ -86,7 +102,7 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-import { correctInvoiceField, extractInvoice, getInvoiceSignedUrl, uploadInvoice } from "./invoices";
+import { categorizeInvoice, correctInvoiceField, extractInvoice, getInvoiceSignedUrl, updateInvoiceSKR, uploadInvoice } from "./invoices";
 
 function makeFile(
   name: string,
@@ -575,5 +591,171 @@ describe("getInvoiceSignedUrl", () => {
     const result = await getInvoiceSignedUrl("invalid");
     expect(result.success).toBe(false);
     if (!result.success) expect(result.error).toContain("Ungültige");
+  });
+});
+
+function makeReadyInvoiceRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: VALID_UUID,
+    tenant_id: "tenant-1",
+    status: "ready",
+    invoice_data: {
+      supplier_name: { value: "ACME GmbH", confidence: 0.99, reason: null },
+      line_items: [
+        {
+          description: { value: "Bürobedarf", confidence: 0.99, reason: null },
+          vat_rate: { value: 0.19, confidence: 0.99, reason: null },
+        },
+      ],
+    },
+    skr_code: null,
+    ...overrides,
+  };
+}
+
+describe("categorizeInvoice", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authGetUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    userSingleMock.mockResolvedValue({ data: { tenant_id: "tenant-1" }, error: null });
+    tenantSingleMock.mockResolvedValue({ data: { skr_plan: "skr03" }, error: null });
+    invoiceSelectSingleMock.mockResolvedValue({ data: makeReadyInvoiceRow(), error: null });
+    invoiceUpdateEqMock.mockResolvedValue({ data: { id: VALID_UUID }, error: null });
+    aiCategorizeMock.mockResolvedValue({
+      success: true,
+      data: { skrCode: "4230", confidence: 0.88, buSchluessel: null },
+    });
+  });
+
+  it("rejects non-ready status (captured) with German message", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: makeReadyInvoiceRow({ status: "captured" }),
+      error: null,
+    });
+    const result = await categorizeInvoice(VALID_UUID);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("Extraktion");
+    expect(aiCategorizeMock).not.toHaveBeenCalled();
+  });
+
+  it("happy path persists skr_code, bu_schluessel, categorization_confidence", async () => {
+    const result = await categorizeInvoice(VALID_UUID);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.skrCode).toBe("4230");
+      expect(result.data.confidence).toBe(0.88);
+      expect(result.data.buSchluessel).toBe(9);
+    }
+    const patch = invoiceUpdateEqMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(patch.skr_code).toBe("4230");
+    expect(patch.bu_schluessel).toBe(9);
+    expect(patch.categorization_confidence).toBe(0.88);
+  });
+
+  it("returns error when invoice not found", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({ data: null, error: null });
+    const result = await categorizeInvoice(VALID_UUID);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("nicht gefunden");
+  });
+
+  it("prefers AI buSchluessel (44) over deterministic mapping when AI returns non-null", async () => {
+    aiCategorizeMock.mockResolvedValueOnce({
+      success: true,
+      data: { skrCode: "3500", confidence: 0.9, buSchluessel: 44 },
+    });
+    const result = await categorizeInvoice(VALID_UUID);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.buSchluessel).toBe(44);
+    const patch = invoiceUpdateEqMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(patch.bu_schluessel).toBe(44);
+  });
+});
+
+describe("updateInvoiceSKR", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authGetUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    userSingleMock.mockResolvedValue({ data: { tenant_id: "tenant-1" }, error: null });
+    invoiceSelectSingleMock.mockResolvedValue({
+      data: makeReadyInvoiceRow({ skr_code: "4940" }),
+      error: null,
+    });
+    invoiceUpdateEqMock.mockResolvedValue({ data: { id: VALID_UUID }, error: null });
+    categorizationCorrectionInsertMock.mockResolvedValue({ error: null });
+  });
+
+  it("happy path writes skr_code and inserts categorization_corrections row", async () => {
+    const result = await updateInvoiceSKR({
+      invoiceId: VALID_UUID,
+      newSkrCode: "4230",
+      supplierName: "ACME GmbH",
+    });
+    expect(result.success).toBe(true);
+    const patch = invoiceUpdateEqMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(patch.skr_code).toBe("4230");
+    expect(patch.categorization_confidence).toBe(1.0);
+    const inserted = categorizationCorrectionInsertMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(inserted.corrected_code).toBe("4230");
+    expect(inserted.original_code).toBe("4940");
+    expect(inserted.supplier_name).toBe("ACME GmbH");
+  });
+
+  it("rejects exported status with German message", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: makeReadyInvoiceRow({ status: "exported", skr_code: "4230" }),
+      error: null,
+    });
+    const result = await updateInvoiceSKR({
+      invoiceId: VALID_UUID,
+      newSkrCode: "3400",
+      supplierName: null,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("Exportierte Rechnungen");
+    expect(invoiceUpdateEqMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid UUID with German message", async () => {
+    const result = await updateInvoiceSKR({
+      invoiceId: "not-a-uuid",
+      newSkrCode: "4230",
+      supplierName: null,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("Ungültige");
+  });
+
+  it("corrections insert failure is non-fatal — still returns success", async () => {
+    categorizationCorrectionInsertMock.mockResolvedValueOnce({
+      error: { code: "23503", message: "fk violation" },
+    });
+    const result = await updateInvoiceSKR({
+      invoiceId: VALID_UUID,
+      newSkrCode: "4230",
+      supplierName: "ACME GmbH",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("maps 19% VAT line item to bu_schluessel 9", async () => {
+    const result = await updateInvoiceSKR({
+      invoiceId: VALID_UUID,
+      newSkrCode: "3400",
+      supplierName: null,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.buSchluessel).toBe(9);
+  });
+
+  it("invoice not found returns German error", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({ data: null, error: null });
+    const result = await updateInvoiceSKR({
+      invoiceId: VALID_UUID,
+      newSkrCode: "4230",
+      supplierName: null,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("nicht gefunden");
   });
 });

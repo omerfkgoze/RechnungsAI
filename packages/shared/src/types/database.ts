@@ -34,6 +34,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      categorization_corrections: {
+        Row: {
+          id: string
+          tenant_id: string
+          invoice_id: string
+          original_code: string | null
+          corrected_code: string
+          supplier_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          invoice_id: string
+          original_code?: string | null
+          corrected_code: string
+          supplier_name?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          invoice_id?: string
+          original_code?: string | null
+          corrected_code?: string
+          supplier_name?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categorization_corrections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categorization_corrections_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_field_corrections: {
         Row: {
           id: string
@@ -87,6 +132,8 @@ export type Database = {
       }
       invoices: {
         Row: {
+          bu_schluessel: number | null
+          categorization_confidence: number | null
           created_at: string
           extracted_at: string | null
           extraction_attempts: number
@@ -96,11 +143,14 @@ export type Database = {
           id: string
           invoice_data: Json | null
           original_filename: string
+          skr_code: string | null
           status: Database["public"]["Enums"]["invoice_status"]
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          bu_schluessel?: number | null
+          categorization_confidence?: number | null
           created_at?: string
           extracted_at?: string | null
           extraction_attempts?: number
@@ -110,11 +160,14 @@ export type Database = {
           id?: string
           invoice_data?: Json | null
           original_filename: string
+          skr_code?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          bu_schluessel?: number | null
+          categorization_confidence?: number | null
           created_at?: string
           extracted_at?: string | null
           extraction_attempts?: number
@@ -124,6 +177,7 @@ export type Database = {
           id?: string
           invoice_data?: Json | null
           original_filename?: string
+          skr_code?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           tenant_id?: string
           updated_at?: string

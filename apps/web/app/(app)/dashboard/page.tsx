@@ -145,12 +145,17 @@ export default async function DashboardPage({
     invoice_data: Invoice | null;
     extraction_error: string | null;
     updated_at: string;
+    skr_code: string | null;
+    bu_schluessel: number | null;
+    categorization_confidence: number | null;
   } | null = null;
+  let selectedSkrPlan = "skr03";
+  let selectedRecentSkrCodes: string[] = [];
 
   if (selectedId) {
     const { data } = await supabase
       .from("invoices")
-      .select("id, status, invoice_data, extraction_error, updated_at")
+      .select("id, status, invoice_data, extraction_error, updated_at, skr_code, bu_schluessel, categorization_confidence")
       .eq("id", selectedId)
       .eq("tenant_id", tenantId)
       .single();
@@ -158,7 +163,38 @@ export default async function DashboardPage({
       selectedInvoice = {
         ...data,
         invoice_data: (data.invoice_data as unknown as Invoice | null) ?? null,
+        skr_code: data.skr_code ?? null,
+        bu_schluessel: data.bu_schluessel ?? null,
+        categorization_confidence: data.categorization_confidence ?? null,
       };
+
+      const invoiceData = data.invoice_data as Invoice | null;
+      const supplierName = invoiceData?.supplier_name?.value ?? null;
+
+      const [tenantRes, recentRes] = await Promise.all([
+        supabase.from("tenants").select("skr_plan").eq("id", tenantId).single(),
+        supplierName
+          ? supabase
+              .from("categorization_corrections")
+              .select("corrected_code")
+              .eq("tenant_id", tenantId)
+              .eq("supplier_name", supplierName)
+              .order("created_at", { ascending: false })
+              .limit(10)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      selectedSkrPlan = tenantRes.data?.skr_plan ?? "skr03";
+
+      const seenCodes = new Set<string>();
+      for (const row of (recentRes.data ?? [])) {
+        const code = (row as { corrected_code: string }).corrected_code;
+        if (!seenCodes.has(code)) {
+          seenCodes.add(code);
+          selectedRecentSkrCodes.push(code);
+        }
+        if (selectedRecentSkrCodes.length >= 3) break;
+      }
     }
   }
 
@@ -245,6 +281,11 @@ export default async function DashboardPage({
               extractionError={selectedInvoice.extraction_error}
               updatedAt={selectedInvoice.updated_at}
               isExported={selectedInvoice.status === "exported"}
+              skrCode={selectedInvoice.skr_code}
+              buSchluessel={selectedInvoice.bu_schluessel}
+              categorizationConfidence={selectedInvoice.categorization_confidence}
+              skrPlan={selectedSkrPlan}
+              recentSkrCodes={selectedRecentSkrCodes}
             />
           </aside>
         ) : (

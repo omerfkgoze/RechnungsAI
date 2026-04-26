@@ -1,4 +1,4 @@
-import { confidenceLevel, overallConfidence, type Invoice, type InvoiceStatus } from "@rechnungsai/shared";
+import { BU_SCHLUESSEL_LABELS, confidenceLevel, overallConfidence, type Invoice, type InvoiceStatus } from "@rechnungsai/shared";
 import { cn } from "@/lib/utils";
 import { LABELS, FIELD_ORDER } from "@/lib/invoice-fields";
 import { formatValue, formatEur } from "@/lib/format";
@@ -6,6 +6,8 @@ import { ConfidenceIndicator } from "./confidence-indicator";
 import { EditableField, type InputKind } from "./editable-field";
 import { DetailPaneExtractionBootstrap } from "./detail-pane-extraction-bootstrap";
 import { SourceDocumentViewerWrapper } from "./source-document-viewer-wrapper";
+import { CategoryBootstrap } from "./category-bootstrap";
+import { SkrCategorySelect } from "./skr-category-select";
 
 type Props = {
   invoiceId: string;
@@ -14,6 +16,11 @@ type Props = {
   extractionError: string | null;
   updatedAt: string;
   isExported: boolean;
+  skrCode?: string | null;
+  buSchluessel?: number | null;
+  categorizationConfidence?: number | null;
+  skrPlan?: string;
+  recentSkrCodes?: string[];
 };
 
 const BORDER_COLOR: Record<string, string> = {
@@ -43,6 +50,11 @@ export function InvoiceDetailPane({
   extractionError,
   updatedAt,
   isExported,
+  skrCode = null,
+  buSchluessel = null,
+  categorizationConfidence = null,
+  skrPlan = "skr03",
+  recentSkrCodes = [],
 }: Props) {
   const overall = invoice ? overallConfidence(invoice) : 0;
   const level = confidenceLevel(overall);
@@ -58,6 +70,13 @@ export function InvoiceDetailPane({
         status={status}
         extractionError={extractionError}
       />
+      {invoice !== null && (
+        <CategoryBootstrap
+          invoiceId={invoiceId}
+          skrCode={skrCode}
+          status={status}
+        />
+      )}
 
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1 className="text-xl font-semibold leading-none">Rechnung</h1>
@@ -207,6 +226,27 @@ export function InvoiceDetailPane({
               </div>
             </div>
           )}
+
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-[auto_1fr] border-t pt-4">
+            <dt className="text-sm text-muted-foreground self-start pt-1">SKR-Konto</dt>
+            <dd className="text-sm">
+              <SkrCategorySelect
+                invoiceId={invoiceId}
+                skrCode={skrCode}
+                skrConfidence={categorizationConfidence}
+                supplierName={invoice.supplier_name?.value ?? null}
+                skrPlan={skrPlan === "skr04" ? "skr04" : "skr03"}
+                recentCodes={recentSkrCodes}
+                isExported={isExported}
+              />
+            </dd>
+            <dt className="text-sm text-muted-foreground">BU-Schlüssel</dt>
+            <dd className="text-sm">
+              {buSchluessel !== null
+                ? `${buSchluessel} (${BU_SCHLUESSEL_LABELS[buSchluessel] ?? "Unbekannt"})`
+                : "—"}
+            </dd>
+          </div>
         </section>
       )}
     </div>

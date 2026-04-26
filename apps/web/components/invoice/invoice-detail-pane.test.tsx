@@ -9,8 +9,10 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/app/actions/invoices", () => ({
   extractInvoice: vi.fn().mockResolvedValue({ success: true, data: { status: "ready", overall: 0.99 } }),
+  categorizeInvoice: vi.fn().mockResolvedValue({ success: true, data: { skrCode: "4230", confidence: 0.88, buSchluessel: null } }),
   correctInvoiceField: vi.fn(),
   getInvoiceSignedUrl: vi.fn(),
+  updateInvoiceSKR: vi.fn(),
 }));
 
 function field<T>(value: T, confidence = 0.99) {

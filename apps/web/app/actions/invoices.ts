@@ -4,13 +4,14 @@ import {
   CORRECTABLE_FIELD_PATHS,
   INVOICE_ACCEPTED_MIME,
   invoiceUploadInputSchema,
+  mapBuSchluessel,
   overallConfidence,
   statusFromOverallConfidence,
   type ActionResult,
   type InvoiceAcceptedMime,
 } from "@rechnungsai/shared";
 import { z } from "zod";
-import { extractInvoice as aiExtractInvoice } from "@rechnungsai/ai";
+import { categorizeInvoice as aiCategorizeInvoice, extractInvoice as aiExtractInvoice } from "@rechnungsai/ai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
@@ -678,6 +679,287 @@ export async function getInvoiceSignedUrl(
     console.error(SIGN_URL_LOG, err);
     Sentry.captureException(err, {
       tags: { module: "invoices", action: "sign_url" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
+  }
+}
+
+const CATEGORIZE_LOG = "[invoices:categorize]";
+const UPDATE_SKR_LOG = "[invoices:update_skr]";
+
+const skrCodeSchema = z.string().min(1).max(10);
+
+export async function categorizeInvoice(
+  invoiceId: string,
+): Promise<ActionResult<{ skrCode: string; confidence: number; buSchluessel: number | null }>> {
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(CATEGORIZE_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, status, invoice_data, skr_code")
+      .eq("id", invoiceId)
+      .single();
+
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(CATEGORIZE_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "categorize" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    const validStatuses = ["ready", "review", "exported"] as const;
+    if (!(validStatuses as readonly string[]).includes(row.status)) {
+      return { success: false, error: "Kategorisierung ist erst nach der Extraktion möglich." };
+    }
+
+    if (!row.invoice_data) {
+      return { success: false, error: "Keine Extraktionsdaten vorhanden." };
+    }
+
+    const { data: tenantRow, error: tenantErr } = await supabase
+      .from("tenants")
+      .select("skr_plan")
+      .eq("id", tenantId)
+      .single();
+    if (tenantErr || !tenantRow) {
+      console.error(CATEGORIZE_LOG, "tenant-lookup-failed", tenantErr);
+      return { success: false, error: "Mandantendaten konnten nicht geladen werden." };
+    }
+
+    const skrPlan: "skr03" | "skr04" =
+      tenantRow.skr_plan === "skr04" ? "skr04" : "skr03";
+
+    const invoiceData = row.invoice_data as {
+      line_items?: Array<{
+        description?: { value: string | null };
+        vat_rate?: { value: number | null };
+      }>;
+      supplier_name?: { value: string | null };
+    };
+
+    const supplierName = invoiceData.supplier_name?.value ?? null;
+    const lineItemDescriptions = (invoiceData.line_items ?? [])
+      .slice(0, 3)
+      .map((li) => li.description?.value ?? "")
+      .filter(Boolean) as string[];
+
+    const firstVatRate = (invoiceData.line_items ?? [])
+      .map((li) => li.vat_rate?.value)
+      .find((v) => v !== null && v !== undefined) ?? null;
+    const vatRate = typeof firstVatRate === "number" ? firstVatRate : null;
+
+    const aiResult = await aiCategorizeInvoice({
+      supplierName,
+      lineItemDescriptions,
+      vatRate,
+      skrPlan,
+    });
+
+    if (!aiResult.success) {
+      Sentry.captureException(new Error(`${CATEGORIZE_LOG} ${aiResult.error}`), {
+        tags: { module: "invoices", action: "categorize" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: aiResult.error };
+    }
+
+    const { skrCode, confidence, buSchluessel: aibuSchluessel } = aiResult.data;
+    const standardBu = mapBuSchluessel(vatRate);
+    const buSchluessel = aibuSchluessel !== null ? aibuSchluessel : standardBu;
+
+    const { error: saveErr } = await supabase
+      .from("invoices")
+      .update({
+        skr_code: skrCode,
+        bu_schluessel: buSchluessel,
+        categorization_confidence: confidence,
+      })
+      .eq("id", invoiceId);
+
+    if (saveErr) {
+      console.error(CATEGORIZE_LOG, "save-failed", saveErr);
+      Sentry.captureException(saveErr, {
+        tags: { module: "invoices", action: "categorize" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Kategorisierung konnte nicht gespeichert werden." };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/rechnungen/${invoiceId}`);
+    console.info(CATEGORIZE_LOG, "done", { invoiceId, skrCode, confidence });
+    return { success: true, data: { skrCode, confidence, buSchluessel } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(CATEGORIZE_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "categorize" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Kategorisierung fehlgeschlagen. Bitte erneut versuchen." };
+  }
+}
+
+export async function updateInvoiceSKR(input: {
+  invoiceId: string;
+  newSkrCode: string;
+  supplierName: string | null;
+}): Promise<ActionResult<{ buSchluessel: number | null }>> {
+  const { invoiceId, newSkrCode, supplierName } = input;
+
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+
+  const codeParse = skrCodeSchema.safeParse(newSkrCode);
+  if (!codeParse.success) {
+    return { success: false, error: "Ungültiger SKR-Kontocode." };
+  }
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(UPDATE_SKR_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, status, invoice_data, skr_code")
+      .eq("id", invoiceId)
+      .single();
+
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(UPDATE_SKR_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "update_skr" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    if (row.status === "exported") {
+      return {
+        success: false,
+        error: "Exportierte Rechnungen können nicht mehr bearbeitet werden.",
+      };
+    }
+
+    const invoiceData = row.invoice_data as {
+      line_items?: Array<{ vat_rate?: { value: number | null } }>;
+    } | null;
+
+    const firstVatRate = (invoiceData?.line_items ?? [])
+      .map((li) => li.vat_rate?.value)
+      .find((v) => v !== null && v !== undefined) ?? null;
+    const vatRate = typeof firstVatRate === "number" ? firstVatRate : null;
+    const buSchluessel = mapBuSchluessel(vatRate);
+
+    const { error: updateErr } = await supabase
+      .from("invoices")
+      .update({
+        skr_code: newSkrCode,
+        bu_schluessel: buSchluessel,
+        categorization_confidence: 1.0,
+      })
+      .eq("id", invoiceId);
+
+    if (updateErr) {
+      console.error(UPDATE_SKR_LOG, "update-failed", updateErr);
+      Sentry.captureException(updateErr, {
+        tags: { module: "invoices", action: "update_skr" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "SKR-Konto konnte nicht gespeichert werden." };
+    }
+
+    const { error: correctionErr } = await supabase
+      .from("categorization_corrections")
+      .insert({
+        tenant_id: tenantId,
+        invoice_id: invoiceId,
+        original_code: row.skr_code ?? null,
+        corrected_code: newSkrCode,
+        supplier_name: supplierName,
+      });
+
+    if (correctionErr) {
+      console.error(UPDATE_SKR_LOG, "correction-insert-failed", correctionErr);
+      Sentry.captureException(correctionErr, {
+        tags: { module: "invoices", action: "update_skr" },
+        extra: { invoiceId },
+      });
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/rechnungen/${invoiceId}`);
+    console.info(UPDATE_SKR_LOG, "done", { invoiceId, newSkrCode, buSchluessel });
+    return { success: true, data: { buSchluessel } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(UPDATE_SKR_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "update_skr" },
       extra: { invoiceId },
     });
     return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };

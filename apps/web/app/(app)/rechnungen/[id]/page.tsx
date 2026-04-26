@@ -22,10 +22,16 @@ export default async function Page({
     redirect(`/login?returnTo=/rechnungen/${id}`);
   }
 
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .single();
+
   const { data: invoice } = await supabase
     .from("invoices")
     .select(
-      "id, status, file_path, file_type, original_filename, invoice_data, extraction_error, extracted_at, created_at, updated_at",
+      "id, status, file_path, file_type, original_filename, invoice_data, extraction_error, extracted_at, created_at, updated_at, skr_code, bu_schluessel, categorization_confidence",
     )
     .eq("id", id)
     .single();
@@ -34,16 +40,50 @@ export default async function Page({
     notFound();
   }
 
+  const invoiceData = invoice.invoice_data as Invoice | null;
+  const supplierName = invoiceData?.supplier_name?.value ?? null;
+
+  const [tenantResult, recentCodesResult] = await Promise.all([
+    supabase.from("tenants").select("skr_plan").eq("id", userRow?.tenant_id ?? "").single(),
+    supplierName && userRow
+      ? supabase
+          .from("categorization_corrections")
+          .select("corrected_code")
+          .eq("tenant_id", userRow.tenant_id)
+          .eq("supplier_name", supplierName)
+          .order("created_at", { ascending: false })
+          .limit(10)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const skrPlan = tenantResult.data?.skr_plan ?? "skr03";
+
+  const seenCodes = new Set<string>();
+  const recentSkrCodes: string[] = [];
+  for (const row of (recentCodesResult.data ?? [])) {
+    const code = (row as { corrected_code: string }).corrected_code;
+    if (!seenCodes.has(code)) {
+      seenCodes.add(code);
+      recentSkrCodes.push(code);
+    }
+    if (recentSkrCodes.length >= 3) break;
+  }
+
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6">
       <AiDisclaimer className="mb-4" />
       <InvoiceDetailPane
         invoiceId={invoice.id}
         status={invoice.status}
-        invoice={(invoice.invoice_data as unknown as Invoice | null) ?? null}
+        invoice={invoiceData}
         extractionError={invoice.extraction_error}
         updatedAt={invoice.updated_at}
         isExported={invoice.status === "exported"}
+        skrCode={invoice.skr_code ?? null}
+        buSchluessel={invoice.bu_schluessel ?? null}
+        categorizationConfidence={invoice.categorization_confidence ?? null}
+        skrPlan={skrPlan}
+        recentSkrCodes={recentSkrCodes}
       />
     </main>
   );
