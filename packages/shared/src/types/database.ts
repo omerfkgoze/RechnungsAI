@@ -132,8 +132,12 @@ export type Database = {
       }
       invoices: {
         Row: {
+          approval_method: string | null
+          approved_at: string | null
+          approved_by: string | null
           bu_schluessel: number | null
           categorization_confidence: number | null
+          confidence_sort_key: number | null
           created_at: string
           extracted_at: string | null
           extraction_attempts: number
@@ -143,14 +147,19 @@ export type Database = {
           id: string
           invoice_data: Json | null
           original_filename: string
+          review_priority_key: number | null
           skr_code: string | null
           status: Database["public"]["Enums"]["invoice_status"]
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          approval_method?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           bu_schluessel?: number | null
           categorization_confidence?: number | null
+          // confidence_sort_key + review_priority_key are GENERATED ALWAYS — no Insert
           created_at?: string
           extracted_at?: string | null
           extraction_attempts?: number
@@ -166,8 +175,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approval_method?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           bu_schluessel?: number | null
           categorization_confidence?: number | null
+          // confidence_sort_key + review_priority_key are GENERATED ALWAYS — no Update
           created_at?: string
           extracted_at?: string | null
           extraction_attempts?: number

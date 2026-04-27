@@ -78,7 +78,7 @@ export function InvoiceListFilters() {
 
   const currentStatus = new URLSearchParams(paramString).get("status") ?? "all";
   const currentSort =
-    new URLSearchParams(paramString).get("sort") ?? "date_desc";
+    new URLSearchParams(paramString).get("sort") ?? "confidence";
   const currentFrom = new URLSearchParams(paramString).get("from") ?? "";
   const currentTo = new URLSearchParams(paramString).get("to") ?? "";
 
@@ -134,10 +134,11 @@ export function InvoiceListFilters() {
             value={currentSort}
             onChange={(e) =>
               writeParams({
-                sort: e.target.value === "date_desc" ? null : e.target.value,
+                sort: e.target.value === "confidence" ? null : e.target.value,
               })
             }
           >
+            <option value="confidence">Empfohlen (Prüfung zuerst)</option>
             <option value="date_desc">Datum (neueste)</option>
             <option value="date_asc">Datum (älteste)</option>
             <option value="amount_desc">Betrag (höchste)</option>

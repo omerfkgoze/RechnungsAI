@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { Invoice } from "@rechnungsai/shared";
+import { ActionToastProvider } from "@/components/ui/action-toast-context";
 import { InvoiceDetailPane } from "./invoice-detail-pane";
+
+function renderInProvider(ui: React.ReactElement) {
+  return render(<ActionToastProvider>{ui}</ActionToastProvider>);
+}
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), replace: vi.fn() }),
@@ -13,6 +18,9 @@ vi.mock("@/app/actions/invoices", () => ({
   correctInvoiceField: vi.fn(),
   getInvoiceSignedUrl: vi.fn(),
   updateInvoiceSKR: vi.fn(),
+  approveInvoice: vi.fn().mockResolvedValue({ success: true, data: { status: "ready" } }),
+  flagInvoice: vi.fn().mockResolvedValue({ success: true, data: { status: "review" } }),
+  undoInvoiceAction: vi.fn().mockResolvedValue({ success: true, data: { status: "review" } }),
 }));
 
 function field<T>(value: T, confidence = 0.99) {
@@ -47,7 +55,7 @@ const DEFAULT_PROPS = {
 
 describe("InvoiceDetailPane", () => {
   it("renders all 12 top-level fields in order", () => {
-    render(<InvoiceDetailPane {...DEFAULT_PROPS} invoice={makeInvoice()} />);
+    renderInProvider(<InvoiceDetailPane {...DEFAULT_PROPS} invoice={makeInvoice()} />);
     expect(screen.getByText("Rechnungsnummer")).toBeDefined();
     expect(screen.getByText("Rechnungsdatum")).toBeDefined();
     expect(screen.getByText("Brutto")).toBeDefined();
@@ -55,7 +63,7 @@ describe("InvoiceDetailPane", () => {
   });
 
   it("renders left border class based on confidence tier (high → confidence-high)", () => {
-    const { container } = render(<InvoiceDetailPane {...DEFAULT_PROPS} invoice={makeInvoice(0.99)} />);
+    const { container } = renderInProvider(<InvoiceDetailPane {...DEFAULT_PROPS} invoice={makeInvoice(0.99)} />);
     const borderedEl = container.querySelector(".border-l-confidence-high");
     expect(borderedEl).not.toBeNull();
   });
@@ -63,12 +71,12 @@ describe("InvoiceDetailPane", () => {
   it("renders em-dash for NULL field values", () => {
     const invoice = makeInvoice();
     invoice.payment_terms = field(null, 0.99);
-    render(<InvoiceDetailPane {...DEFAULT_PROPS} invoice={invoice} />);
+    renderInProvider(<InvoiceDetailPane {...DEFAULT_PROPS} invoice={invoice} />);
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders skeleton placeholders when status is captured/processing and invoice is null", () => {
-    const { container } = render(
+    const { container } = renderInProvider(
       <InvoiceDetailPane {...DEFAULT_PROPS} status="processing" invoice={null} />,
     );
     const skeletons = container.querySelectorAll(".animate-pulse");
@@ -76,7 +84,26 @@ describe("InvoiceDetailPane", () => {
   });
 
   it("shows exported banner and no editable fields when isExported=true", () => {
-    render(<InvoiceDetailPane {...DEFAULT_PROPS} invoice={makeInvoice()} isExported />);
+    renderInProvider(<InvoiceDetailPane {...DEFAULT_PROPS} invoice={makeInvoice()} isExported />);
     expect(screen.getByText(/Exportierte Rechnungen/)).toBeDefined();
+  });
+
+  it("renders Freigeben/Flaggen/Beleg ansehen header buttons for ready invoices", () => {
+    renderInProvider(
+      <InvoiceDetailPane {...DEFAULT_PROPS} invoice={makeInvoice()} status="ready" />,
+    );
+    expect(screen.getByTestId("invoice-approve-button")).toBeDefined();
+    expect(screen.getByTestId("invoice-flag-button")).toBeDefined();
+    expect(screen.getByTestId("invoice-view-document-button")).toBeDefined();
+  });
+
+  it("disables approve and flag buttons when isExported=true", () => {
+    renderInProvider(
+      <InvoiceDetailPane {...DEFAULT_PROPS} invoice={makeInvoice()} status="exported" isExported />,
+    );
+    const approve = screen.getByTestId("invoice-approve-button") as HTMLButtonElement;
+    const flag = screen.getByTestId("invoice-flag-button") as HTMLButtonElement;
+    expect(approve.disabled).toBe(true);
+    expect(flag.disabled).toBe(true);
   });
 });

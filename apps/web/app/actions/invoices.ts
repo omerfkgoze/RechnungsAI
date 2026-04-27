@@ -854,6 +854,371 @@ export async function categorizeInvoice(
   }
 }
 
+const APPROVE_LOG = "[invoices:approve]";
+const FLAG_LOG = "[invoices:flag]";
+const UNDO_LOG = "[invoices:undo]";
+
+const approvalMethodSchema = z.enum(["swipe", "button", "keyboard", "undo_revert"]);
+
+type InvoiceStatus =
+  | "captured"
+  | "processing"
+  | "ready"
+  | "review"
+  | "exported";
+
+const invoiceStatusSchema = z.enum([
+  "captured",
+  "processing",
+  "ready",
+  "review",
+  "exported",
+]);
+
+function blockedByStatusMessage(status: InvoiceStatus): string | null {
+  if (status === "captured" || status === "processing") {
+    return "Die Extraktion ist noch nicht abgeschlossen.";
+  }
+  if (status === "exported") {
+    return "Exportierte Rechnungen können nicht mehr bearbeitet werden.";
+  }
+  return null;
+}
+
+export async function approveInvoice(input: {
+  invoiceId: string;
+  method: "swipe" | "button" | "keyboard";
+}): Promise<ActionResult<{ status: InvoiceStatus }>> {
+  const { invoiceId, method } = input;
+
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+  const methodParse = approvalMethodSchema.safeParse(method);
+  if (!methodParse.success) {
+    return { success: false, error: "Ungültige Aktion." };
+  }
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(APPROVE_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, status")
+      .eq("id", invoiceId)
+      .single();
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(APPROVE_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "approve" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    const blocked = blockedByStatusMessage(row.status as InvoiceStatus);
+    if (blocked) {
+      return { success: false, error: blocked };
+    }
+
+    // review → ready: flips and stamps approval columns.
+    // ready → ready: idempotent re-stamp (cheap, atomic — preferred over branchy "skip").
+    const { data: updated, error: updateErr } = await supabase
+      .from("invoices")
+      .update({
+        status: "ready",
+        approved_at: new Date().toISOString(),
+        approved_by: user.id,
+        approval_method: method,
+      })
+      .eq("id", invoiceId)
+      .eq("status", row.status)
+      .select("id, status")
+      .maybeSingle();
+
+    if (updateErr) {
+      console.error(APPROVE_LOG, "update-failed", updateErr);
+      Sentry.captureException(updateErr, {
+        tags: { module: "invoices", action: "approve" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung konnte nicht freigegeben werden." };
+    }
+    if (!updated) {
+      // 0 rows affected: status changed concurrently
+      return {
+        success: false,
+        error: "Rechnung wurde zwischenzeitlich geändert. Bitte Seite neu laden.",
+      };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/rechnungen/${invoiceId}`);
+    console.info(APPROVE_LOG, "done", { invoiceId, method });
+    return { success: true, data: { status: "ready" } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(APPROVE_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "approve" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
+  }
+}
+
+export async function flagInvoice(input: {
+  invoiceId: string;
+  method: "swipe" | "button" | "keyboard";
+}): Promise<ActionResult<{ status: InvoiceStatus }>> {
+  const { invoiceId, method } = input;
+
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+  const methodParse = approvalMethodSchema.safeParse(method);
+  if (!methodParse.success) {
+    return { success: false, error: "Ungültige Aktion." };
+  }
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(FLAG_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, status")
+      .eq("id", invoiceId)
+      .single();
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(FLAG_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "flag" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    const blocked = blockedByStatusMessage(row.status as InvoiceStatus);
+    if (blocked) {
+      return { success: false, error: blocked };
+    }
+
+    // ready → review: flip + clear approval columns.
+    // review → review: idempotent — skip the UPDATE entirely so we don't churn updated_at.
+    if (row.status === "review") {
+      return { success: true, data: { status: "review" } };
+    }
+
+    const { data: updated, error: updateErr } = await supabase
+      .from("invoices")
+      .update({
+        status: "review",
+        approved_at: null,
+        approved_by: null,
+        approval_method: null,
+      })
+      .eq("id", invoiceId)
+      .eq("status", "ready")
+      .select("id, status")
+      .maybeSingle();
+
+    if (updateErr) {
+      console.error(FLAG_LOG, "update-failed", updateErr);
+      Sentry.captureException(updateErr, {
+        tags: { module: "invoices", action: "flag" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung konnte nicht zur Prüfung markiert werden." };
+    }
+    if (!updated) {
+      return {
+        success: false,
+        error: "Rechnung wurde zwischenzeitlich geändert. Bitte Seite neu laden.",
+      };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/rechnungen/${invoiceId}`);
+    console.info(FLAG_LOG, "done", { invoiceId, method });
+    return { success: true, data: { status: "review" } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(FLAG_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "flag" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
+  }
+}
+
+export async function undoInvoiceAction(input: {
+  invoiceId: string;
+  expectedCurrentStatus: InvoiceStatus;
+  snapshot: {
+    status: InvoiceStatus;
+    approved_at: string | null;
+    approved_by: string | null;
+    approval_method: string | null;
+  };
+}): Promise<ActionResult<{ status: InvoiceStatus }>> {
+  const { invoiceId, expectedCurrentStatus, snapshot } = input;
+
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+  const statusParse = invoiceStatusSchema.safeParse(expectedCurrentStatus);
+  const snapStatusParse = invoiceStatusSchema.safeParse(snapshot.status);
+  if (!statusParse.success || !snapStatusParse.success) {
+    return { success: false, error: "Ungültiger Rechnungsstatus." };
+  }
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(UNDO_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, status")
+      .eq("id", invoiceId)
+      .single();
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(UNDO_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "undo" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    // Concurrency guard: only undo if the row is still in the post-action
+    // state we expect. Prevents clobbering a third-party concurrent change.
+    const { data: updated, error: updateErr } = await supabase
+      .from("invoices")
+      .update({
+        status: snapshot.status,
+        approved_at: snapshot.approved_at,
+        approved_by: snapshot.approved_by,
+        approval_method: snapshot.approval_method,
+      })
+      .eq("id", invoiceId)
+      .eq("status", expectedCurrentStatus)
+      .select("id, status")
+      .maybeSingle();
+
+    if (updateErr) {
+      console.error(UNDO_LOG, "update-failed", updateErr);
+      Sentry.captureException(updateErr, {
+        tags: { module: "invoices", action: "undo" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rückgängig fehlgeschlagen. Bitte Seite neu laden." };
+    }
+    if (!updated) {
+      return {
+        success: false,
+        error: "Rechnung wurde zwischenzeitlich geändert. Rückgängig nicht möglich.",
+      };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/rechnungen/${invoiceId}`);
+    console.info(UNDO_LOG, "done", { invoiceId, restoredStatus: snapshot.status });
+    return { success: true, data: { status: snapshot.status } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(UNDO_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "undo" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
+  }
+}
+
 export async function updateInvoiceSKR(input: {
   invoiceId: string;
   newSkrCode: string;

@@ -36,7 +36,7 @@ export default async function Page({
   const { data: invoice } = await supabase
     .from("invoices")
     .select(
-      "id, status, file_path, file_type, original_filename, invoice_data, extraction_error, extracted_at, created_at, updated_at, skr_code, bu_schluessel, categorization_confidence",
+      "id, status, file_path, file_type, original_filename, invoice_data, extraction_error, extracted_at, created_at, updated_at, skr_code, bu_schluessel, categorization_confidence, approved_at, approved_by, approval_method",
     )
     .eq("id", id)
     .eq("tenant_id", tenantId)
@@ -90,6 +90,9 @@ export default async function Page({
         categorizationConfidence={invoice.categorization_confidence ?? null}
         skrPlan={skrPlan}
         recentSkrCodes={recentSkrCodes}
+        approvedAt={invoice.approved_at ?? null}
+        approvedBy={invoice.approved_by ?? null}
+        approvalMethod={invoice.approval_method ?? null}
       />
     </main>
   );

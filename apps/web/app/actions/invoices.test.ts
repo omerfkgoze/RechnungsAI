@@ -102,7 +102,7 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-import { categorizeInvoice, correctInvoiceField, extractInvoice, getInvoiceSignedUrl, updateInvoiceSKR, uploadInvoice } from "./invoices";
+import { approveInvoice, categorizeInvoice, correctInvoiceField, extractInvoice, flagInvoice, getInvoiceSignedUrl, undoInvoiceAction, updateInvoiceSKR, uploadInvoice } from "./invoices";
 
 function makeFile(
   name: string,
@@ -757,5 +757,147 @@ describe("updateInvoiceSKR", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) expect(result.error).toContain("nicht gefunden");
+  });
+});
+
+describe("approveInvoice / flagInvoice / undoInvoiceAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authGetUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    userSingleMock.mockResolvedValue({ data: { tenant_id: "tenant-1" }, error: null });
+    invoiceUpdateEqMock.mockResolvedValue({ data: { id: VALID_UUID, status: "ready" }, error: null });
+  });
+
+  function row(status: InvoiceStatus, tenantId = "tenant-1") {
+    return {
+      data: { id: VALID_UUID, tenant_id: tenantId, status },
+      error: null,
+    };
+  }
+
+  type InvoiceStatus = "captured" | "processing" | "ready" | "review" | "exported";
+
+  it("approveInvoice happy path on review → flips to ready and stamps approval columns", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("review"));
+    invoiceUpdateEqMock.mockResolvedValueOnce({ data: { id: VALID_UUID, status: "ready" }, error: null });
+    const result = await approveInvoice({ invoiceId: VALID_UUID, method: "swipe" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.status).toBe("ready");
+    const patch = invoiceUpdateEqMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(patch.status).toBe("ready");
+    expect(patch.approval_method).toBe("swipe");
+    expect(patch.approved_by).toBe("user-1");
+    expect(typeof patch.approved_at).toBe("string");
+  });
+
+  it("approveInvoice on exported returns German error and does not update", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("exported"));
+    const result = await approveInvoice({ invoiceId: VALID_UUID, method: "button" });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("Exportierte Rechnungen");
+    expect(invoiceUpdateEqMock).not.toHaveBeenCalled();
+  });
+
+  it("approveInvoice on captured/processing returns German extraction error", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("captured"));
+    const r1 = await approveInvoice({ invoiceId: VALID_UUID, method: "button" });
+    expect(r1.success).toBe(false);
+    if (!r1.success) expect(r1.error).toContain("Extraktion");
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("processing"));
+    const r2 = await approveInvoice({ invoiceId: VALID_UUID, method: "button" });
+    expect(r2.success).toBe(false);
+    if (!r2.success) expect(r2.error).toContain("Extraktion");
+    expect(invoiceUpdateEqMock).not.toHaveBeenCalled();
+  });
+
+  it("approveInvoice on already-ready idempotently re-stamps approval_method", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("ready"));
+    invoiceUpdateEqMock.mockResolvedValueOnce({ data: { id: VALID_UUID, status: "ready" }, error: null });
+    const result = await approveInvoice({ invoiceId: VALID_UUID, method: "keyboard" });
+    expect(result.success).toBe(true);
+    const patch = invoiceUpdateEqMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(patch.status).toBe("ready");
+    expect(patch.approval_method).toBe("keyboard");
+  });
+
+  it("flagInvoice happy path on ready → flips to review and clears approval columns", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("ready"));
+    invoiceUpdateEqMock.mockResolvedValueOnce({ data: { id: VALID_UUID, status: "review" }, error: null });
+    const result = await flagInvoice({ invoiceId: VALID_UUID, method: "swipe" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.status).toBe("review");
+    const patch = invoiceUpdateEqMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(patch.status).toBe("review");
+    expect(patch.approved_at).toBeNull();
+    expect(patch.approved_by).toBeNull();
+    expect(patch.approval_method).toBeNull();
+  });
+
+  it("flagInvoice on review is idempotent — no UPDATE issued", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("review"));
+    const result = await flagInvoice({ invoiceId: VALID_UUID, method: "button" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.status).toBe("review");
+    expect(invoiceUpdateEqMock).not.toHaveBeenCalled();
+  });
+
+  it("flagInvoice on exported returns German error", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("exported"));
+    const result = await flagInvoice({ invoiceId: VALID_UUID, method: "button" });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("Exportierte Rechnungen");
+    expect(invoiceUpdateEqMock).not.toHaveBeenCalled();
+  });
+
+  it("undoInvoiceAction happy path restores snapshot when post-action state matches", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("ready"));
+    invoiceUpdateEqMock.mockResolvedValueOnce({ data: { id: VALID_UUID, status: "review" }, error: null });
+    const result = await undoInvoiceAction({
+      invoiceId: VALID_UUID,
+      expectedCurrentStatus: "ready",
+      snapshot: {
+        status: "review",
+        approved_at: null,
+        approved_by: null,
+        approval_method: null,
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.status).toBe("review");
+    const patch = invoiceUpdateEqMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(patch.status).toBe("review");
+    expect(patch.approval_method).toBeNull();
+  });
+
+  it("undoInvoiceAction concurrency miss returns German error when 0 rows affected", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("review"));
+    invoiceUpdateEqMock.mockResolvedValueOnce({ data: null, error: null });
+    const result = await undoInvoiceAction({
+      invoiceId: VALID_UUID,
+      expectedCurrentStatus: "ready",
+      snapshot: {
+        status: "review",
+        approved_at: null,
+        approved_by: null,
+        approval_method: null,
+      },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("zwischenzeitlich");
+  });
+
+  it("approveInvoice tenant isolation rejects cross-tenant invoiceId", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce(row("review", "other-tenant"));
+    const result = await approveInvoice({ invoiceId: VALID_UUID, method: "swipe" });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("nicht gefunden");
+    expect(invoiceUpdateEqMock).not.toHaveBeenCalled();
+  });
+
+  it("approveInvoice rejects invalid UUID with German message", async () => {
+    const result = await approveInvoice({ invoiceId: "not-a-uuid", method: "swipe" });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("Ungültige");
+    expect(invoiceSelectSingleMock).not.toHaveBeenCalled();
   });
 });

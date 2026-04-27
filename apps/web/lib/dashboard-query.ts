@@ -24,6 +24,7 @@ const STATUS_VALUES = [
 ] as const;
 
 const SORT_VALUES = [
+  "confidence",
   "date_desc",
   "date_asc",
   "amount_desc",
@@ -31,6 +32,8 @@ const SORT_VALUES = [
   "supplier_asc",
   "status",
 ] as const;
+
+export const DEFAULT_SORT: (typeof SORT_VALUES)[number] = "confidence";
 
 export const dashboardQuerySchema = z.object({
   status: z.enum(STATUS_VALUES).optional(),

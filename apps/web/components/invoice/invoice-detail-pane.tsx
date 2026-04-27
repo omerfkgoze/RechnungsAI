@@ -8,6 +8,7 @@ import { DetailPaneExtractionBootstrap } from "./detail-pane-extraction-bootstra
 import { SourceDocumentViewerWrapper } from "./source-document-viewer-wrapper";
 import { CategoryBootstrap } from "./category-bootstrap";
 import { SkrCategorySelect } from "./skr-category-select";
+import { InvoiceActionsHeader } from "./invoice-actions-header";
 
 type Props = {
   invoiceId: string;
@@ -21,6 +22,9 @@ type Props = {
   categorizationConfidence?: number | null;
   skrPlan?: string;
   recentSkrCodes?: string[];
+  approvedAt?: string | null;
+  approvedBy?: string | null;
+  approvalMethod?: string | null;
 };
 
 const BORDER_COLOR: Record<string, string> = {
@@ -55,6 +59,9 @@ export function InvoiceDetailPane({
   categorizationConfidence = null,
   skrPlan = "skr03",
   recentSkrCodes = [],
+  approvedAt = null,
+  approvedBy = null,
+  approvalMethod = null,
 }: Props) {
   const overall = invoice ? overallConfidence(invoice) : 0;
   const level = confidenceLevel(overall);
@@ -78,18 +85,26 @@ export function InvoiceDetailPane({
         />
       )}
 
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold leading-none">Rechnung</h1>
-        {invoice && (
-          <div className="shrink-0 self-center">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold leading-none">Rechnung</h1>
+          {invoice && (
             <ConfidenceIndicator
               confidence={overall}
               variant="badge"
               fieldName="Gesamt"
               explanation={null}
             />
-          </div>
-        )}
+          )}
+        </div>
+        <InvoiceActionsHeader
+          invoiceId={invoiceId}
+          status={status}
+          isExported={isExported}
+          approvedAt={approvedAt}
+          approvedBy={approvedBy}
+          approvalMethod={approvalMethod}
+        />
       </div>
 
       {/* Exported banner shown regardless of whether invoice_data is present */}

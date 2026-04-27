@@ -11,6 +11,7 @@ import {
   type InvoiceStatus,
 } from "@/lib/status-labels";
 import { InvoiceListCardLink } from "./invoice-list-card-link";
+import { InvoiceListCardSwipeWrapper } from "./invoice-list-card-swipe-wrapper";
 
 export type InvoiceRow = {
   id: string;
@@ -18,6 +19,9 @@ export type InvoiceRow = {
   invoice_data: Invoice | null;
   extraction_error: string | null;
   created_at: string;
+  approved_at?: string | null;
+  approved_by?: string | null;
+  approval_method?: string | null;
 };
 
 type BadgeVariant =
@@ -76,7 +80,7 @@ export function InvoiceListCard({ row, isSelected }: { row: InvoiceRow; isSelect
     isSelected && "bg-muted/40 ring-2 ring-primary/50",
   );
 
-  return (
+  const cardLink = (
     <InvoiceListCardLink invoiceId={row.id} ariaLabel={ariaLabel} className={linkClass}>
       <div className="flex items-center justify-between gap-3">
         <p className={cn("font-medium text-body truncate", pulse)}>
@@ -105,5 +109,17 @@ export function InvoiceListCard({ row, isSelected }: { row: InvoiceRow; isSelect
         </p>
       ) : null}
     </InvoiceListCardLink>
+  );
+
+  return (
+    <InvoiceListCardSwipeWrapper
+      invoiceId={row.id}
+      status={row.status}
+      approvedAt={row.approved_at ?? null}
+      approvedBy={row.approved_by ?? null}
+      approvalMethod={row.approval_method ?? null}
+    >
+      {cardLink}
+    </InvoiceListCardSwipeWrapper>
   );
 }

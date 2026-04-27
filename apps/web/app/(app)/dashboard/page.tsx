@@ -19,8 +19,10 @@ import {
 } from "@/components/dashboard/processing-stats-row";
 import { DashboardRealtimeRefresher } from "@/components/dashboard/dashboard-realtime-refresher";
 import { DashboardEscHandler } from "@/components/dashboard/dashboard-esc-handler";
+import { SessionSummary } from "@/components/dashboard/session-summary";
+import { ExportAction } from "@/components/dashboard/export-action";
 import { InvoiceDetailPane } from "@/components/invoice/invoice-detail-pane";
-import { parseDashboardQuery } from "@/lib/dashboard-query";
+import { DEFAULT_SORT, parseDashboardQuery } from "@/lib/dashboard-query";
 import {
   PIPELINE_STAGES,
   PIPELINE_STAGE_LABEL_DE,
@@ -80,7 +82,7 @@ export default async function DashboardPage({
   let q = supabase
     .from("invoices")
     .select(
-      "id, status, file_path, file_type, original_filename, invoice_data, extraction_error, extracted_at, created_at, updated_at",
+      "id, status, file_path, file_type, original_filename, invoice_data, extraction_error, extracted_at, created_at, updated_at, approved_at, approved_by, approval_method",
     )
     .eq("tenant_id", tenantId)
     .limit(LIST_LIMIT);
@@ -111,7 +113,18 @@ export default async function DashboardPage({
     q = q.lte("gross_total_value", query.maxAmount);
   }
 
-  switch (query.sort) {
+  const effectiveSort = query.sort ?? DEFAULT_SORT;
+  switch (effectiveSort) {
+    case "confidence":
+      // review queue first (review_priority_key=0), then ready (=1); within each
+      // group: green → amber → red → null (confidence_sort_key 0..3).
+      // Tie-break by created_at desc for stable pagination.
+      q = q
+        .order("review_priority_key", { ascending: true, nullsFirst: false })
+        .order("confidence_sort_key", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
+      break;
     case "date_asc":
       q = q.order("created_at", { ascending: true }).order("id", { ascending: true });
       break;
@@ -134,6 +147,7 @@ export default async function DashboardPage({
     case "status":
       q = q.order("status", { ascending: true }).order("id", { ascending: false });
       break;
+    case "date_desc":
     default:
       q = q.order("created_at", { ascending: false }).order("id", { ascending: false });
   }
@@ -148,6 +162,9 @@ export default async function DashboardPage({
     skr_code: string | null;
     bu_schluessel: number | null;
     categorization_confidence: number | null;
+    approved_at: string | null;
+    approved_by: string | null;
+    approval_method: string | null;
   } | null = null;
   let selectedSkrPlan = "skr03";
   let selectedRecentSkrCodes: string[] = [];
@@ -155,7 +172,7 @@ export default async function DashboardPage({
   if (selectedId) {
     const { data } = await supabase
       .from("invoices")
-      .select("id, status, invoice_data, extraction_error, updated_at, skr_code, bu_schluessel, categorization_confidence")
+      .select("id, status, invoice_data, extraction_error, updated_at, skr_code, bu_schluessel, categorization_confidence, approved_at, approved_by, approval_method")
       .eq("id", selectedId)
       .eq("tenant_id", tenantId)
       .single();
@@ -166,6 +183,9 @@ export default async function DashboardPage({
         skr_code: data.skr_code ?? null,
         bu_schluessel: data.bu_schluessel ?? null,
         categorization_confidence: data.categorization_confidence ?? null,
+        approved_at: data.approved_at ?? null,
+        approved_by: data.approved_by ?? null,
+        approval_method: data.approval_method ?? null,
       };
 
       const invoiceData = data.invoice_data as Invoice | null;
@@ -225,6 +245,22 @@ export default async function DashboardPage({
   const activeStage: PipelineStage | null = query.stage ?? null;
   const truncated = rows.length >= LIST_LIMIT;
 
+  // SessionSummary + ExportAction inputs. review/ready are tenant-wide totals
+  // from `invoice_stage_counts` RPC (raw status counts, before the UI fold).
+  const stageRows = (stageRes.data ?? []) as Array<{
+    status: InvoiceRow["status"];
+    count: number | bigint;
+  }>;
+  const rawCount = (s: string) => {
+    const r = stageRows.find((x) => x.status === s);
+    if (!r) return 0;
+    return typeof r.count === "bigint" ? Number(r.count) : r.count;
+  };
+  const reviewCount = rawCount("review");
+  const readyCount = rawCount("ready");
+  const exportedCount = rawCount("exported");
+  const sessionStartMs = Date.now();
+
   return (
     <>
       <DashboardRealtimeRefresher tenantId={tenantId} />
@@ -232,6 +268,20 @@ export default async function DashboardPage({
       <div className={selectedInvoice ? "grid gap-4 lg:grid-cols-[380px_1fr] lg:gap-6" : "grid gap-4 lg:grid-cols-12 lg:gap-6"}>
         <section className={selectedInvoice ? "flex flex-col gap-4 w-full lg:w-[380px] shrink-0" : "flex flex-col gap-4 lg:col-span-8"}>
           <PipelineHeader stageCounts={stageCounts} activeStage={activeStage} />
+
+          <SessionSummary
+            reviewCount={reviewCount}
+            readyCount={readyCount}
+            invoiceCount={rows.length}
+            errorCount={0}
+            streakWeeks={0}
+            sessionStartMs={sessionStartMs}
+          />
+
+          <ExportAction
+            readyCount={readyCount}
+            exportedThisMonthCount={exportedCount}
+          />
 
           <InvoiceListFilters />
 
@@ -286,6 +336,9 @@ export default async function DashboardPage({
               categorizationConfidence={selectedInvoice.categorization_confidence}
               skrPlan={selectedSkrPlan}
               recentSkrCodes={selectedRecentSkrCodes}
+              approvedAt={selectedInvoice.approved_at}
+              approvedBy={selectedInvoice.approved_by}
+              approvalMethod={selectedInvoice.approval_method}
             />
           </aside>
         ) : (

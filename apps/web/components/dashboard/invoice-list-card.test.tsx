@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { Invoice } from "@rechnungsai/shared";
+import { ActionToastProvider } from "@/components/ui/action-toast-context";
 import { InvoiceListCard, type InvoiceRow } from "./invoice-list-card";
 
 vi.mock("next/link", () => ({
@@ -12,6 +13,16 @@ vi.mock("next/link", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
 }));
+
+vi.mock("@/app/actions/invoices", () => ({
+  approveInvoice: vi.fn(),
+  flagInvoice: vi.fn(),
+  undoInvoiceAction: vi.fn(),
+}));
+
+function renderWithProvider(ui: React.ReactElement) {
+  return render(<ActionToastProvider>{ui}</ActionToastProvider>);
+}
 
 function field<T>(value: T, confidence: number) {
   return { value, confidence, reason: null };
@@ -45,36 +56,36 @@ const baseRow: InvoiceRow = {
 
 describe("InvoiceListCard", () => {
   it("applies green border for high-confidence extraction", () => {
-    const { container } = render(<InvoiceListCard row={baseRow} />);
-    expect(container.firstElementChild?.className).toContain(
+    const { container } = renderWithProvider(<InvoiceListCard row={baseRow} />);
+    expect(container.querySelector("a")?.className ?? "").toContain(
       "border-l-confidence-high",
     );
   });
 
   it("applies amber border for medium confidence", () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <InvoiceListCard
         row={{ ...baseRow, status: "review", invoice_data: makeInvoice(0.8) }}
       />,
     );
-    expect(container.firstElementChild?.className).toContain(
+    expect(container.querySelector("a")?.className ?? "").toContain(
       "border-l-confidence-medium",
     );
   });
 
   it("applies red border for low confidence", () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <InvoiceListCard
         row={{ ...baseRow, status: "review", invoice_data: makeInvoice(0.3) }}
       />,
     );
-    expect(container.firstElementChild?.className).toContain(
+    expect(container.querySelector("a")?.className ?? "").toContain(
       "border-l-confidence-low",
     );
   });
 
   it("applies destructive border when captured and extraction_error is set", () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <InvoiceListCard
         row={{
           ...baseRow,
@@ -84,7 +95,7 @@ describe("InvoiceListCard", () => {
         }}
       />,
     );
-    expect(container.firstElementChild?.className).toContain(
+    expect(container.querySelector("a")?.className ?? "").toContain(
       "border-l-destructive",
     );
     expect(
@@ -93,7 +104,7 @@ describe("InvoiceListCard", () => {
   });
 
   it("renders 'Wird verarbeitet…' shimmer when invoice_data is null and status is captured/processing", () => {
-    render(
+    renderWithProvider(
       <InvoiceListCard
         row={{
           ...baseRow,
@@ -109,7 +120,7 @@ describe("InvoiceListCard", () => {
   it("falls back to 'Unbekannter Lieferant' when supplier_name is null but data exists", () => {
     const inv = makeInvoice(0.99);
     inv.supplier_name = field(null, 0.5);
-    render(
+    renderWithProvider(
       <InvoiceListCard
         row={{ ...baseRow, invoice_data: inv }}
       />,
@@ -118,14 +129,14 @@ describe("InvoiceListCard", () => {
   });
 
   it("links to /rechnungen/{id}", () => {
-    const { container } = render(<InvoiceListCard row={baseRow} />);
+    const { container } = renderWithProvider(<InvoiceListCard row={baseRow} />);
     expect(container.querySelector("a")?.getAttribute("href")).toBe(
       `/rechnungen/${baseRow.id}`,
     );
   });
 
   it("composes aria-label from supplier, amount, status, and date", () => {
-    render(<InvoiceListCard row={baseRow} />);
+    renderWithProvider(<InvoiceListCard row={baseRow} />);
     const link = screen.getByRole("link");
     const label = link.getAttribute("aria-label") ?? "";
     expect(label).toContain("ACME GmbH");

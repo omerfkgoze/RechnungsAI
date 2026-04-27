@@ -1,6 +1,6 @@
 # Story 3.4: Swipe-to-Approve and Confidence-Based Review Queue
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -145,53 +145,54 @@ So that I can process a batch of invoices in minutes instead of hours.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: DB migration + types update (AC: #3, #4, #5, #11)**
-  - [ ] 1.1 `supabase/migrations/20260427000000_invoice_approval_columns.sql` NEW — adds `approved_at timestamptz`, `approved_by uuid REFERENCES public.users(id) ON DELETE SET NULL`, `approval_method text CHECK (approval_method IN ('swipe','button','keyboard','undo_revert') OR approval_method IS NULL)` to `public.invoices`. Index on `(tenant_id, status, approved_at)` for dashboard list queries. Extends the existing UPDATE grant on the `authenticated` role to include the three new columns.
-  - [ ] 1.2 `packages/shared/src/types/database.ts` — MODIFY: add `approved_at`, `approved_by`, `approval_method` to `invoices` Row/Insert/Update.
-  - [ ] 1.3 Verify `supabase db reset` applies cleanly.
+- [x] **Task 1: DB migration + types update (AC: #3, #4, #5, #11)**
+  - [x] 1.1 `supabase/migrations/20260427000000_invoice_approval_columns.sql` NEW — adds `approved_at timestamptz`, `approved_by uuid REFERENCES public.users(id) ON DELETE SET NULL`, `approval_method text CHECK (approval_method IN ('swipe','button','keyboard','undo_revert') OR approval_method IS NULL)` to `public.invoices`. Index on `(tenant_id, status, approved_at)` for dashboard list queries. Extends the existing UPDATE grant on the `authenticated` role to include the three new columns.
+  - [x] 1.2 `packages/shared/src/types/database.ts` — MODIFY: add `approved_at`, `approved_by`, `approval_method` to `invoices` Row/Insert/Update.
+  - [x] 1.3 Verify `supabase db reset` applies cleanly.
 
-- [ ] **Task 2: Server Actions — approveInvoice / flagInvoice / undoInvoiceAction (AC: #3, #4, #5, #11)**
-  - [ ] 2.1 `apps/web/app/actions/invoices.ts` — MODIFY. Add `approveInvoice({ invoiceId, method }): Promise<ActionResult<{ status: InvoiceStatus }>>`. Auth + tenant + row + status validation. Idempotent stamp on `ready`. Optimistic concurrency: WHERE filter includes prior status. Log prefix `[invoices:approve]`. Sentry tag `{ module: "invoices", action: "approve" }`.
-  - [ ] 2.2 `apps/web/app/actions/invoices.ts` — Add `flagInvoice({ invoiceId, method })`. Same shape. Clears all three approval columns. Log prefix `[invoices:flag]`.
-  - [ ] 2.3 `apps/web/app/actions/invoices.ts` — Add `undoInvoiceAction({ invoiceId, expectedCurrentStatus, snapshot: { status, approved_at, approved_by, approval_method } })`. Server-side concurrency guard: only restore if current row matches `expectedCurrentStatus`. `method='undo_revert'` for telemetry. Log prefix `[invoices:undo]`.
-  - [ ] 2.4 `apps/web/app/actions/invoices.test.ts` — MODIFY. Add 10 new cases per AC #13.
+- [x] **Task 2: Server Actions — approveInvoice / flagInvoice / undoInvoiceAction (AC: #3, #4, #5, #11)**
+  - [x] 2.1 `apps/web/app/actions/invoices.ts` — MODIFY. Add `approveInvoice({ invoiceId, method }): Promise<ActionResult<{ status: InvoiceStatus }>>`. Auth + tenant + row + status validation. Idempotent stamp on `ready`. Optimistic concurrency: WHERE filter includes prior status. Log prefix `[invoices:approve]`. Sentry tag `{ module: "invoices", action: "approve" }`.
+  - [x] 2.2 `apps/web/app/actions/invoices.ts` — Add `flagInvoice({ invoiceId, method })`. Same shape. Clears all three approval columns. Log prefix `[invoices:flag]`.
+  - [x] 2.3 `apps/web/app/actions/invoices.ts` — Add `undoInvoiceAction({ invoiceId, expectedCurrentStatus, snapshot: { status, approved_at, approved_by, approval_method } })`. Server-side concurrency guard: only restore if current row matches `expectedCurrentStatus`. `method='undo_revert'` for telemetry. Log prefix `[invoices:undo]`.
+  - [x] 2.4 `apps/web/app/actions/invoices.test.ts` — MODIFY. Add 11 new cases (approve happy/exported/captured-processing/idempotent-ready/tenant-isolation/invalid-uuid; flag happy/idempotent-review/exported; undo happy/concurrency-miss).
 
-- [ ] **Task 3: Swipe gesture wrapper (AC: #2, #3, #4, #11, #12)**
-  - [ ] 3.1 `apps/web/components/invoice/swipe-action-wrapper.tsx` NEW — `"use client"`. Generic wrapper accepting `{ children, onSwipeRight, onSwipeLeft, disabled, ariaLabel }`. Uses Pointer Events (with `pointer-action: pan-y` CSS so vertical scroll still works). Activation 20px, threshold 40% width via `containerRef.current.offsetWidth`. Three states: `idle | tracking | committed`. Vibration via `'vibrate' in navigator && navigator.vibrate(50)`. Honors `window.matchMedia('(prefers-reduced-motion: reduce)').matches` — when true, no transform animation and below-20px-only behavior.
-  - [ ] 3.2 `apps/web/components/invoice/swipe-action-wrapper.test.tsx` NEW — 6 cases per AC #13.
+- [x] **Task 3: Swipe gesture wrapper (AC: #2, #3, #4, #11, #12)**
+  - [x] 3.1 `apps/web/components/invoice/swipe-action-wrapper.tsx` NEW — `"use client"`. Generic wrapper accepting `{ children, onSwipeRight, onSwipeLeft, disabled, className }`. Uses Pointer Events (with `touch-pan-y` CSS so vertical scroll still works). Activation 20px, threshold 40% width via `containerRef.current.offsetWidth`. Vibration via `'vibrate' in navigator && navigator.vibrate(50)`. Honors `window.matchMedia('(prefers-reduced-motion: reduce)').matches` — when true, no transform animation and below-20px-only behavior. Click-capture suppresses underlying nav after a committed swipe.
+  - [x] 3.2 `apps/web/components/invoice/swipe-action-wrapper.test.tsx` NEW — 7 cases (below-20px no-commit, right-swipe past threshold, left-swipe past threshold, snap-back, vibrate at threshold, prefers-reduced-motion disables, disabled prop).
 
-- [ ] **Task 4: ActionToast stack + context (AC: #3, #4, #5, #6, #12)**
-  - [ ] 4.1 `apps/web/components/ui/action-toast-context.tsx` NEW — React Context exposing `showActionToast({ kind, invoiceId, snapshot, undo })`. Provider keeps an array of up to 3 toast records. Per-invoice dedup. 5s timer per toast via `setTimeout` cleared on unmount/dismiss.
-  - [ ] 4.2 `apps/web/components/ui/action-toast-stack.tsx` NEW — Renders the stacked toast portal. CSS `@keyframes countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }` for the linear bar. Each toast: title in German, `Rückgängig` button, countdown bar.
-  - [ ] 4.3 `apps/web/app/(app)/layout.tsx` — MODIFY (or create if missing — confirm via `ls apps/web/app/(app)`): mount `<ActionToastProvider>` wrapping children + `<ActionToastStack />` portal sibling.
-  - [ ] 4.4 `apps/web/components/ui/action-toast-stack.test.tsx` NEW — 5 cases per AC #13.
+- [x] **Task 4: ActionToast stack + context (AC: #3, #4, #5, #6, #12)**
+  - [x] 4.1 `apps/web/components/ui/action-toast-context.tsx` NEW — React Context exposing `showActionToast({ kind, invoiceId, message, undo })`. Provider keeps an array of up to 3 toast records. Per-invoice dedup. 5s timer per toast via `setTimeout` cleared on unmount/dismiss.
+  - [x] 4.2 `apps/web/components/ui/action-toast-stack.tsx` NEW — Renders the stacked toast portal. Inline `@keyframes rai-toast-countdown` for the linear bar. Each toast: title in German, `Rückgängig` button, countdown bar. Exports `<ActionToastRoot>` convenience that wraps children with provider + stack.
+  - [x] 4.3 `apps/web/app/(app)/layout.tsx` — MODIFY: wrap `<AppShell>` with `<ActionToastRoot>`.
+  - [x] 4.4 `apps/web/components/ui/action-toast-stack.test.tsx` NEW — 5 cases (show, auto-dismiss, undo callback, max 3 stacked, per-invoice dedup).
 
-- [ ] **Task 5: Action buttons in InvoiceDetailPane header (AC: #7, #8)**
-  - [ ] 5.1 `apps/web/components/invoice/invoice-actions-header.tsx` NEW — `"use client"`. Renders `[Freigeben]`, `[Flaggen]`, `[Beleg ansehen]`. Uses `useTransition` for pending state. Calls `useActionToast` from context to show post-action toasts. Wires snapshot capture before each call.
-  - [ ] 5.2 `apps/web/components/invoice/invoice-detail-pane.tsx` — MODIFY: add `<InvoiceActionsHeader />` to the header section next to the confidence badge. Pass `invoiceId`, `status`, `isExported`, plus the snapshot of pre-action approval columns (`approvedAt`, `approvedBy`, `approvalMethod` — wire as new optional props with null defaults, mirroring SKR pattern).
-  - [ ] 5.3 `apps/web/app/(app)/rechnungen/[id]/page.tsx` — MODIFY: extend the SELECT to include `approved_at, approved_by, approval_method`; pass to `<InvoiceDetailPane />`.
-  - [ ] 5.4 `apps/web/app/(app)/dashboard/page.tsx` — MODIFY: same SELECT extension and prop wiring for split-view detail pane.
-  - [ ] 5.5 Hook keyboard shortcut `A` into the existing UX-DR16 keyboard layer (search for the existing `?` keyboard shortcut overlay/handler) — only fire when no input/textarea has focus AND a single detail pane is visible.
-  - [ ] 5.6 `apps/web/components/invoice/invoice-detail-pane.test.tsx` — MODIFY: add 2 cases (a) header buttons render for `ready`/`review`; (b) buttons disabled when `isExported`.
+- [x] **Task 5: Action buttons in InvoiceDetailPane header (AC: #7, #8)**
+  - [x] 5.1 `apps/web/components/invoice/invoice-actions-header.tsx` NEW — `"use client"`. Renders `[Freigeben]`, `[Flaggen]`, `[📄 Beleg ansehen]`. Uses `useTransition` for pending state. Calls `useActionToast` for post-action toasts. Captures `{ status, approved_at, approved_by, approval_method }` snapshot pre-action so undo restores via `undoInvoiceAction`.
+  - [x] 5.2 `apps/web/components/invoice/invoice-detail-pane.tsx` — MODIFY: header restructured into a flex-wrap row with the title+badge on the left and `<InvoiceActionsHeader />` on the right. New optional props `approvedAt`, `approvedBy`, `approvalMethod` (null defaults).
+  - [x] 5.3 `apps/web/app/(app)/rechnungen/[id]/page.tsx` — MODIFY: extend SELECT with `approved_at, approved_by, approval_method`; pass to `<InvoiceDetailPane />`.
+  - [x] 5.4 `apps/web/app/(app)/dashboard/page.tsx` — MODIFY: same SELECT extension + prop wiring for split-view detail pane.
+  - [x] 5.5 Keyboard `A` shortcut: scoped `useEffect` listener inside `<InvoiceActionsHeader />` (only mounted when a single detail pane is visible), with input/textarea/select/contentEditable focus-guard mirroring `KeyboardShortcutsHelp`.
+  - [x] 5.6 `apps/web/components/invoice/invoice-detail-pane.test.tsx` — MODIFY: 2 new cases (header buttons render for ready; buttons disabled when `isExported`). Existing tests wrapped in `<ActionToastProvider>` via `renderInProvider` helper.
 
-- [ ] **Task 6: Dashboard list — swipe wrapper + confidence sort (AC: #1, #2)**
-  - [ ] 6.1 `apps/web/components/dashboard/invoice-list-card.tsx` — MODIFY: wrap the `<InvoiceListCardLink>` content with `<SwipeActionWrapper>` (only when `status` is `ready` or `review`). On swipe-right call `approveInvoice` via toast helper; on swipe-left call `flagInvoice`.
-  - [ ] 6.2 `apps/web/lib/dashboard-query.ts` — MODIFY: add `confidence` to the `sort` Zod enum, make it the default. Update `parseDashboardQuery` accordingly.
-  - [ ] 6.3 `apps/web/app/(app)/dashboard/page.tsx` — MODIFY: implement confidence-based ordering. Two options documented in Dev Notes "Sort Implementation"; ship Option A (server-side `CASE` order via raw SQL or ordered by a generated column) for the MVP.
-  - [ ] 6.4 `apps/web/lib/dashboard-query.test.ts` — MODIFY: add 3 cases per AC #13.
-  - [ ] 6.5 `apps/web/components/dashboard/invoice-list-card.test.tsx` — MODIFY: confirm the existing nav-link behavior survives wrapping (regression).
+- [x] **Task 6: Dashboard list — swipe wrapper + confidence sort (AC: #1, #2)**
+  - [x] 6.1 `apps/web/components/dashboard/invoice-list-card-swipe-wrapper.tsx` NEW — client-side bridge that calls `approveInvoice`/`flagInvoice`/`undoInvoiceAction` and shows toasts; passes through children for non-ready/review statuses.
+  - [x] 6.1b `apps/web/components/dashboard/invoice-list-card.tsx` — MODIFY: wrap the `<InvoiceListCardLink>` content with `<InvoiceListCardSwipeWrapper>`.
+  - [x] 6.2 `apps/web/lib/dashboard-query.ts` — MODIFY: add `confidence` to the `sort` Zod enum + export `DEFAULT_SORT = "confidence"`. `invoice-list-filters.tsx` updated to default to confidence and offer "Empfohlen (Prüfung zuerst)" option.
+  - [x] 6.3 `apps/web/app/(app)/dashboard/page.tsx` — MODIFY: ordering uses generated columns `review_priority_key`, `confidence_sort_key` (ascending) with `created_at desc, id desc` tie-breakers. `effectiveSort = query.sort ?? DEFAULT_SORT` so confidence is the default. SELECT extended with `approved_at, approved_by, approval_method`.
+  - [x] 6.4 `apps/web/lib/dashboard-query.test.ts` — MODIFY: 3 new cases (sort=confidence valid; missing sort → undefined; invalid sort dropped).
+  - [x] 6.5 `apps/web/components/dashboard/invoice-list-card.test.tsx` — MODIFY: wrap renders in `<ActionToastProvider>`, mock `@/app/actions/invoices`, assert border classes via the inner `<a>` element to survive the swipe wrapper.
 
-- [ ] **Task 7: SessionSummary + ExportAction (AC: #9, #10)**
-  - [ ] 7.1 `apps/web/components/dashboard/session-summary.tsx` NEW — `"use client"`. Watches `reviewCount` prop transitions in `useEffect`. State machine: `Perfect | WithCorrections | StreakMilestone | ExportPrompt | FirstSession`. Dismiss writes `sessionStorage`.
-  - [ ] 7.2 `apps/web/components/dashboard/session-summary.test.tsx` NEW — 5 cases per AC #13.
-  - [ ] 7.3 `apps/web/components/dashboard/export-action.tsx` NEW — RSC. Pure render based on `readyCount`, `lastExportDate`, current date. `"use client"` only if `onExport` interaction is needed; otherwise wrap a small client click handler.
-  - [ ] 7.4 `apps/web/components/dashboard/export-action.test.tsx` NEW — 5 cases per AC #13.
-  - [ ] 7.5 `apps/web/app/(app)/dashboard/page.tsx` — MODIFY: render `<SessionSummary />` (above invoice list) + `<ExportAction />` (sibling of `<ProcessingStatsRow />`). Compute `readyCount`, `reviewCount` from existing aggregate query (extend if needed).
+- [x] **Task 7: SessionSummary + ExportAction (AC: #9, #10)**
+  - [x] 7.1 `apps/web/components/dashboard/session-summary.tsx` NEW — `"use client"`. Watches `reviewCount` prop transitions (>0 → 0). Variants: `Perfect | WithCorrections | FirstSession | StreakMilestone | ExportPrompt`. Dismiss writes `sessionStorage`.
+  - [x] 7.2 `apps/web/components/dashboard/session-summary.test.tsx` NEW — 5 cases (Perfect, WithCorrections, ExportPrompt, FirstSession, dismiss persistence).
+  - [x] 7.3 `apps/web/components/dashboard/export-action.tsx` NEW — `"use client"` for the click handler. Pure render: variants `Dormant | Available | Prominent | MonthEndUrgent` derived from `readyCount` and current-date last-5-days check. `onExport` callback fires `console.info('[export:cta] click', { readyCount })`.
+  - [x] 7.4 `apps/web/components/dashboard/export-action.test.tsx` NEW — 5 cases (each variant + onExport callback).
+  - [x] 7.5 `apps/web/app/(app)/dashboard/page.tsx` — MODIFY: render `<SessionSummary />` (above filters) + `<ExportAction />` (above filters as well; lives in the left list column rather than the right widget rail per the actual layout). `reviewCount`/`readyCount` derived from raw `stageRes.data` so the `review`-folds-into-`ready` aggregation in `aggregateStageCounts` doesn't lose the distinction.
 
-- [ ] **Task 8: Validate + Smoke Test (AC: #14, #15)**
-  - [ ] 8.1 Run `pnpm lint`, `pnpm check-types`, `pnpm build`, `pnpm test` from repo root. Fix to zero new errors. Confirm test count ≥243.
-  - [ ] 8.2 Run `supabase db reset` to confirm migration applies cleanly.
-  - [ ] 8.3 Author the smoke test section per UX (a)–(j), DB (d1)–(d3), all rows BLOCKED-BY-ENVIRONMENT with full manual steps for GOZE.
+- [x] **Task 8: Validate + Smoke Test (AC: #14, #15)**
+  - [x] 8.1 `pnpm check-types` clean; `pnpm lint` 0 errors (14 pre-existing warnings unchanged); `pnpm build` succeeds; `pnpm test` → 247 passed (shared 41 + ai 11 + web 195) — exceeds 243 target.
+  - [x] 8.2 `npx -y supabase db reset --no-seed` applied all migrations cleanly including `20260427000000_invoice_approval_columns.sql`.
+  - [x] 8.3 Smoke test section authored below in Completion Notes.
 
 ---
 
@@ -360,13 +361,108 @@ Per Story 3.3 review discipline (read every UPDATE file completely):
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-opus-4-7
 
 ### Debug Log References
 
+- `pnpm test` → 247 passing (shared 41, ai 11, web 195). Baseline pre-3.4 was 209; +38 cases across approve/flag/undo (11), swipe wrapper (7), action-toast (5), session-summary (5), export-action (5), invoice-detail-pane (2), dashboard-query (3).
+- `pnpm --filter @rechnungsai/web check-types` clean.
+- `pnpm --filter @rechnungsai/web lint` → 0 errors, 14 warnings (all pre-existing — env-var declarations, `<img>` element, prefer-const on a touched-but-unmodified line).
+- `pnpm --filter @rechnungsai/web build` succeeds; all routes compile (`/dashboard`, `/rechnungen/[id]` are dynamic as expected).
+- `npx -y supabase db reset --no-seed` applied migration `20260427000000_invoice_approval_columns.sql` cleanly with no NOTICEs or errors.
+
 ### Completion Notes List
 
+**What shipped**
+
+- DB: 3 approval columns (`approved_at timestamptz`, `approved_by uuid → users.id ON DELETE SET NULL`, `approval_method text` CHECK in `'swipe'|'button'|'keyboard'|'undo_revert'`) + 2 generated SMALLINT keys (`review_priority_key`, `confidence_sort_key`) on `public.invoices`. Two indexes: `(tenant_id, status, approved_at)` and `(tenant_id, review_priority_key, confidence_sort_key)`. Column-level UPDATE grant extended (Postgres has no incremental grant — full list re-issued). Generated columns are not granted (Postgres rejects column-level grants on generated columns).
+- Server Actions: `approveInvoice`, `flagInvoice`, `undoInvoiceAction` follow the established auth + tenant + row + status pattern from `correctInvoiceField`/`updateInvoiceSKR`. Optimistic concurrency via `WHERE id = ? AND status = ?` with `maybeSingle()` + 0-rows-affected → "zwischenzeitlich geändert" German error. `flagInvoice` on `review` is a no-op early-return (avoids needless `updated_at` churn). `approveInvoice` on `ready` does an idempotent re-stamp (cheap, atomic) — Dev Notes' "always-stamp for simplicity" choice. All three return `ActionResult<{ status: InvoiceStatus }>`. Sentry tags `{ module: "invoices", action: "approve" | "flag" | "undo" }`.
+- Swipe wrapper: native Pointer Events, no Framer Motion. 20 px activation, 40% width threshold, snap-back `200ms cubic-bezier(0.34,1.56,0.64,1)`, commit slide `300ms ease-out`. `navigator.vibrate(50)` once at threshold crossing. `prefers-reduced-motion: reduce` disables both the gesture and the vibrate. Vertical-dominant motion (|dy| > |dx|) is left to native scroll. Click-capture suppresses underlying nav after a committed swipe so the `<Link>` inside doesn't navigate.
+- Toast system: lightweight context (~120 LoC) — no `sonner`. `<ActionToastProvider>` keeps an array capped at 3, per-invoice dedup, 5 s setTimeout per toast cleared on dismiss. Inline `@keyframes rai-toast-countdown` for the linear bar. `<ActionToastRoot>` is the convenience wrapper mounted in `app/(app)/layout.tsx`.
+- Action buttons: `<InvoiceActionsHeader>` mounts `[Freigeben]`, `[Flaggen]`, `[📄 Beleg ansehen]`. `useTransition` for pending state; `disabled` collapses to `pending || isExported || isProcessing`. Snapshot of `{ status, approved_at, approved_by, approval_method }` is captured pre-action so the Rückgängig handler can call `undoInvoiceAction` with it. Keyboard `A` shortcut wired via a `useEffect` listener inside the component (input/textarea/select/contentEditable focus-guard) — only active while the detail pane is mounted.
+- Dashboard list: `<InvoiceListCardSwipeWrapper>` wraps the existing card link; passes through children as-is for `captured`/`processing`/`exported`. Confidence sort defaults via `DEFAULT_SORT = "confidence"`; `parseDashboardQuery` accepts the new `sort=confidence`; `<InvoiceListFilters>` defaults to confidence and labels it "Empfohlen (Prüfung zuerst)". Server-side ordering uses the two generated SMALLINT columns; tie-break `created_at desc, id desc`.
+- Dashboard widgets: `<SessionSummary>` watches `reviewCount` prop transitions from `>0` to `0`, picks one of 5 variants (Perfect, WithCorrections, FirstSession, StreakMilestone, ExportPrompt) and writes `rai_session_seen` to sessionStorage on dismiss. `<ExportAction>` derives Dormant/Available/Prominent/Month-End-Urgent from `readyCount` + a date check (last 5 days of month). `onExport` logs `[export:cta] click`; the actual DATEV flow is Epic 5.
+
+**Notable design decisions**
+
+- Idempotent re-stamp on `approveInvoice` for `ready` rows. Picked simplicity over branchy "skip if approved_at is fresh"; per Dev Notes, the cost is negligible (atomic single-row UPDATE) and tests assert the `approval_method` does update on a re-approve.
+- `<SessionSummary>` and `<ExportAction>` rendered as left-column siblings of `<InvoiceListFilters>` rather than the right-rail widget area noted in the story spec — the right rail only renders when no invoice is selected (split-view), so banners-style widgets need to live in the left column to remain visible during typical review work. Both still render as siblings of the existing list, satisfying AC #9/#10.
+- Generated `confidence_sort_key` uses the same regex-guarded numeric cast as migration `20260424100000` — the AI emits plain decimals today, but the guard prevents a future locale-string regression from breaking the dashboard query.
+
 ### File List
+
+**NEW**
+- `supabase/migrations/20260427000000_invoice_approval_columns.sql`
+- `apps/web/components/invoice/swipe-action-wrapper.tsx`
+- `apps/web/components/invoice/swipe-action-wrapper.test.tsx`
+- `apps/web/components/invoice/invoice-actions-header.tsx`
+- `apps/web/components/ui/action-toast-context.tsx`
+- `apps/web/components/ui/action-toast-stack.tsx`
+- `apps/web/components/ui/action-toast-stack.test.tsx`
+- `apps/web/components/dashboard/invoice-list-card-swipe-wrapper.tsx`
+- `apps/web/components/dashboard/session-summary.tsx`
+- `apps/web/components/dashboard/session-summary.test.tsx`
+- `apps/web/components/dashboard/export-action.tsx`
+- `apps/web/components/dashboard/export-action.test.tsx`
+
+**MODIFIED**
+- `packages/shared/src/types/database.ts`
+- `apps/web/app/actions/invoices.ts`
+- `apps/web/app/actions/invoices.test.ts`
+- `apps/web/components/invoice/invoice-detail-pane.tsx`
+- `apps/web/components/invoice/invoice-detail-pane.test.tsx`
+- `apps/web/app/(app)/layout.tsx`
+- `apps/web/app/(app)/dashboard/page.tsx`
+- `apps/web/app/(app)/rechnungen/[id]/page.tsx`
+- `apps/web/components/dashboard/invoice-list-card.tsx`
+- `apps/web/components/dashboard/invoice-list-card.test.tsx`
+- `apps/web/components/dashboard/invoice-list-filters.tsx`
+- `apps/web/lib/dashboard-query.ts`
+- `apps/web/lib/dashboard-query.test.ts`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+**Note:** `source-document-viewer-wrapper.tsx` was not modified — `<InvoiceActionsHeader>` mounts `<SourceDocumentViewer>` directly (skipping the wrapper's confidence-dot indirection), which satisfies AC #8 ("always-visible header trigger") without changing the existing per-field dot path.
+
+### Browser Smoke Test
+
+**Environment:** `pnpm dev` from repo root. Local Supabase: `host=localhost port=54322 dbname=postgres user=postgres password=postgres`. Sign in at `/login`, ensure at least 3 `review` and 12 `ready` invoices exist (re-extract a few or upload + force confidence by editing).
+
+#### UX Checks
+
+| # | Action | Expected Output | Pass Criterion | Status |
+|---|--------|----------------|----------------|--------|
+| (a) | On a touch device, open `/dashboard` → on the first card in the **Bereit** group whose status is `Zur Prüfung` (red badge), put your finger on the card and drag it to the right past the right edge of the card. | While dragging: a green gradient slides in from the right behind the card content; near the threshold a single haptic tick fires. On release past threshold: the card slides off-screen, the row reflows out of the list, and a green toast appears at the bottom reading exactly `"Rechnung freigegeben."` with a `Rückgängig` link and a thin countdown bar that empties left-to-right. | Pass if the green toast text matches verbatim AND the card no longer appears in `Zur Prüfung` after the toast is visible AND the haptic was felt at threshold (skip the haptic check if the device has vibration disabled). | DONE |
+| (b) | On the same dashboard, find a card in **Bereit** whose badge reads `Bereit` (green, not `Zur Prüfung`) → put your finger on the card and drag it to the left past the left edge. | Amber gradient overlay during drag; on release past threshold an amber toast reads exactly `"Zur Prüfung markiert."` with `Rückgängig`. The card now reappears with a `Zur Prüfung` badge in the same Bereit group. | Pass if the amber toast text matches verbatim AND the card's badge changes from `Bereit` to `Zur Prüfung`. | DONE |
+| (c) | On `/dashboard`, on any card, do a quick tap (no horizontal drag — release within 1 second, finger stays within 20 px). | The browser navigates to `/rechnungen/<that invoice id>`. No toast fires. The card does not move. | Pass if the route changes to `/rechnungen/...` AND no toast appeared during the tap. | DONE |
+| (d) | Repeat (a) to make the green `"Rechnung freigegeben."` toast visible → within 5 seconds tap **Rückgängig**. | Toast disappears immediately. The just-approved row reappears in the list with a `Zur Prüfung` badge. | Pass if the row's badge returns to `Zur Prüfung` AND the toast is gone after the tap. | DONE |
+| (e) | Repeat (a) to make the green toast appear → start a stopwatch and do nothing for 5 seconds. | At ~5 seconds the toast fades out by itself. The countdown bar reaches zero just before fade-out. The approval persists (the row stays out of `Zur Prüfung`). | Pass if the toast disappears within 5–6 seconds without any tap AND the row remains approved (does not return to `Zur Prüfung`). | DONE |
+| (f) | Tap any `review` or `ready` card to open `/rechnungen/<id>` → in the header next to the confidence badge, three buttons are visible: `Freigeben`, `Flaggen`, `📄 Beleg ansehen`. On a desktop browser, with no input field focused, press the `A` key. | All three buttons render side-by-side at the top of the detail pane. Pressing `A` fires the same flow as tapping `Freigeben`: a green toast `"Rechnung freigegeben."` appears at the bottom of the viewport. Tapping `📄 Beleg ansehen` opens the source document viewer (image/PDF/XML preview). | Pass if all three buttons are visible AND `A` triggers a green toast AND `📄 Beleg ansehen` opens the document viewer. | DONE |
+| (g) | DevTools → Rendering → enable **Emulate CSS media feature prefers-reduced-motion: reduce** → reload `/dashboard` → try the right-swipe from (a). Then tap `Freigeben` from a detail pane. | Right-swipe: the card does not visibly translate during drag, the gradient overlay does not appear, and on release nothing happens (no toast, no DB write). The `Freigeben` button still works normally and produces the green toast. | Pass if the swipe gesture produces no visible animation AND no toast/DB write AND the button-based flow still produces a green toast. | DONE |
+| (h) | Bring the **Zur Prüfung** queue down to zero by approving every red-badge card in it (swipe right or use the buttons). After the last one's toast appears, watch the area above the invoice list. | A card titled `Perfekte Session ✨` (or `Session abgeschlossen` if you flagged anything) appears above the filters with: count processed in this session, session duration, estimated minutes saved (`count × 12`), correction count. A `Schließen` button dismisses it for the rest of the session. | Pass if a SessionSummary card with the correct title appears above the list when the last `Zur Prüfung` row is processed AND the count matches the number of approvals you just performed. | DONE |
+| (i) | With ≥ 10 invoices in `ready` status (no `review`), look above the filters on the dashboard. | A prominent card (primary-tinted background, soft pulse border) reads roughly `"<N> Rechnungen bereit → Jetzt DATEV Export erstellen"` with a `DATEV Export` button. With < 10 ready invoices it shows a quieter Available variant. With 0 ready invoices it collapses to a small text line `"Exportiert: <N> (Apr)"`. | Pass if the Prominent variant appears for ≥ 10 ready AND the button is present (clicking it currently logs `[export:cta] click` to the browser console — no nav yet, that's Epic 5). | DONE |
+| (j) | Open `/rechnungen/<id>` for an invoice with at least one amber/red field and one high-confidence field. Click the per-field amber dot. Then change the SKR-Konto via the SKR select. Then edit any field via inline edit. | The per-field dot still opens the source viewer. The SKR select still updates and persists. The inline EditableField still saves. None of the three regress. | Pass if all three pre-existing flows still work after wrapping the dashboard cards with the swipe wrapper and adding the action header buttons. | DONE |
+
+UX issue:
+  - mobil ekrandayken, toaster  logic'i gayet iyi calisiyor ancak toaster mesaji ekranin en altinda gorunuyor yani navigation tab'in gorunmesine engel oluyor. toaster mesajini navigation tab'inin hemen yukarisinda gosterilecek sekilde guncelle. 
+
+#### DB Verification
+
+Run after the matching UX checks above.
+
+| # | Query | Expected Return | What It Validates | Status |
+|---|-------|----------------|-------------------|--------|
+| (d1) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "SELECT status, approved_at IS NOT NULL AS has_ts, approved_by IS NOT NULL AS has_user, approval_method FROM invoices WHERE id = '<the id from (a)>';"` | Single row: `status=ready`, `has_ts=t`, `has_user=t`, `approval_method=swipe`. | Confirms AC #3: swipe-right approve flips status and stamps all three approval columns. | DONE |
+| (d2) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "SELECT status, approved_at, approved_by, approval_method FROM invoices WHERE id = '<the id from (b)>';"` | Single row: `status=review`, `approved_at=NULL`, `approved_by=NULL`, `approval_method=NULL`. | Confirms AC #4: swipe-left flag flips status to `review` and clears all three approval columns. | DONE |
+| (d3) | After clicking `Rückgängig` in (d): `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "SELECT status, approved_at, approved_by, approval_method FROM invoices WHERE id = '<same id as (a)>';"` | Single row matches the pre-action state captured before (a) — for an originally-`review` invoice: `status=review`, `approved_at=NULL`, `approved_by=NULL`, `approval_method=NULL`. | Confirms AC #5: undo restores ALL four columns to the snapshot, gated by the post-action concurrency guard. | DONE |
+
+**Manual Steps for GOZE:**
+
+1. From repo root: `pnpm dev` (extraction provider Gemini free tier is fine for this story).
+2. Sign in with a test account; ensure local DB has ≥ 3 `review` and ≥ 12 `ready` invoices. If not enough exist, use `/erfassen` to upload a handful of files and re-run the AI extraction; confidence below 95% lands them in `review`.
+3. Run UX (a)–(j) in order on a real touch device (phone in browser dev mode is OK for the tactile checks, but the haptic in (a) requires a physical device).
+4. After (a), (b), (d): paste the matching DB query from the table above.
+5. Mark each row `DONE` or `FAIL`. If FAIL, write what you saw vs. expected.
+6. If `prefers-reduced-motion` (g) cannot be emulated on your browser, mark it BLOCKED-BY-ENVIRONMENT with the reason — it is OS-level emulation that some mobile browsers do not honour.
 
 ### Review Findings
 
@@ -375,3 +471,4 @@ Per Story 3.3 review discipline (read every UPDATE file completely):
 | Date | Change | Author |
 |------|--------|--------|
 | 2026-04-27 | Story file created — comprehensive context engine output | claude-opus-4-7 |
+| 2026-04-27 | Implementation complete — all 8 tasks, 247 tests passing, status → review | claude-opus-4-7 |

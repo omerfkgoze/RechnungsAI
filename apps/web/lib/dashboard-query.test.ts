@@ -72,4 +72,19 @@ describe("parseDashboardQuery", () => {
     expect(out.status).toBe("review");
     expect(out.supplier).toBe("Shop");
   });
+
+  it("accepts sort=confidence as a valid value", () => {
+    const out = parseDashboardQuery({ sort: "confidence" });
+    expect(out.sort).toBe("confidence");
+  });
+
+  it("does not set sort when no sort param is supplied (caller defaults to confidence)", () => {
+    const out = parseDashboardQuery({ status: "ready" });
+    expect(out.sort).toBeUndefined();
+  });
+
+  it("invalid sort=foo is dropped silently (caller falls back to default)", () => {
+    const out = parseDashboardQuery({ sort: "foo" });
+    expect(out.sort).toBeUndefined();
+  });
 });
