@@ -62,9 +62,14 @@ vi.mock("@/lib/supabase/server", () => ({
           update: (patch: unknown) => ({
             eq: (col: string, val: unknown) => {
               const call = () => invoiceUpdateEqMock(patch, col, val);
+              const terminal = { select: () => ({ single: call, maybeSingle: call }) };
               return {
-                // Second .eq() for optimistic-lock flip or concurrency guard
-                eq: () => ({ select: () => ({ single: call, maybeSingle: call }) }),
+                // Second .eq() — optimistic-lock flip or tenant guard
+                eq: () => ({
+                  ...terminal,
+                  // Third .eq() — concurrency guard (e.g. undoInvoiceAction)
+                  eq: () => terminal,
+                }),
                 // Direct await: await supabase.from('invoices').update().eq()
                 then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
                   Promise.resolve(call()).then(res, rej),

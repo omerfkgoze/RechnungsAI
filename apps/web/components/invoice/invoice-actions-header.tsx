@@ -167,7 +167,7 @@ export function InvoiceActionsHeader({
         type="button"
         variant="ghost"
         size="sm"
-        disabled={isProcessing}
+        disabled={pending}
         onClick={() => setViewerOpen(true)}
         aria-label={VIEW_DOC_LABEL}
         data-testid="invoice-view-document-button"

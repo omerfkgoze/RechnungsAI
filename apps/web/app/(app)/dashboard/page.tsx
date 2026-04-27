@@ -94,11 +94,11 @@ export default async function DashboardPage({
   }
   if (query.from) q = q.gte("created_at", query.from);
   if (query.to) {
-    // End-exclusive next-day bound so we include the full `to` day in the
-    // session timezone regardless of DB TZ config.
+    // End-exclusive next-day bound at UTC midnight so we include the full
+    // `to` day regardless of DB timezone configuration.
     const next = new Date(`${query.to}T00:00:00Z`);
     next.setUTCDate(next.getUTCDate() + 1);
-    q = q.lt("created_at", next.toISOString().slice(0, 10));
+    q = q.lt("created_at", next.toISOString());
   }
   if (query.supplier) {
     // Escape LIKE wildcards so `%` and `_` in user input match literally.

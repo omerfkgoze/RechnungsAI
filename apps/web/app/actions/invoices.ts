@@ -858,6 +858,9 @@ const APPROVE_LOG = "[invoices:approve]";
 const FLAG_LOG = "[invoices:flag]";
 const UNDO_LOG = "[invoices:undo]";
 
+// P5: separate schema — approve/flag accept only user-initiated methods;
+// undo_revert is reserved for the undo action's snapshot restoration path.
+const actionMethodSchema = z.enum(["swipe", "button", "keyboard"]);
 const approvalMethodSchema = z.enum(["swipe", "button", "keyboard", "undo_revert"]);
 
 type InvoiceStatus =
@@ -895,7 +898,7 @@ export async function approveInvoice(input: {
   if (!idParse.success) {
     return { success: false, error: firstZodError(idParse.error) };
   }
-  const methodParse = approvalMethodSchema.safeParse(method);
+  const methodParse = actionMethodSchema.safeParse(method);
   if (!methodParse.success) {
     return { success: false, error: "Ungültige Aktion." };
   }
@@ -1005,7 +1008,7 @@ export async function flagInvoice(input: {
   if (!idParse.success) {
     return { success: false, error: firstZodError(idParse.error) };
   }
-  const methodParse = approvalMethodSchema.safeParse(method);
+  const methodParse = actionMethodSchema.safeParse(method);
   if (!methodParse.success) {
     return { success: false, error: "Ungültige Aktion." };
   }
@@ -1130,6 +1133,24 @@ export async function undoInvoiceAction(input: {
     return { success: false, error: "Ungültiger Rechnungsstatus." };
   }
 
+  // P1: Validate snapshot fields — these come from the client and will be
+  // written verbatim to the DB, so each must be checked server-side.
+  if (snapshot.approved_by !== null) {
+    const byParse = z.guid({ message: "Ungültige Snapshot-Daten." }).safeParse(snapshot.approved_by);
+    if (!byParse.success) {
+      return { success: false, error: "Ungültige Snapshot-Daten." };
+    }
+  }
+  if (snapshot.approved_at !== null && isNaN(new Date(snapshot.approved_at).getTime())) {
+    return { success: false, error: "Ungültige Snapshot-Daten." };
+  }
+  if (snapshot.approval_method !== null) {
+    const snapMethodParse = approvalMethodSchema.safeParse(snapshot.approval_method);
+    if (!snapMethodParse.success) {
+      return { success: false, error: "Ungültige Snapshot-Daten." };
+    }
+  }
+
   try {
     const supabase = await createServerClient();
     const {
@@ -1168,8 +1189,16 @@ export async function undoInvoiceAction(input: {
       return { success: false, error: "Rechnung nicht gefunden." };
     }
 
+    // P2: Block undo into terminal/immutable states. A malicious client could
+    // forge snapshot.status = "exported" to bypass GoBD immutability.
+    const snapBlocked = blockedByStatusMessage(snapshot.status as InvoiceStatus);
+    if (snapBlocked) {
+      return { success: false, error: snapBlocked };
+    }
+
     // Concurrency guard: only undo if the row is still in the post-action
     // state we expect. Prevents clobbering a third-party concurrent change.
+    // P4: tenant_id added to WHERE for defense-in-depth (spec triple guard).
     const { data: updated, error: updateErr } = await supabase
       .from("invoices")
       .update({
@@ -1179,6 +1208,7 @@ export async function undoInvoiceAction(input: {
         approval_method: snapshot.approval_method,
       })
       .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
       .eq("status", expectedCurrentStatus)
       .select("id, status")
       .maybeSingle();

@@ -62,7 +62,10 @@ export function ExportAction({
   const titles: Record<Exclude<Variant, "Dormant">, string> = {
     Available: `${readyCount} Rechnung${readyCount === 1 ? "" : "en"} bereit für DATEV`,
     Prominent: `${readyCount} Rechnungen bereit → Jetzt DATEV Export erstellen`,
-    MonthEndUrgent: `${readyCount} Rechnungen bereit · Monat endet in ${daysLeft + 1} Tag${daysLeft + 1 === 1 ? "" : "en"}`,
+    MonthEndUrgent:
+      daysLeft === 0
+        ? `${readyCount} Rechnungen bereit · Monat endet heute`
+        : `${readyCount} Rechnungen bereit · Monat endet in ${daysLeft} Tag${daysLeft === 1 ? "" : "en"}`,
   };
 
   const cardClass = cn(

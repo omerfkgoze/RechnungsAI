@@ -166,11 +166,13 @@ export function SwipeActionWrapper({
       if (reducedMotionRef.current) {
         fire();
       } else {
-        const onEnd = () => {
+        const onEnd = (e: Event) => {
+          const te = e as TransitionEvent;
+          if (te.target !== el || te.propertyName !== "transform") return;
           el.removeEventListener("transitionend", onEnd);
           fire();
         };
-        el.addEventListener("transitionend", onEnd, { once: true });
+        el.addEventListener("transitionend", onEnd);
         // Safety net: if the transitionend never fires (e.g. element removed)
         // fall back to a timer slightly longer than the CSS duration.
         setTimeout(() => {

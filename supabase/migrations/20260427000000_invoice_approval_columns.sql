@@ -36,13 +36,14 @@ ALTER TABLE public.invoices
       WHEN 'processing' THEN 2
       WHEN 'captured'   THEN 3
       WHEN 'exported'   THEN 4
+      ELSE 5
     END
   ) STORED,
   ADD COLUMN confidence_sort_key SMALLINT GENERATED ALWAYS AS (
     CASE
       WHEN invoice_data IS NULL THEN 3
       WHEN (invoice_data -> 'gross_total' ->> 'confidence') IS NULL THEN 3
-      WHEN (invoice_data -> 'gross_total' ->> 'confidence') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN
+      WHEN (invoice_data -> 'gross_total' ->> 'confidence') ~ '^[0-9]+(\.[0-9]+)?$' THEN
         CASE
           WHEN (invoice_data -> 'gross_total' ->> 'confidence')::numeric >= 0.95 THEN 0
           WHEN (invoice_data -> 'gross_total' ->> 'confidence')::numeric >= 0.70 THEN 1

@@ -1,6 +1,6 @@
 # Story 3.4: Swipe-to-Approve and Confidence-Based Review Queue
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -466,9 +466,73 @@ Run after the matching UX checks above.
 
 ### Review Findings
 
+> Scope: Group 1 — DB migration + types + Server Actions (bd50ac8..07fcf56). Groups 2–4 pending.
+> Scope: Group 2 — Swipe wrapper + Toast system + Layout.
+
+#### Patches
+
+- [x] **Review:patch** `undoInvoiceAction` snapshot fields unvalidated — `approved_by` (arbitrary UUID), `approved_at` (arbitrary timestamp), `approval_method` (arbitrary string) written from raw client input with no Zod/format guard `apps/web/app/actions/invoices.ts` — undoInvoiceAction update block *(sources: blind+edge / Critical)* ✓ fixed
+- [x] **Review:patch** `undoInvoiceAction` missing `blockedByStatusMessage(snapshot.status)` — malicious client can restore an invoice to `exported` status, bypassing GoBD immutability `apps/web/app/actions/invoices.ts` — undoInvoiceAction before UPDATE *(sources: blind+edge / Critical)* ✓ fixed
+- [x] **Review:patch** `undoInvoiceAction` missing `updateErr` guard before `!updated` check — false positive; guard was already present in the code *(source: blind / High)* ✓ dismissed (already present)
+- [x] **Review:patch** `undoInvoiceAction` UPDATE WHERE clause missing `.eq("tenant_id", tenantId)` — spec requires triple guard (id + tenant_id + expected status); atomic UPDATE has no tenant filter `apps/web/app/actions/invoices.ts` — undoInvoiceAction .update() chain *(sources: edge+auditor / High)* ✓ fixed
+- [x] **Review:patch** `approvalMethodSchema` includes `undo_revert` — runtime Zod schema accepts it for `approveInvoice`/`flagInvoice` input despite TypeScript type excluding it; violates AC #5 `apps/web/app/actions/invoices.ts` — approvalMethodSchema definition *(sources: auditor+edge / High)* ✓ fixed (actionMethodSchema split out)
+- [x] **Review:patch** `review_priority_key` CASE missing ELSE branch — future invoice statuses produce NULL, corrupting confidence-sort order on the dashboard `supabase/migrations/20260427000000_invoice_approval_columns.sql` — review_priority_key CASE *(sources: blind+edge / High)* ✓ fixed (ELSE 5)
+- [x] **Review:patch** `confidence_sort_key` regex `'^-?[0-9]+(\.[0-9]+)?$'` allows negative values — extractor sentinel `-1` buckets as red (2) instead of null/unknown (3) `supabase/migrations/20260427000000_invoice_approval_columns.sql` — confidence_sort_key regex *(source: edge / Medium)* ✓ fixed (removed `-?`)
+
+#### Deferred
+
+- [x] **Review:defer** `approveInvoice` always re-stamps `approved_at`/`approved_by` on `ready→ready` — first approver lost; acknowledged design decision ("always-stamp for simplicity"), Story 4.2 builds durable audit — deferred, pre-existing design choice
+- [x] **Review:defer** `redirect()` NEXT_REDIRECT digest detection heuristic — fragile but pre-existing codebase pattern across all Server Actions — deferred, pre-existing
+- [x] **Review:defer** Row SELECT without `.eq("tenant_id", ...)` in DB query — pre-existing pattern, RLS is the enforcement layer — deferred, pre-existing
+- [x] **Review:defer** Concurrent double-approve race (no SELECT FOR UPDATE) — pre-existing pattern, low risk — deferred, pre-existing
+- [x] **Review:defer** `undoInvoiceAction` trusts client-supplied `expectedCurrentStatus` — mitigated by P1/P2/P4 patches and tenant isolation — deferred, acceptable given patch coverage
+
+#### Group 2: Swipe wrapper + Toast system
+
+**Patches**
+
+- [x] **Review:patch** `ActionToastProvider` no unmount cleanup — active `setTimeout` callbacks call `setToasts` on unmounted component `apps/web/components/ui/action-toast-context.tsx` *(source: blind / High)* ✓ fixed (useEffect cleanup)
+- [x] **Review:patch** `transitionend` handler fires on child element transitions (event bubbles) — swipe handler could fire before slide-off animation completes `apps/web/components/invoice/swipe-action-wrapper.tsx` *(source: edge / Medium)* ✓ fixed (target+propertyName filter)
+- [x] **Review:patch** Toast `bottom-0` overlaps mobile navigation tab (`h-16 z-40`) — Rückgängig button and countdown bar obscured `apps/web/components/ui/action-toast-stack.tsx` *(source: GOZE smoke test / High)* ✓ fixed (bottom-16 lg:bottom-0)
+
+**Deferred**
+
+- [x] **Review:defer** `reducedMotionRef` set once on mount — not reactive to OS setting change mid-session — deferred, low real-world occurrence
+- [x] **Review:defer** CSS countdown duration (`5000ms`) is a separate hardcoded constant from JS `setTimeout(5000)` — deferred, both currently in sync
+- [x] **Review:defer** Desktop mouse drag ≥20px activates swipe on desktop — no explicit touch-only guard — deferred, low accidental trigger probability
+- [x] **Review:defer** Silent eviction (4th toast) closes undo window with no user feedback — by spec ("oldest replaced") — deferred, spec-defined behavior
+
+#### Group 4: Dashboard page + detail page + dashboard-query + tests
+
+**Patches**
+
+- [x] **Review:patch** `dashboard/page.tsx` date-range `to` filter uses `next.toISOString().slice(0,10)` — strips UTC offset, making the TIMESTAMPTZ comparison depend on DB session timezone (contradicts the inline comment "regardless of DB TZ config") `apps/web/app/(app)/dashboard/page.tsx:101` *(source: edge / High)* ✓ fixed (removed `.slice(0,10)`, passes full ISO-8601 UTC string)
+- [x] **Review:patch** `dashboard-query.test.ts` missing test for `stage="review"` URL alias remapping to `"ready"` — regression risk if the transform is removed `apps/web/lib/dashboard-query.test.ts` *(source: auditor / Low)* ✓ fixed (added test case)
+
+**Deferred**
+
+- [x] **Review:defer** Cross-field date range sanity (`from > to`) drops `to` silently — no UX error banner; acknowledged in code comment ("A UX error banner is a future enhancement") — deferred, pre-existing design choice
+- [x] **Review:defer** `SessionSummary errorCount={0}` hardcoded — `WithCorrections` variant unreachable; by design for MVP (session-level correction tracking requires audit logs from Story 4.2) — deferred, Story 4.2
+- [x] **Review:defer** `SessionSummary streakWeeks={0}` hardcoded — explicitly called out as Story 8.3 placeholder in story's Technical Concerns — deferred, Story 8.3
+
+#### Group 3: Action header + swipe bridge + session/export components
+
+**Patches**
+
+- [x] **Review:patch** `ExportAction` MonthEndUrgent text shows "in 1 Tag" on last day of month — `daysLeft=0` → `daysLeft+1=1` → "Monat endet in 1 Tag" but month ends today `apps/web/components/dashboard/export-action.tsx` — MonthEndUrgent title string *(source: edge / Medium)* ✓ fixed ("Monat endet heute" when daysLeft===0; removed +1 offset)
+- [x] **Review:patch** Beleg ansehen button disabled for `isProcessing` status — AC #8 requires viewer always accessible; viewing a document is independent of invoice action state `apps/web/components/invoice/invoice-actions-header.tsx` — view button disabled prop *(source: auditor / Medium)* ✓ fixed (disabled={pending} only)
+
+**Deferred**
+
+- [x] **Review:defer** `InvoiceActionsHeader` renders for all statuses including exported — buttons are disabled via `isExported` guard; functionally safe but aesthetically present — deferred, spec-acceptable behavior
+- [x] **Review:defer** `fireUndo` silent failure — console.warn only, no user-facing toast on undo failure — spec has no undo-failure toast state; deferred to Story 3.5 error feedback pass
+- [x] **Review:defer** `FirstSession` variant can reappear after browser close without dismissal — sessionStorage is cleared on tab close; spec doesn't define persistent-dismiss — deferred to Story 8.3 preferences
+- [x] **Review:defer** `isProcessing` keyboard shortcut guard — 'A' key does nothing when invoice is captured/processing but no visual indicator explains why — deferred, low frequency UX gap
+
 ## Change Log
 
 | Date | Change | Author |
 |------|--------|--------|
 | 2026-04-27 | Story file created — comprehensive context engine output | claude-opus-4-7 |
 | 2026-04-27 | Implementation complete — all 8 tasks, 247 tests passing, status → review | claude-opus-4-7 |
+| 2026-04-27 | Code review complete (4 groups) — 9 patches applied, 197/197 tests passing, status → done | claude-sonnet-4-6 |

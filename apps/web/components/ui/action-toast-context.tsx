@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -41,6 +42,14 @@ const MAX_STACK = 3;
 export function ActionToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ActionToastRecord[]>([]);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
 
   const dismiss = useCallback((id: string) => {
     const timer = timersRef.current.get(id);

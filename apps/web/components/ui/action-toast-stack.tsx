@@ -56,7 +56,7 @@ function ToastItem({ toast }: { toast: ActionToastRecord }) {
 function ActionToastStackInner() {
   const { toasts } = useActionToast();
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center gap-2 px-4 pb-[max(env(safe-area-inset-bottom,0px),16px)]">
+    <div className="pointer-events-none fixed inset-x-0 bottom-16 lg:bottom-0 z-50 flex flex-col items-center gap-2 px-4 pb-2 lg:pb-[max(env(safe-area-inset-bottom,0px),16px)]">
       <style>{`@keyframes rai-toast-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }`}</style>
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} />

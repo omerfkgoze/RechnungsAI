@@ -78,7 +78,7 @@ describe("SwipeActionWrapper", () => {
     fireEvent(el, pointerEvent("pointermove", 250)); // 150px > 20px activation, > 128px threshold (40% of 320)
     fireEvent(el, pointerEvent("pointerup", 250));
     // Trigger the transitionend the wrapper attaches one-shot
-    fireEvent.transitionEnd(el);
+    fireEvent.transitionEnd(el, { propertyName: "transform" });
     expect(onRight).toHaveBeenCalledOnce();
     expect(onLeft).not.toHaveBeenCalled();
   });
@@ -95,7 +95,7 @@ describe("SwipeActionWrapper", () => {
     fireEvent(el, pointerEvent("pointerdown", 200));
     fireEvent(el, pointerEvent("pointermove", 50)); // -150px
     fireEvent(el, pointerEvent("pointerup", 50));
-    fireEvent.transitionEnd(el);
+    fireEvent.transitionEnd(el, { propertyName: "transform" });
     expect(onLeft).toHaveBeenCalledOnce();
     expect(onRight).not.toHaveBeenCalled();
   });

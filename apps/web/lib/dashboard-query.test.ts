@@ -73,6 +73,11 @@ describe("parseDashboardQuery", () => {
     expect(out.supplier).toBe("Shop");
   });
 
+  it("stage=review is remapped to ready (URL alias)", () => {
+    const out = parseDashboardQuery({ stage: "review" });
+    expect(out.stage).toBe("ready");
+  });
+
   it("accepts sort=confidence as a valid value", () => {
     const out = parseDashboardQuery({ sort: "confidence" });
     expect(out.sort).toBe("confidence");
