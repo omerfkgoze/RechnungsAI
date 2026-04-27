@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 
 const SHORTCUTS = [
   { key: "?", description: "Diese Hilfe öffnen/schließen", bound: true },
+  { key: "↑ ↓", description: "Liste navigieren", bound: true },
+  { key: "Enter", description: "Detail öffnen", bound: true },
+  { key: "A", description: "Freigeben", bound: true },
+  { key: "E", description: "DATEV-Export", bound: true },
   {
     key: "g d",
     description: "Zum Dashboard",

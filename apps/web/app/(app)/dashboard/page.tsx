@@ -19,8 +19,10 @@ import {
 } from "@/components/dashboard/processing-stats-row";
 import { DashboardRealtimeRefresher } from "@/components/dashboard/dashboard-realtime-refresher";
 import { DashboardEscHandler } from "@/components/dashboard/dashboard-esc-handler";
+import { DashboardKeyboardShortcuts } from "@/components/dashboard/dashboard-keyboard-shortcuts";
 import { SessionSummary } from "@/components/dashboard/session-summary";
 import { ExportAction } from "@/components/dashboard/export-action";
+import { WeeklyValueSummary } from "@/components/dashboard/weekly-value-summary";
 import { InvoiceDetailPane } from "@/components/invoice/invoice-detail-pane";
 import { DEFAULT_SORT, parseDashboardQuery } from "@/lib/dashboard-query";
 import {
@@ -264,6 +266,7 @@ export default async function DashboardPage({
   return (
     <>
       <DashboardRealtimeRefresher tenantId={tenantId} />
+      <DashboardKeyboardShortcuts />
       {selectedInvoice && <DashboardEscHandler />}
       <div className={selectedInvoice ? "grid gap-4 lg:grid-cols-[380px_1fr] lg:gap-6" : "grid gap-4 lg:grid-cols-12 lg:gap-6"}>
         <section className={selectedInvoice ? "flex flex-col gap-4 w-full lg:w-[380px] shrink-0" : "flex flex-col gap-4 lg:col-span-8"}>
@@ -343,17 +346,7 @@ export default async function DashboardPage({
           </aside>
         ) : (
           <div className="flex flex-col gap-4 lg:col-span-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Deine Woche auf einen Blick</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-body-sm text-muted-foreground">
-                  Zusammenfassung startet, sobald du deine ersten Rechnungen
-                  verarbeitet hast.
-                </p>
-              </CardContent>
-            </Card>
+            <WeeklyValueSummary />
 
             <section aria-label="Verarbeitungsstatistik" className="flex flex-col gap-3">
               <h2 className="text-h3">Verarbeitungsstatistik</h2>

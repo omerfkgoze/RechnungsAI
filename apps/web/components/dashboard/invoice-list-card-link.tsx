@@ -18,6 +18,7 @@ export function InvoiceListCardLink({ invoiceId, ariaLabel, className, children 
       href={`/rechnungen/${invoiceId}`}
       aria-label={ariaLabel}
       className={className}
+      data-invoice-id={invoiceId}
       onClick={(e) => {
         // Read matchMedia at click time to avoid stale-ref on first render.
         if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {

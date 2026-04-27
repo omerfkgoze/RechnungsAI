@@ -7,3 +7,5 @@ export * from "./schemas/invoice-upload.js";
 export * from "./schemas/invoice.js";
 export * from "./constants/confidence.js";
 export * from "./constants/skr.js";
+export { runComplianceChecks } from "./compliance/invoice-compliance.js";
+export type { ComplianceWarning, ComplianceCode, ComplianceSeverity } from "./compliance/invoice-compliance.js";

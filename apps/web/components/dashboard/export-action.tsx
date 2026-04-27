@@ -89,6 +89,7 @@ export function ExportAction({
           size="sm"
           onClick={handleClick}
           data-testid="export-action-button"
+          data-export-cta="true"
         >
           DATEV Export
         </Button>

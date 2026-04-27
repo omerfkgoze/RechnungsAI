@@ -177,7 +177,7 @@ export function EditableField({
 
   if (!editing) {
     return (
-      <div className="flex items-center gap-2 group relative">
+      <div id={`field-${fieldPath}`} className="flex items-center gap-2 group relative">
         <span
           className="text-sm cursor-pointer hover:underline focus:outline-none"
           role="button"

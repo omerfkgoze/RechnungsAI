@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-04-27 (story 3-5 → ready-for-dev)"
+last_updated: "2026-04-27 (story 3-5 → review)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -99,7 +99,7 @@ development_status:
   3-2-invoice-detail-view-and-field-editing: done
   3-3-skr-categorization-and-bu-schluessel-mapping: done
   3-4-swipe-to-approve-and-confidence-based-review-queue: done
-  3-5-compliance-warnings-and-weekly-value-summary: ready-for-dev
+  3-5-compliance-warnings-and-weekly-value-summary: review
   epic-3-retrospective: optional
 
   # Epic 4: GoBD-Compliant Archive and Audit Trail

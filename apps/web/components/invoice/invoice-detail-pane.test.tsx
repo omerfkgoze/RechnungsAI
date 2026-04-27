@@ -106,4 +106,16 @@ describe("InvoiceDetailPane", () => {
     expect(approve.disabled).toBe(true);
     expect(flag.disabled).toBe(true);
   });
+
+  it("shows compliance warning banner AND approve button still works on a warning-laden invoice", () => {
+    const invoiceWithMissingUstId = makeInvoice();
+    invoiceWithMissingUstId.supplier_tax_id = field(null, 0.1);
+    renderInProvider(
+      <InvoiceDetailPane {...DEFAULT_PROPS} status="ready" invoice={invoiceWithMissingUstId} />,
+    );
+    expect(screen.getByRole("status")).toBeDefined();
+    expect(screen.getByText("Diese Rechnung benötigt deine Aufmerksamkeit.")).toBeDefined();
+    const approveBtn = screen.getByTestId("invoice-approve-button") as HTMLButtonElement;
+    expect(approveBtn.disabled).toBe(false);
+  });
 });

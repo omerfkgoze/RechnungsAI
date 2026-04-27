@@ -1,4 +1,4 @@
-import { BU_SCHLUESSEL_LABELS, confidenceLevel, overallConfidence, type Invoice, type InvoiceStatus } from "@rechnungsai/shared";
+import { BU_SCHLUESSEL_LABELS, confidenceLevel, overallConfidence, runComplianceChecks, type Invoice, type InvoiceStatus } from "@rechnungsai/shared";
 import { cn } from "@/lib/utils";
 import { LABELS, FIELD_ORDER } from "@/lib/invoice-fields";
 import { formatValue, formatEur } from "@/lib/format";
@@ -9,6 +9,7 @@ import { SourceDocumentViewerWrapper } from "./source-document-viewer-wrapper";
 import { CategoryBootstrap } from "./category-bootstrap";
 import { SkrCategorySelect } from "./skr-category-select";
 import { InvoiceActionsHeader } from "./invoice-actions-header";
+import { ComplianceWarningsBanner } from "./compliance-warnings-banner";
 
 type Props = {
   invoiceId: string;
@@ -106,6 +107,10 @@ export function InvoiceDetailPane({
           approvalMethod={approvalMethod}
         />
       </div>
+
+      {invoice && !isExported && (
+        <ComplianceWarningsBanner warnings={runComplianceChecks(invoice)} />
+      )}
 
       {/* Exported banner shown regardless of whether invoice_data is present */}
       {isExported && (

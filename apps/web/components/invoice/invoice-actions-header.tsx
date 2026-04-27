@@ -139,6 +139,7 @@ export function InvoiceActionsHeader({
   return (
     <div
       data-testid="invoice-actions-header"
+      data-invoice-actions-header="true"
       className="flex flex-wrap items-center gap-2"
     >
       <Button
