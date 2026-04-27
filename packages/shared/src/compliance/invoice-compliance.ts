@@ -51,7 +51,9 @@ function checkInvoiceDate(invoice: Invoice): ComplianceWarning | null {
   const now = new Date();
   const nowUtcMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const dateMs = date.getTime();
-  const eighteenMonthsAgoMs = nowUtcMs - 18 * 30 * 24 * 60 * 60 * 1000;
+  const cutoff = new Date();
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - 18);
+  const eighteenMonthsAgoMs = Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth(), cutoff.getUTCDate());
   const oneDayAheadMs = nowUtcMs + 24 * 60 * 60 * 1000;
   if (dateMs < eighteenMonthsAgoMs || dateMs > oneDayAheadMs) {
     return {
@@ -95,7 +97,7 @@ function checkSupplierName(invoice: Invoice): ComplianceWarning | null {
 
 function checkGrossTotal(invoice: Invoice): ComplianceWarning | null {
   const val = invoice.gross_total?.value;
-  if (val === null || val === undefined) {
+  if (val === null || val === undefined || val === 0) {
     return {
       id: "missing_gross_total",
       severity: "amber",

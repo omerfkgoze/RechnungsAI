@@ -18,7 +18,7 @@ function formatTimeSaved(minutes: number): string {
   if (minutes < 60) return `~${minutes} min`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m === 0 ? `~${h}h` : `~${h}h ${m}min`;
+  return m === 0 ? `~${h}h 0min` : `~${h}h ${m}min`;
 }
 
 function getCurrentMonthLabel(): string {

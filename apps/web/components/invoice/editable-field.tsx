@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +73,8 @@ export function EditableField({
   isExported,
   updatedAt,
 }: Props) {
+  const router = useRouter();
+
   // Freeze the AI value on first mount so "restore" always targets the original AI value,
   // not the current (possibly user-corrected) server value passed via props.
   const [frozenAiValue] = useState(initialAiValue);
@@ -164,6 +167,7 @@ export function EditableField({
       setEditing(false);
       setRestoredAi(false);
       setShowSuccess(true);
+      router.refresh();
       setSavedMessage("Gespeichert.");
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => {

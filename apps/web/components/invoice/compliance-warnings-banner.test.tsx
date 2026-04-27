@@ -58,7 +58,7 @@ describe("ComplianceWarningsBanner", () => {
       return null;
     });
 
-    const button = screen.getByRole("button", { name: "Zum Feld springen" });
+    const button = screen.getByRole("button", { name: "Zum Feld springen →" });
     fireEvent.click(button);
 
     expect(mockScrollIntoView).toHaveBeenCalledWith({ block: "center" });

@@ -100,9 +100,25 @@ describe("runComplianceChecks", () => {
     expect(warnings.some((w) => w.code === "missing_supplier_name")).toBe(false);
   });
 
-  // missing_gross_total — positive
+  // invalid_invoice_date — future >1 day fires
+  it("fires invalid_invoice_date for a date more than 1 day in the future", () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 3);
+    const invoice = makeInvoice({ invoice_date: { value: futureDate.toISOString().slice(0, 10), confidence: 1, reason: null } });
+    const warnings = runComplianceChecks(invoice);
+    expect(warnings.some((w) => w.code === "invalid_invoice_date")).toBe(true);
+  });
+
+  // missing_gross_total — positive (null)
   it("fires missing_gross_total when gross_total is null", () => {
     const invoice = makeInvoice({ gross_total: { value: null, confidence: 1, reason: null } });
+    const warnings = runComplianceChecks(invoice);
+    expect(warnings.some((w) => w.code === "missing_gross_total")).toBe(true);
+  });
+
+  // missing_gross_total — positive (zero)
+  it("fires missing_gross_total when gross_total is 0 (AI extraction failure)", () => {
+    const invoice = makeInvoice({ gross_total: { value: 0, confidence: 1, reason: null } });
     const warnings = runComplianceChecks(invoice);
     expect(warnings.some((w) => w.code === "missing_gross_total")).toBe(true);
   });

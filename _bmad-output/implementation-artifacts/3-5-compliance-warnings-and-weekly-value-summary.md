@@ -1,6 +1,6 @@
 # Story 3.5: Compliance Warnings and Weekly Value Summary
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -172,6 +172,13 @@ So that I can fix compliance issues before export and feel confident about the v
   - [x] 4.5 `apps/web/components/layout/keyboard-shortcuts-help.tsx` — MODIFY: added 5 NEW rows (`↑ ↓ Liste navigieren`, `Enter Detail öffnen`, `A Freigeben`, `E DATEV-Export`, all `bound: true`); existing `?`, `g d`, `g e`, `/` rows unchanged.
   - [x] 4.6 `apps/web/components/dashboard/dashboard-keyboard-shortcuts.test.tsx` NEW — 6 cases.
   - [x] 4.7 `apps/web/components/layout/keyboard-shortcuts-help.test.tsx` — NEW: 1 case asserting the 5 new bound rows render.
+
+- [x] **Task 6: Review Patch Fixes**
+  - [x] 6.1 `apps/web/components/invoice/editable-field.tsx` — add `router.refresh()` after successful `correctInvoiceField` save so compliance banner recomputes on fresh `invoice` prop (smoke test UX issue: amber banner persists after field is filled)
+  - [x] 6.2 `apps/web/components/invoice/compliance-warnings-banner.tsx` — add `<AlertTriangle>` icon and `→` arrow to `Zum Feld springen` button
+  - [x] 6.3 `packages/shared/src/compliance/invoice-compliance.ts` — fix 18-month date boundary to use calendar months; add `|| val === 0` guard in `checkGrossTotal`
+  - [x] 6.4 `packages/shared/src/compliance/invoice-compliance.test.ts` — add positive test case for future-date `invalid_invoice_date` (>1 day ahead)
+  - [x] 6.5 `apps/web/components/dashboard/weekly-value-summary.tsx` — fix `formatTimeSaved` to return `~Xh 0min` when minutes = 0
 
 - [x] **Task 5: Validate + Smoke Test (AC: #15, #16)**
   - [x] 5.1 `pnpm check-types` ✅ · `pnpm lint` ✅ (0 errors) · `pnpm build` ✅ · `pnpm test` ✅ 281 total cases (213 web + 57 shared + 11 ai).
@@ -504,7 +511,17 @@ UX issues:
 
 ### Review Findings
 
-_(filled by reviewer agent)_
+- [x] [Review][Dismissed] `checkUstId` DE-strict for all suppliers — MVP decision: all current users are German entities; DE-strict accepted unconditionally. Revisit when non-DE supplier invoices become common. [`packages/shared/src/compliance/invoice-compliance.ts:27`]
+- [x] [Review][Patch] `gross_total=0` not treated as missing — fixed: added `|| val === 0` guard in `checkGrossTotal`. [`packages/shared/src/compliance/invoice-compliance.ts`]
+- [x] [Review][Patch] Compliance banner persists after field is saved — fixed: added `router.refresh()` after successful save in `EditableField`. [`apps/web/components/invoice/editable-field.tsx`]
+- [x] [Review][Patch] Missing `<AlertTriangle>` icon in compliance banner — fixed: imported `AlertTriangle` from `lucide-react`, rendered in banner heading. [`apps/web/components/invoice/compliance-warnings-banner.tsx`]
+- [x] [Review][Patch] `checkInvoiceDate` uses 18×30 days (540 days) instead of 18 calendar months — fixed: now uses `cutoff.setUTCMonth(cutoff.getUTCMonth() - 18)` for true calendar-month boundary. [`packages/shared/src/compliance/invoice-compliance.ts`]
+- [x] [Review][Patch] Missing test for future-date `invalid_invoice_date` — fixed: added positive test case for date 3 days in the future. [`packages/shared/src/compliance/invoice-compliance.test.ts`]
+- [x] [Review][Patch] `formatTimeSaved` omits minutes when exactly on the hour — fixed: `~1h` → `~1h 0min`. [`apps/web/components/dashboard/weekly-value-summary.tsx`]
+- [x] [Review][Patch] `Zum Feld springen` button missing `→` arrow — fixed. [`apps/web/components/invoice/compliance-warnings-banner.tsx`]
+- [x] [Review][Defer] SQL regex `'^[0-9]+(\.[0-9]+)?$'` rejects negative VAT — credit notes with negative `vat_total` are silently treated as 0 in `week_vat_total` and `month_vat_total`. [`supabase/migrations/20260428000000_weekly_value_summary.sql:43`] — deferred, credit notes out of MVP scope; revisit when credit note upload is supported
+- [x] [Review][Defer] `(supabase as any).rpc("tenant_weekly_value_summary")` bypasses TypeScript — temporary shim until `pnpm supabase gen types` is run after migration is applied to the environment. [`apps/web/components/dashboard/weekly-value-summary.tsx`] — deferred, BLOCKED-BY-ENVIRONMENT; resolve when migration applied
+- [x] [Review][Defer] `id=\`field-${fieldPath}\`` only on non-editing div — `jumpToField` returns null when the target field is currently in edit mode (editing branch has no `id`). Low-impact edge case. [`apps/web/components/invoice/editable-field.tsx:178`] — deferred, minor edge case; add `id` to editing branch in future a11y pass
 
 ## Change Log
 

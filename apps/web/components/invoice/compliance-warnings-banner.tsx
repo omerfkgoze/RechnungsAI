@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertTriangle } from "lucide-react";
 import type { ComplianceWarning } from "@rechnungsai/shared";
 
 type Props = {
@@ -27,7 +28,8 @@ export function ComplianceWarningsBanner({ warnings }: Props) {
       aria-live="polite"
       className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-4"
     >
-      <p className="text-body font-semibold text-foreground mb-3">
+      <p className="flex items-center gap-2 text-body font-semibold text-foreground mb-3">
+        <AlertTriangle className="h-4 w-4 shrink-0 text-warning" aria-hidden />
         Diese Rechnung benötigt deine Aufmerksamkeit.
       </p>
       <ul className="flex flex-col gap-2">
@@ -39,7 +41,7 @@ export function ComplianceWarningsBanner({ warnings }: Props) {
               onClick={() => jumpToField(w.field)}
               className="self-start text-body-sm text-muted-foreground hover:text-foreground underline"
             >
-              Zum Feld springen
+              Zum Feld springen →
             </button>
           </li>
         ))}

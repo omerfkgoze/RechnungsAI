@@ -1,5 +1,11 @@
 # Deferred Work
 
+## Deferred from: code review of 3-5-compliance-warnings-and-weekly-value-summary (2026-04-28)
+
+- [ ] SQL regex `'^[0-9]+(\.[0-9]+)?$'` rejects negative VAT values — credit notes with negative `vat_total` are silently treated as 0 in `tenant_weekly_value_summary()`. Fix: use `'^-?[0-9]+(\.[0-9]+)?$'` and handle signed arithmetic. Revisit when credit note upload is supported. [`supabase/migrations/20260428000000_weekly_value_summary.sql:43`]
+- [ ] `(supabase as any).rpc("tenant_weekly_value_summary")` bypasses type safety — temporary shim until migration is applied to local env and `pnpm supabase gen types` is re-run. [`apps/web/components/dashboard/weekly-value-summary.tsx`]
+- [ ] `id=\`field-${fieldPath}\`` only on non-editing div in `EditableField` — `jumpToField` silently returns null when the user clicks "Zum Feld springen" while the target field is already in edit mode. Add `id` to the editing branch div in a future a11y pass. [`apps/web/components/invoice/editable-field.tsx:178`]
+
 ## Deferred from: code review of 3-4-swipe-to-approve-and-confidence-based-review-queue (2026-04-27)
 
 - [ ] `approveInvoice` always re-stamps `approved_at`/`approved_by` on `ready→ready` — first approver's identity and timestamp lost silently. Acknowledged design decision ("always-stamp for simplicity" per Dev Notes); Story 4.2 will design the durable audit chain and can backfill from the column. Revisit when 4.2 is planned. [apps/web/app/actions/invoices.ts — approveInvoice UPDATE block]
