@@ -479,6 +479,7 @@ export async function correctInvoiceField(input: {
       .from("invoices")
       .select("id, tenant_id, status, invoice_data, updated_at")
       .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
       .single();
 
     if (rowErr && rowErr.code !== "PGRST116") {
@@ -725,6 +726,7 @@ export async function categorizeInvoice(
       .from("invoices")
       .select("id, tenant_id, status, invoice_data, skr_code")
       .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
       .single();
 
     if (rowErr && rowErr.code !== "PGRST116") {
@@ -928,6 +930,7 @@ export async function approveInvoice(input: {
       .from("invoices")
       .select("id, tenant_id, status")
       .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
       .single();
     if (rowErr && rowErr.code !== "PGRST116") {
       console.error(APPROVE_LOG, "select-failed", rowErr);
@@ -1038,6 +1041,7 @@ export async function flagInvoice(input: {
       .from("invoices")
       .select("id, tenant_id, status")
       .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
       .single();
     if (rowErr && rowErr.code !== "PGRST116") {
       console.error(FLAG_LOG, "select-failed", rowErr);
@@ -1176,6 +1180,7 @@ export async function undoInvoiceAction(input: {
       .from("invoices")
       .select("id, tenant_id, status")
       .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
       .single();
     if (rowErr && rowErr.code !== "PGRST116") {
       console.error(UNDO_LOG, "select-failed", rowErr);
@@ -1291,6 +1296,7 @@ export async function updateInvoiceSKR(input: {
       .from("invoices")
       .select("id, tenant_id, status, invoice_data, skr_code, bu_schluessel")
       .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
       .single();
 
     if (rowErr && rowErr.code !== "PGRST116") {
@@ -1378,7 +1384,7 @@ export async function updateInvoiceSKR(input: {
       .insert({
         tenant_id: tenantId,
         invoice_id: invoiceId,
-        original_code: row.skr_code ?? null,
+        original_code: row.skr_code ?? "",
         corrected_code: newSkrCode,
         supplier_name: supplierName,
       });

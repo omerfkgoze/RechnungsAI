@@ -36,40 +36,33 @@ export type Database = {
     Tables: {
       categorization_corrections: {
         Row: {
-          id: string
-          tenant_id: string
-          invoice_id: string
-          original_code: string | null
           corrected_code: string
-          supplier_name: string | null
           created_at: string
+          id: string
+          invoice_id: string
+          original_code: string
+          supplier_name: string | null
+          tenant_id: string
         }
         Insert: {
-          id?: string
-          tenant_id: string
-          invoice_id: string
-          original_code?: string | null
           corrected_code: string
-          supplier_name?: string | null
           created_at?: string
+          id?: string
+          invoice_id: string
+          original_code: string
+          supplier_name?: string | null
+          tenant_id: string
         }
         Update: {
-          id?: string
-          tenant_id?: string
-          invoice_id?: string
-          original_code?: string | null
           corrected_code?: string
-          supplier_name?: string | null
           created_at?: string
+          id?: string
+          invoice_id?: string
+          original_code?: string
+          supplier_name?: string | null
+          tenant_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "categorization_corrections_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "categorization_corrections_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -77,55 +70,62 @@ export type Database = {
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      invoice_field_corrections: {
-        Row: {
-          id: string
-          tenant_id: string
-          invoice_id: string
-          supplier_name: string | null
-          field_path: string
-          previous_value: Json | null
-          corrected_value: Json
-          corrected_to_ai: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          tenant_id: string
-          invoice_id: string
-          supplier_name?: string | null
-          field_path: string
-          previous_value?: Json | null
-          corrected_value: Json
-          corrected_to_ai?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          tenant_id?: string
-          invoice_id?: string
-          supplier_name?: string | null
-          field_path?: string
-          previous_value?: Json | null
-          corrected_value?: Json
-          corrected_to_ai?: boolean
-          created_at?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "invoice_field_corrections_tenant_id_fkey"
+            foreignKeyName: "categorization_corrections_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      invoice_field_corrections: {
+        Row: {
+          corrected_to_ai: boolean
+          corrected_value: Json
+          created_at: string
+          field_path: string
+          id: string
+          invoice_id: string
+          previous_value: Json | null
+          supplier_name: string | null
+          tenant_id: string
+        }
+        Insert: {
+          corrected_to_ai?: boolean
+          corrected_value: Json
+          created_at?: string
+          field_path: string
+          id?: string
+          invoice_id: string
+          previous_value?: Json | null
+          supplier_name?: string | null
+          tenant_id: string
+        }
+        Update: {
+          corrected_to_ai?: boolean
+          corrected_value?: Json
+          created_at?: string
+          field_path?: string
+          id?: string
+          invoice_id?: string
+          previous_value?: Json | null
+          supplier_name?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
           {
             foreignKeyName: "invoice_field_corrections_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_field_corrections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -144,12 +144,14 @@ export type Database = {
           extraction_error: string | null
           file_path: string
           file_type: string
+          gross_total_value: number | null
           id: string
           invoice_data: Json | null
           original_filename: string
           review_priority_key: number | null
           skr_code: string | null
           status: Database["public"]["Enums"]["invoice_status"]
+          supplier_name_value: string | null
           tenant_id: string
           updated_at: string
         }
@@ -159,18 +161,21 @@ export type Database = {
           approved_by?: string | null
           bu_schluessel?: number | null
           categorization_confidence?: number | null
-          // confidence_sort_key + review_priority_key are GENERATED ALWAYS — no Insert
+          confidence_sort_key?: number | null
           created_at?: string
           extracted_at?: string | null
           extraction_attempts?: number
           extraction_error?: string | null
           file_path: string
           file_type: string
+          gross_total_value?: number | null
           id?: string
           invoice_data?: Json | null
           original_filename: string
+          review_priority_key?: number | null
           skr_code?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
+          supplier_name_value?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -180,22 +185,32 @@ export type Database = {
           approved_by?: string | null
           bu_schluessel?: number | null
           categorization_confidence?: number | null
-          // confidence_sort_key + review_priority_key are GENERATED ALWAYS — no Update
+          confidence_sort_key?: number | null
           created_at?: string
           extracted_at?: string | null
           extraction_attempts?: number
           extraction_error?: string | null
           file_path?: string
           file_type?: string
+          gross_total_value?: number | null
           id?: string
           invoice_data?: Json | null
           original_filename?: string
+          review_priority_key?: number | null
           skr_code?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
+          supplier_name_value?: string | null
           tenant_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -306,20 +321,30 @@ export type Database = {
         }
         Returns: undefined
       }
-      my_tenant_id: { Args: never; Returns: string }
-      invoice_stage_counts: {
-        Args: never
-        Returns: {
-          status: Database["public"]["Enums"]["invoice_status"]
-          count: number
-        }[]
-      }
       invoice_processing_stats: {
         Args: never
         Returns: {
-          total_invoices: number
-          avg_accuracy: number | null
+          avg_accuracy: number
           export_history_count: number
+          total_invoices: number
+        }[]
+      }
+      invoice_stage_counts: {
+        Args: never
+        Returns: {
+          count: number
+          status: Database["public"]["Enums"]["invoice_status"]
+        }[]
+      }
+      my_tenant_id: { Args: never; Returns: string }
+      tenant_weekly_value_summary: {
+        Args: never
+        Returns: {
+          month_exported_count: number
+          month_vat_total: number
+          week_invoices: number
+          week_time_saved_minutes: number
+          week_vat_total: number
         }[]
       }
     }

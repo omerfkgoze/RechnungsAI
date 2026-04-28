@@ -27,8 +27,7 @@ function getCurrentMonthLabel(): string {
 
 async function fetchWeeklySummary(): Promise<WeeklySummaryData | null> {
   const supabase = await createServerClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).rpc("tenant_weekly_value_summary");
+  const { data, error } = await supabase.rpc("tenant_weekly_value_summary");
   if (error) {
     console.warn("[dashboard:weekly] rpc error", error);
     Sentry.captureException(error, {
@@ -36,8 +35,7 @@ async function fetchWeeklySummary(): Promise<WeeklySummaryData | null> {
     });
     return null;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const row: any = Array.isArray(data) ? data[0] : data;
+  const row = Array.isArray(data) ? data[0] : data;
   if (!row) return null;
   return {
     week_invoices: Number(row.week_invoices ?? 0),
