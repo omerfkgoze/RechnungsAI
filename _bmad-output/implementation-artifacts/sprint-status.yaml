@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-04-28 (epic-4 prep P1-P3 done)"
+last_updated: "2026-04-28 (epic-4 prep P1-P5 done — Epic 4 clear to start)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -111,8 +111,8 @@ development_status:
   prep-p1-supabase-gen-types: done              # pnpm supabase gen types → database.ts updated; (supabase as any).rpc cast removed
   prep-p2-server-action-tenant-isolation: done  # .eq("tenant_id", tenantId) added to 6 critical Server Actions
   prep-p3-gobd-spike: done                      # SHA-256 + Storage immutability: spike-p3-gobd-sha256-storage-2026-04-28.md
-  # prep-p4-gobd-audit-scope: backlog          # GoBD §238-241 → Story 4.2 content mapping (next session)
-  # prep-p5-deferred-work-triage: backlog      # deferred-work.md epic boundary triage (next session)
+  prep-p4-gobd-audit-scope: done               # GoBD §238-241 → Story 4.2 content mapping: prep-p4-gobd-audit-scope-research-2026-04-28.md
+  prep-p5-deferred-work-triage: done           # deferred-work.md epic boundary triage: prep-p5-deferred-work-triage-2026-04-28.md — no hard blockers
 
   # Epic 4: GoBD-Compliant Archive and Audit Trail
   epic-4: backlog
