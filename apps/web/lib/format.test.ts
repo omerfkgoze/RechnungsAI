@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEur, formatDateDe, safeCurrency, parseGermanDecimal, formatValue } from "./format";
+import { applyGermanDateMask, formatEur, formatDateDe, isoToGermanDateInput, parseGermanDate, safeCurrency, parseGermanDecimal, formatValue } from "./format";
 
 describe("formatEur", () => {
   it("formats a positive number as German EUR with padded decimals", () => {
@@ -44,6 +44,93 @@ describe("formatDateDe", () => {
 
   it("accepts Date objects", () => {
     expect(formatDateDe(new Date("2026-04-22T10:00:00Z"))).toBe("22.04.2026");
+  });
+});
+
+describe("parseGermanDate", () => {
+  it("parses TT.MM.JJJJ to ISO YYYY-MM-DD", () => {
+    expect(parseGermanDate("22.04.2026")).toBe("2026-04-22");
+  });
+
+  it("parses single-digit day/month with dot separator", () => {
+    expect(parseGermanDate("5.1.2026")).toBe("2026-01-05");
+  });
+
+  it("accepts hyphen separator (DD-MM-YYYY)", () => {
+    expect(parseGermanDate("22-04-2026")).toBe("2026-04-22");
+  });
+
+  it("accepts slash separator (DD/MM/YYYY)", () => {
+    expect(parseGermanDate("22/04/2026")).toBe("2026-04-22");
+  });
+
+  it("accepts ISO YYYY-MM-DD as input", () => {
+    expect(parseGermanDate("2026-04-22")).toBe("2026-04-22");
+  });
+
+  it("rejects MM/DD/YYYY ambiguous American interpretation (treats as DD.MM)", () => {
+    // 03.15.2026 → day=3, month=15 → invalid month
+    expect(parseGermanDate("03.15.2026")).toBeNull();
+  });
+
+  it("rejects impossible calendar dates", () => {
+    expect(parseGermanDate("31.02.2026")).toBeNull();
+    expect(parseGermanDate("32.01.2026")).toBeNull();
+    expect(parseGermanDate("00.01.2026")).toBeNull();
+  });
+
+  it("rejects garbage input", () => {
+    expect(parseGermanDate("")).toBeNull();
+    expect(parseGermanDate("not-a-date")).toBeNull();
+    expect(parseGermanDate("22.04")).toBeNull();
+  });
+});
+
+describe("applyGermanDateMask (active mask)", () => {
+  it("injects '.' immediately after DD and MM when the user is typing", () => {
+    expect(applyGermanDateMask("1", "")).toBe("1");
+    expect(applyGermanDateMask("15", "1")).toBe("15.");
+    expect(applyGermanDateMask("15.0", "15.")).toBe("15.0");
+    expect(applyGermanDateMask("15.03", "15.0")).toBe("15.03.");
+    expect(applyGermanDateMask("15.03.2", "15.03.")).toBe("15.03.2");
+    expect(applyGermanDateMask("15.03.2026", "15.03.202")).toBe("15.03.2026");
+  });
+
+  it("does NOT re-inject the separator the user just deleted (backspace)", () => {
+    expect(applyGermanDateMask("15.03", "15.03.")).toBe("15.03");
+    expect(applyGermanDateMask("15", "15.")).toBe("15");
+  });
+
+  it("is idempotent when next equals prev (no input event)", () => {
+    expect(applyGermanDateMask("15.03.2026", "15.03.2026")).toBe("15.03.2026");
+    expect(applyGermanDateMask("", "")).toBe("");
+  });
+
+  it("strips non-digit characters and other separators (paste)", () => {
+    expect(applyGermanDateMask("15-03-2026", "")).toBe("15.03.2026");
+    expect(applyGermanDateMask("15/03/2026", "")).toBe("15.03.2026");
+    expect(applyGermanDateMask("15a03b2026", "")).toBe("15.03.2026");
+  });
+
+  it("caps at 8 digits (TT.MM.JJJJ) — extra digits are discarded", () => {
+    expect(applyGermanDateMask("150320261234", "")).toBe("15.03.2026");
+  });
+
+  it("paste of partial DD+MM auto-injects trailing '.'", () => {
+    expect(applyGermanDateMask("1503", "")).toBe("15.03.");
+  });
+});
+
+describe("isoToGermanDateInput", () => {
+  it("converts ISO to TT.MM.JJJJ", () => {
+    expect(isoToGermanDateInput("2026-04-22")).toBe("22.04.2026");
+  });
+
+  it("returns empty string for null/undefined/empty/invalid", () => {
+    expect(isoToGermanDateInput(null)).toBe("");
+    expect(isoToGermanDateInput(undefined)).toBe("");
+    expect(isoToGermanDateInput("")).toBe("");
+    expect(isoToGermanDateInput("22.04.2026")).toBe("");
   });
 });
 

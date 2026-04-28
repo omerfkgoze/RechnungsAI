@@ -529,3 +529,27 @@ UX issues:
 |------------|-----------------------------------------------------------------------------------------------------|-----------------|
 | 2026-04-27 | Story file created — comprehensive context engine output (Compliance + Weekly Summary + Keyboard)   | claude-opus-4-7 |
 | 2026-04-27 | Implementation complete — all 5 tasks done, 281 tests passing, status → review                     | claude-sonnet-4-6 |
+| 2026-04-28 | Post-done bug fix — German date format end-to-end (UI input + display); see "Post-Done Bug Fixes"   | claude-opus-4-7 |
+
+---
+
+## Post-Done Bug Fixes
+
+### 2026-04-28 — German Date Format End-to-End
+
+**Reported behavior:** A user filling in a missing `invoice_date` (extracted invoice with `invalid_invoice_date` ComplianceWarning) saw the warning persist after correction and after page refresh — the warning never cleared. The user typed dates in German format (TT.MM.JJJJ / DD-MM-YYYY) but the system either rejected the input or saved an incorrect value, so `runComplianceChecks` continued flagging `invalid_invoice_date`.
+
+**Root cause:** The `EditableField` date input was wired as `<input type="date">` and the parser strictly required `YYYY-MM-DD`. Browsers' native `type="date"` UX is locale-dependent and unpredictable — when users typed German format manually it failed validation, and the read-only display rendered the raw ISO string (`2026-04-22`) instead of the German `22.04.2026`. The `runComplianceChecks` and DB-storage layer were already correct (ISO 8601), so the fix is purely in the UI input/display layer.
+
+**Fix:**
+- `apps/web/lib/format.ts` — added `parseGermanDate(input)` (TT.MM.JJJJ + `.`/`-`/`/` separators + ISO passthrough → ISO YYYY-MM-DD; rejects impossible dates like 31.02 and ambiguous American MM/DD via DD.MM-first interpretation) and `isoToGermanDateInput(iso)` (ISO → TT.MM.JJJJ for input bind).
+- `apps/web/components/invoice/editable-field.tsx` — date `inputKind` now uses `type="text"` with `inputMode="numeric"` and `placeholder="TT.MM.JJJJ"`. `toInputString` converts ISO → German for the input value; new `toDisplayString` renders German format in read-only mode. `parseInput` for date now calls `parseGermanDate` and returns the canonical ISO string for storage. Error message updated: `"Ungültiges Datum — bitte TT.MM.JJJJ."`.
+- Storage stays ISO 8601 (correct standard, required by `isoDateField` schema and downstream `runComplianceChecks` / DATEV export). German format is purely a UI concern.
+- Tests added: 11 new cases in `lib/format.test.ts` (parse + format) and 3 new cases in `editable-field.test.tsx` (German display, German→ISO save flow, ambiguous-month rejection). Total: 226/226 passing in web app.
+
+**Why this matters:** Users with no invalid_invoice_date warning could still trigger this bug whenever they manually edited any date field; the broken UX silently persisted compliance noise. Date format consistency now matches the rest of the app (currency: `Intl.NumberFormat("de-DE")`, decimals: `parseGermanDecimal`).
+
+**Follow-up (same day, same UX-DR12 thread):**
+- **Active input mask** — switching from `<input type="date">` to a text input lost the browser-native date mask. Added `applyGermanDateMask(next, prev)` in `apps/web/lib/format.ts` and wired it on date `onChange`. Behavior is **active**: as soon as the user finishes a digit group (DD or MM) the trailing `.` is injected immediately so the cursor lands on the next group without typing the separator (`15` → `15.`, `15.03` → `15.03.`). The function compares `next` vs `prev` digit count to detect adding-vs-deleting — backspace does NOT re-inject a just-deleted separator (otherwise the user could never erase the boundary). Also strips `-` `/` and other paste-noise, capped at 8 digits, `maxLength={10}` on the input.
+- **Required-field inline validation for `invoice_date`** — clearing `invoice_date` (or any other compliance-critical field) used to silently save `null`, which then re-fired `invalid_invoice_date` in the compliance banner with no immediate feedback at the edit site. Expanded the required-not-null guard in `EditableField.handleSubmit` from `{invoice_number, gross_total}` to `{invoice_number, invoice_date, gross_total, supplier_name}` — these are the four fields the compliance engine treats as hard-missing (codes `missing_invoice_number`, `invalid_invoice_date` with null branch, `missing_gross_total`, `missing_supplier_name`). Empty submission now triggers `"Dieses Feld darf nicht leer sein."` inline.
+- Tests added: 6 mask cases in `lib/format.test.ts` (active inject, backspace non-re-inject, idempotency, paste, 8-digit cap, partial-paste auto-inject) + 3 editable-field cases (active mask DOM behavior, full 8-digit shot, empty-submit inline error). Total: 235/235 passing.

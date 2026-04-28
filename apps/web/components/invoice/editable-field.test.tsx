@@ -85,6 +85,128 @@ describe("EditableField", () => {
     expect(submitBtn.closest("button")?.disabled).toBe(true);
   });
 
+  it("date field displays the ISO value as German format (TT.MM.JJJJ) when read-only", () => {
+    render(
+      <EditableField
+        {...DEFAULT_PROPS}
+        fieldPath="invoice_date"
+        label="Rechnungsdatum"
+        value="2026-04-22"
+        initialAiValue="2026-04-22"
+        inputKind="date"
+      />,
+    );
+    expect(screen.getByText("22.04.2026")).toBeDefined();
+  });
+
+  it("date field accepts German-format input (TT.MM.JJJJ) and saves ISO value", async () => {
+    correctFieldMock.mockResolvedValueOnce({ success: true, data: { newConfidence: 1.0 } });
+    render(
+      <EditableField
+        {...DEFAULT_PROPS}
+        fieldPath="invoice_date"
+        label="Rechnungsdatum"
+        value={null}
+        initialAiValue={null}
+        inputKind="date"
+      />,
+    );
+    fireEvent.click(screen.getByText("—"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "15.03.2026" } });
+    fireEvent.click(screen.getByText("Übernehmen"));
+    await waitFor(() => {
+      expect(correctFieldMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          newValue: "2026-03-15",
+          fieldPath: "invoice_date",
+        }),
+      );
+    });
+  });
+
+  it("date field active-masks: typing two digits immediately appends '.'", () => {
+    render(
+      <EditableField
+        {...DEFAULT_PROPS}
+        fieldPath="invoice_date"
+        label="Rechnungsdatum"
+        value={null}
+        initialAiValue={null}
+        inputKind="date"
+      />,
+    );
+    fireEvent.click(screen.getByText("—"));
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "1" } });
+    expect(input.value).toBe("1");
+    fireEvent.change(input, { target: { value: "15" } });
+    expect(input.value).toBe("15.");
+    fireEvent.change(input, { target: { value: "15.0" } });
+    expect(input.value).toBe("15.0");
+    fireEvent.change(input, { target: { value: "15.03" } });
+    expect(input.value).toBe("15.03.");
+  });
+
+  it("date field auto-masks as user types digits (15032026 → 15.03.2026)", () => {
+    render(
+      <EditableField
+        {...DEFAULT_PROPS}
+        fieldPath="invoice_date"
+        label="Rechnungsdatum"
+        value={null}
+        initialAiValue={null}
+        inputKind="date"
+      />,
+    );
+    fireEvent.click(screen.getByText("—"));
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "15032026" } });
+    expect(input.value).toBe("15.03.2026");
+  });
+
+  it("date field shows inline 'darf nicht leer sein' when invoice_date is cleared", async () => {
+    render(
+      <EditableField
+        {...DEFAULT_PROPS}
+        fieldPath="invoice_date"
+        label="Rechnungsdatum"
+        value="2026-04-22"
+        initialAiValue="2026-04-22"
+        inputKind="date"
+      />,
+    );
+    fireEvent.click(screen.getByText("22.04.2026"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.click(screen.getByText("Übernehmen"));
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toContain("Dieses Feld darf nicht leer sein");
+    });
+    expect(correctFieldMock).not.toHaveBeenCalled();
+  });
+
+  it("date field rejects ambiguous MM/DD interpretation (15 cannot be a month)", async () => {
+    render(
+      <EditableField
+        {...DEFAULT_PROPS}
+        fieldPath="invoice_date"
+        label="Rechnungsdatum"
+        value="2026-04-22"
+        initialAiValue="2026-04-22"
+        inputKind="date"
+      />,
+    );
+    fireEvent.click(screen.getByText("22.04.2026"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "03.15.2026" } });
+    fireEvent.click(screen.getByText("Übernehmen"));
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toContain("Ungültiges Datum");
+    });
+    expect(correctFieldMock).not.toHaveBeenCalled();
+  });
+
   it("shows inline validation error for invalid decimal amount without blocking typing", async () => {
     render(<EditableField {...DEFAULT_PROPS} fieldPath="net_total" label="Netto" value={100} initialAiValue={100} inputKind="decimal" />);
     fireEvent.click(screen.getByText("100"));

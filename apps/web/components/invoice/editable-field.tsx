@@ -6,7 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { correctInvoiceField } from "@/app/actions/invoices";
-import { parseGermanDecimal } from "@/lib/format";
+import { applyGermanDateMask, formatDateDe, isoToGermanDateInput, parseGermanDate, parseGermanDecimal } from "@/lib/format";
 
 export type InputKind =
   | "text"
@@ -31,7 +31,14 @@ type Props = {
 
 function toInputString(value: string | number | null, inputKind: InputKind): string {
   if (value === null || value === undefined) return "";
+  if (inputKind === "date") return isoToGermanDateInput(typeof value === "string" ? value : null);
   if (inputKind === "decimal" || inputKind === "quantity") return String(value);
+  return String(value);
+}
+
+function toDisplayString(value: string | number | null, inputKind: InputKind): string {
+  if (value === null || value === undefined) return "—";
+  if (inputKind === "date") return formatDateDe(typeof value === "string" ? value : null);
   return String(value);
 }
 
@@ -48,11 +55,9 @@ function parseInput(raw: string, inputKind: InputKind): { ok: true; value: strin
     return { ok: true, value: n };
   }
   if (inputKind === "date") {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { ok: false, error: "Ungültiges Datum — bitte YYYY-MM-DD." };
-    const d = new Date(raw + "T00:00:00Z");
-    if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== raw)
-      return { ok: false, error: "Ungültiges Datum — bitte YYYY-MM-DD." };
-    return { ok: true, value: raw };
+    const iso = parseGermanDate(raw);
+    if (iso === null) return { ok: false, error: "Ungültiges Datum — bitte TT.MM.JJJJ." };
+    return { ok: true, value: iso };
   }
   if (inputKind === "taxid") {
     // Warn but allow — non-standard IDs are valid for some suppliers.
@@ -142,8 +147,11 @@ export function EditableField({
       return;
     }
 
-    // Required fields: invoice_number and gross_total.
-    if ((fieldPath === "invoice_number" || fieldPath === "gross_total") && parsed.value === null) {
+    // Required fields — leaving these empty would silently strand the invoice
+    // in a non-exportable state (downstream `runComplianceChecks` would fire
+    // every render). Surface the constraint inline so the user fixes it now.
+    const REQUIRED_FIELDS = new Set(["invoice_number", "invoice_date", "gross_total", "supplier_name"]);
+    if (REQUIRED_FIELDS.has(fieldPath) && parsed.value === null) {
       setInlineError("Dieses Feld darf nicht leer sein.");
       return;
     }
@@ -192,7 +200,7 @@ export function EditableField({
             if (e.key === "Enter" || e.key === " ") openEdit();
           }}
         >
-          {String(value ?? "—")}
+          {toDisplayString(value, inputKind)}
         </span>
         {showSuccess && (
           <span
@@ -224,20 +232,28 @@ export function EditableField({
         )}
         <Input
           ref={inputRef}
-          type={inputKind === "date" ? "date" : inputKind === "quantity" ? "number" : "text"}
-          inputMode={inputKind === "decimal" ? "decimal" : undefined}
+          type={inputKind === "quantity" ? "number" : "text"}
+          inputMode={inputKind === "decimal" ? "decimal" : inputKind === "date" ? "numeric" : undefined}
+          placeholder={
+            inputKind === "taxid"
+              ? "DE123456789"
+              : inputKind === "date"
+                ? "TT.MM.JJJJ"
+                : undefined
+          }
           step={inputKind === "quantity" ? "any" : undefined}
           value={inputValue}
+          maxLength={inputKind === "date" ? 10 : undefined}
           onChange={(e) => {
-            setInputValue(e.target.value);
-            if (e.target.value !== frozenAiStr) setRestoredAi(false);
+            const next = inputKind === "date" ? applyGermanDateMask(e.target.value, inputValue) : e.target.value;
+            setInputValue(next);
+            if (next !== frozenAiStr) setRestoredAi(false);
             if (inlineError) {
-              const parsed = parseInput(e.target.value, inputKind);
+              const parsed = parseInput(next, inputKind);
               if (parsed.ok) setInlineError(null);
             }
           }}
           onKeyDown={handleKeyDown}
-          placeholder={inputKind === "taxid" ? "DE123456789" : undefined}
           aria-label={label}
           aria-invalid={!!inlineError}
           className="h-8 text-sm"
