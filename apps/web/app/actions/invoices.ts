@@ -17,11 +17,13 @@ import { categorizeInvoice as aiCategorizeInvoice, extractInvoice as aiExtractIn
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
+import { hashBuffer, verifyBuffer } from "@rechnungsai/gobd";
 import { createServerClient } from "@/lib/supabase/server";
 import { firstZodError } from "@/lib/zod-error";
 
 const LOG_PREFIX = "[invoices:upload]";
 const EXTRACT_LOG = "[invoices:extract]";
+const VERIFY_LOG = "[invoices:verify]";
 
 const invoiceIdSchema = z.guid({ message: "Ungültige Rechnungs-ID." });
 
@@ -72,6 +74,8 @@ export async function uploadInvoice(
       return { success: false, error: firstZodError(parsed.error) };
     }
 
+    const buffer = new Uint8Array(await file.arrayBuffer());
+
     const supabase = await createServerClient();
     const {
       data: { user },
@@ -99,7 +103,7 @@ export async function uploadInvoice(
 
     const { error: storageError } = await supabase.storage
       .from("invoices")
-      .upload(filePath, file, {
+      .upload(filePath, buffer, {
         contentType: mime,
         upsert: false,
       });
@@ -123,6 +127,10 @@ export async function uploadInvoice(
       };
     }
 
+    // Compute hash AFTER successful upload per spike Watch Point 4 — never write
+    // a hash for an upload that did not land.
+    const sha256 = hashBuffer(buffer);
+
     const { error: insertError } = await supabase
       .from("invoices")
       .insert({
@@ -132,6 +140,7 @@ export async function uploadInvoice(
         file_path: filePath,
         file_type: mime,
         original_filename: parsed.data.originalFilename,
+        sha256,
       })
       .select("id")
       .single();
@@ -612,7 +621,7 @@ export async function correctInvoiceField(input: {
 
 export async function getInvoiceSignedUrl(
   invoiceId: string,
-): Promise<ActionResult<{ url: string; fileType: string }>> {
+): Promise<ActionResult<{ url: string; fileType: string; sha256: string | null }>> {
   const idParse = invoiceIdSchema.safeParse(invoiceId);
   if (!idParse.success) {
     return { success: false, error: firstZodError(idParse.error) };
@@ -641,8 +650,9 @@ export async function getInvoiceSignedUrl(
 
     const { data: row, error: rowErr } = await supabase
       .from("invoices")
-      .select("id, tenant_id, file_path, file_type")
+      .select("id, tenant_id, file_path, file_type, sha256")
       .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
       .single();
 
     if (rowErr && rowErr.code !== "PGRST116") {
@@ -670,7 +680,7 @@ export async function getInvoiceSignedUrl(
       return { success: false, error: "Dokument-URL konnte nicht erzeugt werden." };
     }
 
-    return { success: true, data: { url: signed.signedUrl, fileType: row.file_type } };
+    return { success: true, data: { url: signed.signedUrl, fileType: row.file_type, sha256: row.sha256 ?? null } };
   } catch (err) {
     const digest =
       err && typeof err === "object" && "digest" in err
@@ -682,6 +692,99 @@ export async function getInvoiceSignedUrl(
     console.error(SIGN_URL_LOG, err);
     Sentry.captureException(err, {
       tags: { module: "invoices", action: "sign_url" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
+  }
+}
+
+export type VerifyArchiveResult =
+  | { status: "verified"; sha256: string }
+  | { status: "mismatch"; sha256: string }
+  | { status: "legacy" };
+
+export async function verifyInvoiceArchive(
+  invoiceId: string,
+): Promise<ActionResult<VerifyArchiveResult>> {
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(VERIFY_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, file_path, sha256")
+      .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
+      .single();
+
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(VERIFY_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "gobd", action: "verify" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+    if (row.sha256 === null) {
+      return { success: true, data: { status: "legacy" } };
+    }
+
+    const { data: blob, error: dlErr } = await supabase.storage
+      .from("invoices")
+      .download(row.file_path);
+    if (dlErr || !blob) {
+      console.error(VERIFY_LOG, "download-failed", dlErr);
+      Sentry.captureException(dlErr ?? new Error("verify-download-failed"), {
+        tags: { module: "gobd", action: "verify" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Dokument konnte nicht zur Prüfung geladen werden." };
+    }
+
+    const ok = verifyBuffer(new Uint8Array(await blob.arrayBuffer()), row.sha256);
+    if (!ok) {
+      Sentry.captureException(new Error("[gobd:archive] hash mismatch"), {
+        tags: { module: "gobd", action: "verify" },
+        extra: { invoiceId, storedHash: row.sha256 },
+      });
+      return { success: true, data: { status: "mismatch", sha256: row.sha256 } };
+    }
+    return { success: true, data: { status: "verified", sha256: row.sha256 } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(VERIFY_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "gobd", action: "verify" },
       extra: { invoiceId },
     });
     return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };

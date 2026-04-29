@@ -8,6 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { getInvoiceSignedUrl } from "@/app/actions/invoices";
+import { ArchiveIntegrityBadge } from "./archive-integrity-badge";
 
 const XML_SIZE_LIMIT = 50 * 1024; // 50 KB
 
@@ -23,7 +24,7 @@ type Props = {
 type UrlState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "ready"; url: string; fileType: string; fetchedAt: number }
+  | { status: "ready"; url: string; fileType: string; fetchedAt: number; sha256: string | null }
   | { status: "error"; message: string };
 
 function DocBody({ url, fileType }: { url: string; fileType: string }) {
@@ -138,6 +139,7 @@ export function SourceDocumentViewer({
           url: result.data.url,
           fileType: result.data.fileType,
           fetchedAt: Date.now(),
+          sha256: result.data.sha256,
         });
       } else {
         setUrlState({ status: "error", message: result.error });
@@ -154,16 +156,21 @@ export function SourceDocumentViewer({
         showCloseButton={false}
         className="flex flex-col overflow-hidden p-0 max-h-[90vh] data-[side=right]:max-h-none"
       >
-        <SheetHeader className="px-4 pt-4 pb-2 border-b shrink-0 flex-row items-center justify-between">
-          <SheetTitle>Quelldokument</SheetTitle>
-          <button
-            type="button"
-            aria-label="Schließen"
-            onClick={() => onOpenChange(false)}
-            className="rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            ✕
-          </button>
+        <SheetHeader className="px-4 pt-4 pb-2 border-b shrink-0">
+          <div className="flex items-center justify-between">
+            <SheetTitle>Quelldokument</SheetTitle>
+            <button
+              type="button"
+              aria-label="Schließen"
+              onClick={() => onOpenChange(false)}
+              className="rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              ✕
+            </button>
+          </div>
+          {urlState.status === "ready" && (
+            <ArchiveIntegrityBadge invoiceId={invoiceId} sha256={urlState.sha256} />
+          )}
         </SheetHeader>
 
         <div className="flex-1 overflow-auto px-4 py-4 flex flex-col gap-4">

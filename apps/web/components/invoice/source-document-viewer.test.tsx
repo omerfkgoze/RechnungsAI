@@ -3,8 +3,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SourceDocumentViewer } from "./source-document-viewer";
 
 const getSignedUrlMock = vi.fn();
+const verifyInvoiceArchiveMock = vi.fn();
 vi.mock("@/app/actions/invoices", () => ({
   getInvoiceSignedUrl: (...args: unknown[]) => getSignedUrlMock(...args),
+  verifyInvoiceArchive: (...args: unknown[]) => verifyInvoiceArchiveMock(...args),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -30,7 +32,7 @@ describe("SourceDocumentViewer", () => {
   it("renders an img tag for image file types", async () => {
     getSignedUrlMock.mockResolvedValueOnce({
       success: true,
-      data: { url: "https://example.com/img.jpg", fileType: "image/jpeg" },
+      data: { url: "https://example.com/img.jpg", fileType: "image/jpeg", sha256: null },
     });
     render(<SourceDocumentViewer {...DEFAULT_PROPS} />);
     await waitFor(() => {
@@ -43,7 +45,7 @@ describe("SourceDocumentViewer", () => {
   it("renders an object tag for pdf file types", async () => {
     getSignedUrlMock.mockResolvedValueOnce({
       success: true,
-      data: { url: "https://example.com/doc.pdf", fileType: "application/pdf" },
+      data: { url: "https://example.com/doc.pdf", fileType: "application/pdf", sha256: null },
     });
     render(<SourceDocumentViewer {...DEFAULT_PROPS} />);
     await waitFor(() => {
@@ -56,7 +58,7 @@ describe("SourceDocumentViewer", () => {
   it("renders pre tag for XML file types and shows content", async () => {
     getSignedUrlMock.mockResolvedValueOnce({
       success: true,
-      data: { url: "https://example.com/rechnung.xml", fileType: "application/xml" },
+      data: { url: "https://example.com/rechnung.xml", fileType: "application/xml", sha256: null },
     });
     render(<SourceDocumentViewer {...DEFAULT_PROPS} />);
     await waitFor(() => {
@@ -68,11 +70,28 @@ describe("SourceDocumentViewer", () => {
     const onOpenChange = vi.fn();
     getSignedUrlMock.mockResolvedValueOnce({
       success: true,
-      data: { url: "https://example.com/img.jpg", fileType: "image/jpeg" },
+      data: { url: "https://example.com/img.jpg", fileType: "image/jpeg", sha256: null },
     });
     render(<SourceDocumentViewer {...DEFAULT_PROPS} onOpenChange={onOpenChange} />);
     const closeBtn = screen.getByRole("button", { name: "Schließen" });
     fireEvent.click(closeBtn);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("mounts ArchiveIntegrityBadge in sheet header when sha256 is returned", async () => {
+    const HASH = "b".repeat(64);
+    getSignedUrlMock.mockResolvedValueOnce({
+      success: true,
+      data: { url: "https://example.com/img.jpg", fileType: "image/jpeg", sha256: HASH },
+    });
+    verifyInvoiceArchiveMock.mockResolvedValueOnce({
+      success: true,
+      data: { status: "verified", sha256: HASH },
+    });
+    render(<SourceDocumentViewer {...DEFAULT_PROPS} />);
+    // Badge mounts and eventually shows the verified state with the short hash
+    await waitFor(() => {
+      expect(screen.getByText((t) => t.includes("Archiv unverändert"))).toBeDefined();
+    });
   });
 });

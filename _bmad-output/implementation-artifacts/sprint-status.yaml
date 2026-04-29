@@ -116,7 +116,7 @@ development_status:
 
   # Epic 4: GoBD-Compliant Archive and Audit Trail
   epic-4: in-progress
-  4-1-immutable-document-storage-and-sha-256-hashing: ready-for-dev
+  4-1-immutable-document-storage-and-sha-256-hashing: review
   4-2-audit-trail-and-action-logging: backlog
   4-3-archive-search-and-audit-export: backlog
   epic-4-retrospective: optional

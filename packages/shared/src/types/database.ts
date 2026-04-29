@@ -149,6 +149,7 @@ export type Database = {
           invoice_data: Json | null
           original_filename: string
           review_priority_key: number | null
+          sha256: string | null
           skr_code: string | null
           status: Database["public"]["Enums"]["invoice_status"]
           supplier_name_value: string | null
@@ -173,6 +174,7 @@ export type Database = {
           invoice_data?: Json | null
           original_filename: string
           review_priority_key?: number | null
+          sha256?: string | null
           skr_code?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           supplier_name_value?: string | null
