@@ -52,7 +52,7 @@ describe("verifyBuffer", () => {
     const original = new TextEncoder().encode("original document content");
     const storedHash = hashBuffer(original);
     const tampered = new Uint8Array(original);
-    tampered[0] = tampered[0] ^ 0xff;
+    tampered[0] = (tampered[0] ?? 0) ^ 0xff;
     expect(verifyBuffer(tampered, storedHash)).toBe(false);
   });
 });
