@@ -15,6 +15,7 @@ export function ArchiveIntegrityBadge({ invoiceId, sha256 }: Props) {
   const triggered = useRef(false);
 
   useEffect(() => {
+    triggered.current = false;
     if (sha256 === null) return;
     if (triggered.current) return;
     triggered.current = true;
@@ -26,7 +27,7 @@ export function ArchiveIntegrityBadge({ invoiceId, sha256 }: Props) {
       }
       if (result.data.status === "verified") setStatus("verified");
       else if (result.data.status === "mismatch") setStatus("mismatch");
-      else setStatus("idle");
+      else setStatus("error");
     });
   }, [invoiceId, sha256]);
 

@@ -1,6 +1,6 @@
 # Story 4.1: Immutable Document Storage and SHA-256 Hashing
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -170,6 +170,19 @@ So that my documents meet GoBD compliance requirements and I can prove they have
   - [x] `verifyInvoiceArchive` row SELECT uses `.eq("id", invoiceId).eq("tenant_id", tenantId)` — defense-in-depth confirmed
   - [x] `getInvoiceSignedUrl` updated: added `.eq("tenant_id", tenantId)` to SELECT (P2 pattern consistency) + existing post-fetch check retained
   - [x] `uploadInvoice` unchanged — path construction already uses caller's `tenantId`
+
+### Review Findings
+
+- [x] [Review][Patch] Migration `add constraint` not idempotent — wrapped in `DO $$ ... EXCEPTION WHEN duplicate_object THEN NULL; END $$` [`supabase/migrations/20260429000000_invoice_sha256.sql`]
+- [x] [Review][Patch] `ArchiveIntegrityBadge` silently renders `null` when server returns `legacy` for non-null `sha256` prop — `else setStatus("error")` now shows "Prüfung fehlgeschlagen" [`apps/web/components/invoice/archive-integrity-badge.tsx`]
+- [x] [Review][Patch] `triggered.current` ref never reset — reset to `false` at top of effect so re-verification fires when `invoiceId` changes [`apps/web/components/invoice/archive-integrity-badge.tsx`]
+- [x] [Review][Patch] First `uploadInvoice` SHA-256 test is misleadingly titled — renamed to "succeeds and calls storage upload when file is valid" [`apps/web/app/actions/invoices.test.ts`]
+- [x] [Review][Patch] Mismatch Sentry test now asserts `extra: { invoiceId, storedHash: STORED_HASH }` [`apps/web/app/actions/invoices.test.ts`]
+- [x] [Review][Defer] Full file download on every verify — no server-side size guard for large files; acknowledged in spec ("acceptable on one-document basis") — deferred, pre-existing
+- [x] [Review][Defer] No rate limiting on `verifyInvoiceArchive` — infrastructure concern, pre-existing pattern across all Server Actions — deferred, pre-existing
+- [x] [Review][Defer] `sha256` column has no index — Story 4.3 batch-verify path will need one — deferred, pre-existing
+- [x] [Review][Defer] `console.error` passes raw Supabase error objects — may include storage path/tenant fragments; pre-existing pattern across all Server Actions — deferred, pre-existing
+- [x] [Review][Defer] `packages/gobd` `package.json`/`tsconfig.json` build config changes (dist output + `@types/node`) — fix for pre-existing `tsc --noEmit` failure; devDep only, not runtime — deferred, pre-existing
 
 ---
 

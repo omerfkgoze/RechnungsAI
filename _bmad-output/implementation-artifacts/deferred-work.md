@@ -1,5 +1,13 @@
 # Deferred Work
 
+## Deferred from: code review of 4-1-immutable-document-storage-and-sha-256-hashing (2026-04-29)
+
+- [ ] Full file download on every `verifyInvoiceArchive` call — no server-side size guard for large PDFs. Acknowledged in spec ("acceptable on one-document basis," ~500KB ~100ms). Revisit in Story 4.3 when batch-verify path requires streaming. [`apps/web/app/actions/invoices.ts — verifyInvoiceArchive`]
+- [ ] No rate limiting on `verifyInvoiceArchive` — any authenticated tenant member can trigger repeated full-file storage downloads. Pre-existing pattern across all Server Actions; address at middleware/infrastructure layer. [`apps/web/app/actions/invoices.ts — verifyInvoiceArchive`]
+- [ ] `sha256` column has no DB index — full table scan on any query filtering by hash. Story 4.3 batch-verify will need it. Add `CREATE INDEX IF NOT EXISTS invoices_sha256_idx ON public.invoices (sha256) WHERE sha256 IS NOT NULL;` in a Story 4.3 migration. [`supabase/migrations/20260429000000_invoice_sha256.sql`]
+- [ ] `console.error(VERIFY_LOG, …)` passes raw Supabase error objects — may include storage path fragments or tenant data. Pre-existing pattern across all Server Actions; address when structured logging is introduced. [`apps/web/app/actions/invoices.ts — VERIFY_LOG error paths`]
+- [ ] `packages/gobd` `package.json`/`tsconfig.json` build config changed from `tsc --noEmit` (type-check only) to `tsc --build` (emit to `dist/`) to fix pre-existing `node:crypto` type failure. `@types/node` devDep added. Verify `dist/` output is gitignored and CI build order is correct. [`packages/gobd/package.json`, `packages/gobd/tsconfig.json`]
+
 ## Deferred from: code review of 3-5-compliance-warnings-and-weekly-value-summary (2026-04-28)
 
 - [ ] SQL regex `'^[0-9]+(\.[0-9]+)?$'` rejects negative VAT values — credit notes with negative `vat_total` are silently treated as 0 in `tenant_weekly_value_summary()`. Fix: use `'^-?[0-9]+(\.[0-9]+)?$'` and handle signed arithmetic. Revisit when credit note upload is supported. [`supabase/migrations/20260428000000_weekly_value_summary.sql:43`]

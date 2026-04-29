@@ -21,9 +21,14 @@ alter table public.invoices
   add column if not exists sha256 text;
 
 -- Hex shape guard (defensive — same regex pattern as 20260424100000 safe-cast).
-alter table public.invoices
-  add constraint invoices_sha256_format_chk
-  check (sha256 is null or sha256 ~ '^[0-9a-f]{64}$');
+-- DO block makes this idempotent: re-running the migration is safe (e.g. supabase db reset).
+do $$
+begin
+  alter table public.invoices
+    add constraint invoices_sha256_format_chk
+    check (sha256 is null or sha256 ~ '^[0-9a-f]{64}$');
+exception when duplicate_object then null;
+end $$;
 
 -- Intentionally NO `grant update (sha256) on public.invoices to authenticated`.
 -- Hash is INSERT-only at upload time; UPDATE is forbidden by absence of grant.
