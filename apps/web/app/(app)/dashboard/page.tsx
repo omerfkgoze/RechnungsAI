@@ -263,6 +263,21 @@ export default async function DashboardPage({
   const exportedCount = rawCount("exported");
   const sessionStartMs = Date.now();
 
+  const { count: auditErrorCount, error: errorCountErr } = await supabase
+    .from("audit_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .eq("event_type", "field_edit")
+    .gte("created_at", new Date(sessionStartMs).toISOString());
+
+  if (errorCountErr) {
+    console.error("[dashboard:audit-count]", errorCountErr);
+    Sentry.captureException(errorCountErr, {
+      tags: { module: "gobd", action: "audit_count" },
+    });
+  }
+  const errorCount = auditErrorCount ?? 0;
+
   return (
     <>
       <DashboardRealtimeRefresher tenantId={tenantId} />
@@ -276,7 +291,7 @@ export default async function DashboardPage({
             reviewCount={reviewCount}
             readyCount={readyCount}
             invoiceCount={rows.length}
-            errorCount={0}
+            errorCount={errorCount}
             streakWeeks={0}
             sessionStartMs={sessionStartMs}
           />

@@ -34,6 +34,58 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          id: string
+          tenant_id: string
+          invoice_id: string | null
+          actor_user_id: string
+          event_type: string
+          field_name: string | null
+          old_value: string | null
+          new_value: string | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          invoice_id?: string | null
+          actor_user_id: string
+          event_type: string
+          field_name?: string | null
+          old_value?: string | null
+          new_value?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          [key in never]: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categorization_corrections: {
         Row: {
           corrected_code: string

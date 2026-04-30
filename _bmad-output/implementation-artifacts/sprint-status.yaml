@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-04-29 (story 4-2 ready-for-dev — Epic 4 in-progress)"
+last_updated: "2026-04-30 (story 4-2 review — Epic 4 in-progress)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -117,7 +117,7 @@ development_status:
   # Epic 4: GoBD-Compliant Archive and Audit Trail
   epic-4: in-progress
   4-1-immutable-document-storage-and-sha-256-hashing: done
-  4-2-audit-trail-and-action-logging: ready-for-dev
+  4-2-audit-trail-and-action-logging: review
   4-3-archive-search-and-audit-export: backlog
   epic-4-retrospective: optional
 

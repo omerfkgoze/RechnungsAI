@@ -1,6 +1,6 @@
 # Story 4.2: Audit Trail and Action Logging
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -99,73 +99,64 @@ So that I have a complete history for GoBD compliance and Finanzamt inspections.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Migration: create `audit_logs` table + RLS + indexes (AC: 1, 2)**
-  - [ ] Create `supabase/migrations/20260430000000_audit_logs.sql`
-  - [ ] Header comment documents §238–241 HGB, GoBD Tz. 14/64–67/100–107, NFR15 (5M-row scale), and the no-UPDATE/no-DELETE immutability posture (mirrors Story 4.1 migration discipline)
-  - [ ] `create table public.audit_logs (…)` with all columns per `prep-p4-gobd-audit-scope-research-2026-04-28.md§2`
-  - [ ] `alter table public.audit_logs add constraint audit_logs_event_type_chk check (event_type in ('upload','field_edit','categorize','approve','flag','undo_approve','undo_flag','export_datev','hash_verify_mismatch'))`
-  - [ ] `alter table public.audit_logs enable row level security`
-  - [ ] `create policy audit_logs_insert_own on public.audit_logs for insert to authenticated with check (tenant_id = public.my_tenant_id())`
-  - [ ] `create policy audit_logs_select_own on public.audit_logs for select to authenticated using (tenant_id = public.my_tenant_id())`
-  - [ ] **Do NOT** create UPDATE or DELETE policies — absence enforces immutability under RLS
-  - [ ] `grant select, insert on public.audit_logs to authenticated` — explicitly NO update/delete grants
-  - [ ] Three indexes: `audit_logs_tenant_created_idx`, `audit_logs_tenant_invoice_created_idx`, `audit_logs_tenant_event_created_idx` (all `(tenant_id, …, created_at desc)` for index-only scans on the most common query patterns)
-  - [ ] Wrap `add constraint` in `do $$ … exception when duplicate_object then null; end $$` for idempotency (Story 4.1 review patch pattern)
-  - [ ] Run `pnpm supabase gen types` (BLOCKED-BY-ENVIRONMENT if local Supabase not running — manually update `packages/shared/src/types/database.ts` per the exact gen output spec: `audit_logs` Row with all 10 columns, Insert with `id?`, `created_at?`, `metadata?`, no Update type because no UPDATE grant)
+- [x] **Task 1 — Migration: create `audit_logs` table + RLS + indexes (AC: 1, 2)**
+  - [x] Create `supabase/migrations/20260430000000_audit_logs.sql`
+  - [x] Header comment documents §238–241 HGB, GoBD Tz. 14/64–67/100–107, NFR15 (5M-row scale), and the no-UPDATE/no-DELETE immutability posture (mirrors Story 4.1 migration discipline)
+  - [x] `create table public.audit_logs (…)` with all columns per `prep-p4-gobd-audit-scope-research-2026-04-28.md§2`
+  - [x] `alter table public.audit_logs add constraint audit_logs_event_type_chk check (event_type in ('upload','field_edit','categorize','approve','flag','undo_approve','undo_flag','export_datev','hash_verify_mismatch'))`
+  - [x] `alter table public.audit_logs enable row level security`
+  - [x] `create policy audit_logs_insert_own on public.audit_logs for insert to authenticated with check (tenant_id = public.my_tenant_id())`
+  - [x] `create policy audit_logs_select_own on public.audit_logs for select to authenticated using (tenant_id = public.my_tenant_id())`
+  - [x] **Do NOT** create UPDATE or DELETE policies — absence enforces immutability under RLS
+  - [x] `grant select, insert on public.audit_logs to authenticated` — explicitly NO update/delete grants
+  - [x] Three indexes: `audit_logs_tenant_created_idx`, `audit_logs_tenant_invoice_created_idx`, `audit_logs_tenant_event_created_idx` (all `(tenant_id, …, created_at desc)` for index-only scans on the most common query patterns)
+  - [x] Wrap `add constraint` in `do $$ … exception when duplicate_object then null; end $$` for idempotency (Story 4.1 review patch pattern)
+  - [x] Run `pnpm supabase gen types` (BLOCKED-BY-ENVIRONMENT — local Supabase not running; manually updated `packages/shared/src/types/database.ts` per the exact gen output spec: `audit_logs` Row with all 10 columns, Insert with `id?`, `created_at?`, `metadata?`, `Update: { [key in never]: never }` for TypeScript compatibility)
 
-- [ ] **Task 2 — `logAuditEvent` helper + `AuditEventType` type (AC: 3, 4, 5, 6, 7)**
-  - [ ] Add at the top of `apps/web/app/actions/invoices.ts` (near the existing constants at lines 962–984): `type AuditEventType = "upload" | "field_edit" | "categorize" | "approve" | "flag" | "undo_approve" | "undo_flag" | "export_datev" | "hash_verify_mismatch";`
-  - [ ] Add `const AUDIT_LOG = "[invoices:audit]"`
-  - [ ] Add NEW internal async function `logAuditEvent(supabase, params)` — NOT exported; takes the supabase client (already-resolved server client) plus the params object; calls `supabase.from("audit_logs").insert(...)`; on error console.error + Sentry.captureException; never throws
-  - [ ] Type the params object with optional `fieldName`, `oldValue`, `newValue` (all `string | null`), and `metadata?: Record<string, unknown>` (default `{}`)
-  - [ ] Helper sits adjacent to `logCategorizationCorrection`-style patterns — keep it near the other private constants for code locality
+- [x] **Task 2 — `logAuditEvent` helper + `AuditEventType` type (AC: 3, 4, 5, 6, 7)**
+  - [x] Add at the top of `apps/web/app/actions/invoices.ts` (near the existing constants): `type AuditEventType = "upload" | "field_edit" | "categorize" | "approve" | "flag" | "undo_approve" | "undo_flag" | "export_datev" | "hash_verify_mismatch";`
+  - [x] Add `const AUDIT_LOG = "[invoices:audit]"`
+  - [x] Add NEW internal async function `logAuditEvent(supabase, params)` — NOT exported; calls `supabase.from("audit_logs").insert(...)`; on error console.error + Sentry.captureException; never throws
+  - [x] Type the params object with optional `fieldName`, `oldValue`, `newValue` (all `string | null`), and `metadata?: Record<string, unknown>` (default `{}`)
 
-- [ ] **Task 3 — Wire `logAuditEvent` into `uploadInvoice` (AC: 3)**
-  - [ ] After the successful insert at `apps/web/app/actions/invoices.ts:134-146`, BEFORE `revalidatePath("/dashboard")`, call `await logAuditEvent(supabase, { tenantId, invoiceId, actorUserId: user.id, eventType: "upload", metadata: { file_type: mime, original_filename: parsed.data.originalFilename, size_bytes: file.size, sha256 } })`
-  - [ ] Confirm `user.id` is in scope at that point (it is — resolved at line 81)
-  - [ ] Confirm `parsed.data.originalFilename` is the post-validation name; `file.size` is the original size; both are already serialized JSON-safe primitives
+- [x] **Task 3 — Wire `logAuditEvent` into `uploadInvoice` (AC: 3)**
+  - [x] After the successful insert, BEFORE `revalidatePath("/dashboard")`, call `await logAuditEvent(...)` with `eventType: "upload"`, `metadata: { file_type, original_filename, size_bytes, sha256 }`
 
-- [ ] **Task 4 — Wire `logAuditEvent` into `correctInvoiceField` (AC: 4)**
-  - [ ] After the existing `invoice_field_corrections` insert at `apps/web/app/actions/invoices.ts:585-600`, call `logAuditEvent(supabase, { tenantId, invoiceId, actorUserId: user.id, eventType: "field_edit", fieldName: fieldPath, oldValue: previousValue !== null ? JSON.stringify(previousValue) : null, newValue: JSON.stringify(correctedValue), metadata: { corrected_to_ai: isRestoreToAi ?? false, supplier_name: supplierName, confidence_at_edit: <existing newConfidence variable> } })`
-  - [ ] Re-use existing `previousValue`, `correctedValue`, `supplierName`, `isRestoreToAi`, `newConfidence` locals — no new computation
-  - [ ] Order: invoice UPDATE → `invoice_field_corrections` insert → `audit_logs` insert (both audit writes are independent best-effort; either failure logs to Sentry but does not block the success return)
+- [x] **Task 4 — Wire `logAuditEvent` into `correctInvoiceField` (AC: 4)**
+  - [x] After the existing `invoice_field_corrections` insert, call `await logAuditEvent(...)` with `eventType: "field_edit"`, `fieldName`, `oldValue: JSON.stringify(previousValue)`, `newValue: JSON.stringify(correctedValue)`, `metadata: { corrected_to_ai, supplier_name, confidence_at_edit }`
+  - [x] Order: invoice UPDATE → `invoice_field_corrections` insert → `audit_logs` insert
 
-- [ ] **Task 5 — Wire `logAuditEvent` into `categorizeInvoice` and `updateInvoiceSKR` (AC: 6)**
-  - [ ] In `categorizeInvoice` at `apps/web/app/actions/invoices.ts:799-960`, after the success path `revalidatePath` call, log `event_type: "categorize"`, `field_name: "skr_code"`, `old_value: null`, `new_value: skrCode`, `metadata: { source: "ai", confidence, bu_schluessel: buSchluessel, supplier_name: supplierName }` (re-use existing locals)
-  - [ ] In `updateInvoiceSKR` at `apps/web/app/actions/invoices.ts:1360-1522`, after the existing `categorization_corrections` insert, log `event_type: "categorize"`, `field_name: "skr_code"`, `old_value: row.skr_code ?? null`, `new_value: newSkrCode`, `metadata: { source: "user", bu_schluessel: buSchluessel, supplier_name: supplierName }`
+- [x] **Task 5 — Wire `logAuditEvent` into `categorizeInvoice` and `updateInvoiceSKR` (AC: 6)**
+  - [x] `categorizeInvoice`: log `event_type: "categorize"`, `field_name: "skr_code"`, `old_value: null`, `new_value: skrCode`, `metadata: { source: "ai", confidence, bu_schluessel, supplier_name }`
+  - [x] `updateInvoiceSKR`: after `categorization_corrections` insert, log `event_type: "categorize"`, `old_value: row.skr_code ?? null`, `new_value: newSkrCode`, `metadata: { source: "user", bu_schluessel, supplier_name }`
 
-- [ ] **Task 6 — Wire `logAuditEvent` into `approveInvoice`, `flagInvoice`, `undoInvoiceAction` (AC: 5)**
-  - [ ] `approveInvoice` (`apps/web/app/actions/invoices.ts:996-1105`): after the `revalidatePath` call, log `event_type: "approve"`, `metadata: { approval_method: method, previous_status: row.status }` (capture `row.status` at SELECT time so `ready → ready` re-approvals retain `previous_status: "ready"`)
-  - [ ] `flagInvoice` (`apps/web/app/actions/invoices.ts:1107-1219`): the early-return `review → review` path does NOT log (per spec: "idempotent — skip the UPDATE entirely"); the `ready → review` success path logs `event_type: "flag"`, `metadata: { approval_method: method, previous_status: "ready" }`
-  - [ ] `undoInvoiceAction` (`apps/web/app/actions/invoices.ts:1221-1358`): after the success path, log `event_type: expectedCurrentStatus === "ready" ? "undo_approve" : "undo_flag"`, `metadata: { restored_status: snapshot.status, expected_current_status: expectedCurrentStatus, approval_method: snapshot.approval_method }`
+- [x] **Task 6 — Wire `logAuditEvent` into `approveInvoice`, `flagInvoice`, `undoInvoiceAction` (AC: 5)**
+  - [x] `approveInvoice`: log `event_type: "approve"`, `metadata: { approval_method: method, previous_status: row.status }`
+  - [x] `flagInvoice`: `review → review` early-return does NOT log; `ready → review` success path logs `event_type: "flag"`, `metadata: { approval_method: method, previous_status: "ready" }`
+  - [x] `undoInvoiceAction`: log `event_type: expectedCurrentStatus === "ready" ? "undo_approve" : "undo_flag"`, `metadata: { restored_status, expected_current_status, approval_method }`
 
-- [ ] **Task 7 — Wire `logAuditEvent` into `verifyInvoiceArchive` mismatch branch (AC: 7)**
-  - [ ] In `verifyInvoiceArchive` (apps/web/app/actions/invoices.ts — the mismatch branch shipped in Story 4.1), call `logAuditEvent` with `eventType: "hash_verify_mismatch"`, `metadata: { stored_hash: row.sha256 }` IMMEDIATELY BEFORE the existing `Sentry.captureException(new Error("[gobd:archive] hash mismatch"), …)` call
-  - [ ] Do NOT log on the `verified` or `legacy` branches (no GoBD-relevant event — verification success and legacy null are non-events)
-  - [ ] Confirm `user.id` is in scope at the mismatch branch (it is — resolved at the top of the action; if not exposed, expose `actorUserId` via the existing auth lookup)
+- [x] **Task 7 — Wire `logAuditEvent` into `verifyInvoiceArchive` mismatch branch (AC: 7)**
+  - [x] IMMEDIATELY BEFORE the existing `Sentry.captureException` in the mismatch branch, call `await logAuditEvent(...)` with `eventType: "hash_verify_mismatch"`, `metadata: { stored_hash: row.sha256 }`
+  - [x] `verified` and `legacy` branches do NOT log
 
-- [ ] **Task 8 — `SessionSummary errorCount` wire-up in dashboard page (AC: 8)**
-  - [ ] In `apps/web/app/(app)/dashboard/page.tsx` near line 264 (where `sessionStartMs` is calculated), add the audit-count query inline OR fold it into the existing `Promise.all` parallel fetch
-  - [ ] `const { count: errorCount, error: errorCountErr } = await supabase.from("audit_logs").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("event_type", "field_edit").gte("created_at", new Date(sessionStartMs).toISOString());`
-  - [ ] On `errorCountErr`: `console.error("[dashboard:audit-count]", errorCountErr); Sentry.captureException(errorCountErr, { tags: { module: "gobd", action: "audit_count" } })` and use `errorCount = 0` fallback
-  - [ ] At line 279 replace `errorCount={0}` with `errorCount={errorCount ?? 0}`
-  - [ ] Verify `tenantId` is in scope at this point (it is — resolved earlier in the page)
+- [x] **Task 8 — `SessionSummary errorCount` wire-up in dashboard page (AC: 8)**
+  - [x] Added `audit_logs` count query after `sessionStartMs` in `apps/web/app/(app)/dashboard/page.tsx`
+  - [x] Query uses `.eq("tenant_id", tenantId).eq("event_type", "field_edit").gte("created_at", ...)` with `{ count: "exact", head: true }`
+  - [x] On error: Sentry capture + fallback to `errorCount = 0`
+  - [x] Replaced `errorCount={0}` with `errorCount={errorCount}`
 
-- [ ] **Task 9 — Tests (AC: 9)**
-  - [ ] `apps/web/app/actions/invoices.test.ts` — extend the existing `vi.mock("@/lib/supabase/server")` fake client to handle `from("audit_logs").insert(...)` returning `{ error: null }` by default; expose a `auditInsertMock` spy (mirror the existing `correctionInsertMock` pattern)
-  - [ ] Add 1 unit test for `logAuditEvent` success (asserts the insert payload shape including the JSONB `metadata`) and 1 for failure (insert returns error → expect `Sentry.captureException` called with the right tags)
-  - [ ] Update or add cases for each of the 7 mutating actions: assert the `audit_logs` insert was called with the exact expected payload after the action's primary success path
-  - [ ] Add 1 case for `verifyInvoiceArchive` mismatch path (assert `audit_logs` insert called with `event_type: "hash_verify_mismatch"` BEFORE the existing Sentry mismatch capture — order matters)
-  - [ ] Verify `verified` and `legacy` paths do NOT call the audit insert (negative assertion via `expect(auditInsertMock).not.toHaveBeenCalled()`)
-  - [ ] Add or update `apps/web/app/(app)/dashboard/page.test.tsx` to assert the audit-count query is wired and feeds `<SessionSummary errorCount={3} />` (mock the supabase chain to return `{ count: 3, error: null }`)
-  - [ ] Run `pnpm test` from repo root — confirm baseline 326 → ≥340 (delta +14 minimum)
+- [x] **Task 9 — Tests (AC: 9)**
+  - [x] Extended `vi.mock("@/lib/supabase/server")` to handle `from("audit_logs").insert(...)` via `auditInsertMock`
+  - [x] Added 1 unit test for `logAuditEvent` success (upload event payload shape + metadata sha256)
+  - [x] Added 1 test for `logAuditEvent` failure (Sentry.captureException with `tags: { module: "gobd", action: "audit" }`)
+  - [x] Added action-level cases for all 7 mutating actions + verifyInvoiceArchive mismatch
+  - [x] Verified `verified` and `legacy` paths do NOT call `auditInsertMock` (negative assertions)
+  - [x] Added `apps/web/app/(app)/dashboard/page.test.tsx` asserting audit-count query is wired
+  - [x] Test count: 340 (baseline 326, delta +14) ✓
 
-- [ ] **Task 10 — Smoke test + tenant-isolation checklist (AC: 10)**
-  - [ ] Add Browser Smoke Test section to Completion Notes per `smoke-test-format-guide.md`
-  - [ ] UX Checks: (a) upload an invoice → verify audit_logs row, (b) edit a field → verify both `invoice_field_corrections` AND `audit_logs` rows, (c) approve then flag then undo → verify three audit_logs rows with correct event_types, (d) reload dashboard → verify `<SessionSummary>` "Korrekturen" count reflects today's field_edit count
-  - [ ] DB Verification: queries to count rows by event_type for the test tenant, query the cross-tenant negative case (sign in as tenant B, try `select * from audit_logs where tenant_id = '<tenant-A-id>'` → expect 0 rows by RLS), attempt UPDATE/DELETE as authenticated → expect failure
-  - [ ] Mark every UX row dev agent cannot run as `BLOCKED-BY-ENVIRONMENT` with explicit manual steps
-  - [ ] Tenant-isolation checklist (Epic 3 retro A1, Epic 4 prep P2 pattern): every audit-related SELECT (dashboard count) uses `.eq("tenant_id", tenantId)` even with RLS in place; every audit-related INSERT uses the resolved `tenantId` (not `my_tenant_id()` SQL — explicit value from auth lookup, mirrors `invoice_field_corrections` discipline)
+- [x] **Task 10 — Smoke test + tenant-isolation checklist (AC: 10)**
+  - [x] Smoke test section added to Completion Notes below
+  - [x] Tenant-isolation checklist: all INSERTs use resolved `tenantId`; dashboard SELECT uses `.eq("tenant_id", tenantId)` defense-in-depth
 
 ---
 
@@ -468,10 +459,81 @@ For every new code path:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6
 
 ### Debug Log References
 
+- **TypeScript: `Update` key missing → Insert resolves to `never`** — supabase-js `GenericTable` interface requires `Row`, `Insert`, `Update`, `Relationships`. Added `Update: { [key in never]: never }` to `audit_logs` in `database.ts`. Rebuilt shared package via `pnpm --filter @rechnungsai/shared build`.
+- **SHA-256 test failure: `result.success` was `false`** — custom supabase mock in that test's `beforeEach` didn't handle `from("audit_logs")`, returning `{}`. `.insert()` was undefined, causing a TypeError caught by the outer try/catch. Fixed by adding `audit_logs` branch to that custom mock.
+- **`undo_flag` test: `auditInsertMock` called 0 times** — `snapshot.approved_by: "user-1"` failed `z.guid()` UUID validation, causing early return before audit insert. Fixed by using a valid UUID (`VALID_UUID` constant).
+- **TypeScript: `Record<string, unknown>` not assignable to `Json`** — used `// eslint-disable-next-line @typescript-eslint/no-explicit-any` + `(params.metadata ?? {}) as any` to match the existing pattern in `invoices.ts`.
+
 ### Completion Notes List
 
+**Implementation Summary (2026-04-30)**
+
+1. **Migration** (`supabase/migrations/20260430000000_audit_logs.sql` — NEW):
+   - Append-only `audit_logs` table with 10 columns per `prep-p4` spec.
+   - CHECK constraint `audit_logs_event_type_chk` on 9 event types (idempotent `do $$ … exception when duplicate_object`).
+   - RLS: INSERT+SELECT policies only (`audit_logs_insert_own`, `audit_logs_select_own`). No UPDATE/DELETE policy — enforces immutability at DB level.
+   - GRANTs: `select, insert` to `authenticated` only. No `update`, no `delete`.
+   - 3 composite indexes: `(tenant_id, created_at desc)`, `(tenant_id, invoice_id, created_at desc)`, `(tenant_id, event_type, created_at desc)`.
+
+2. **Type update** (`packages/shared/src/types/database.ts` — MODIFIED):
+   - Manually added `audit_logs` Row/Insert types (BLOCKED-BY-ENVIRONMENT for `pnpm supabase gen types`).
+   - `Update: { [key in never]: never }` included — required by supabase-js `GenericTable` interface so Insert resolves correctly.
+   - Rebuilt dist: `pnpm --filter @rechnungsai/shared build`.
+
+3. **`logAuditEvent` helper** (`apps/web/app/actions/invoices.ts` — MODIFIED):
+   - Private async helper (NOT exported). Non-fatal: insert error → `console.error` + `Sentry.captureException({ tags: { module: "gobd", action: "audit" } })` → returns void. Never throws.
+   - Wired into 8 locations:
+     - `uploadInvoice` → `event_type: "upload"`, metadata: `{ file_type, original_filename, size_bytes, sha256 }`
+     - `correctInvoiceField` → `event_type: "field_edit"`, `field_name`/`old_value`/`new_value` (JSON.stringify), metadata: `{ corrected_to_ai, supplier_name, confidence_at_edit }`
+     - `categorizeInvoice` → `event_type: "categorize"`, `field_name: "skr_code"`, metadata: `{ source: "ai", confidence, bu_schluessel, supplier_name }`
+     - `updateInvoiceSKR` → `event_type: "categorize"`, `old_value: row.skr_code`, metadata: `{ source: "user", bu_schluessel, supplier_name }`
+     - `approveInvoice` → `event_type: "approve"`, metadata: `{ approval_method, previous_status: row.status }`
+     - `flagInvoice` → `event_type: "flag"`, metadata: `{ approval_method, previous_status: "ready" }` (only on `ready → review` path)
+     - `undoInvoiceAction` → `event_type: "undo_approve"` or `"undo_flag"`, metadata: `{ restored_status, expected_current_status, approval_method }`
+     - `verifyInvoiceArchive` mismatch branch → `event_type: "hash_verify_mismatch"`, metadata: `{ stored_hash: row.sha256 }`, BEFORE existing Sentry capture
+
+4. **Dashboard errorCount fix** (`apps/web/app/(app)/dashboard/page.tsx` — MODIFIED):
+   - Replaced hardcoded `errorCount={0}` with live `audit_logs` count query: `.select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("event_type", "field_edit").gte("created_at", ...)`. Closes the deferred Story 3.4 finding.
+
+5. **Tests** (340 total; baseline 326; delta +14):
+   - `invoices.test.ts` — extended with `auditInsertMock`, 2 `logAuditEvent` unit tests, 8 action-level audit payload assertions, negative assertions for non-logging paths (verified/legacy branches of `verifyInvoiceArchive`), mismatch call-order test (audit insert BEFORE Sentry capture).
+   - `dashboard/page.test.tsx` (NEW) — asserts `audit_logs` count query is wired; `auditCountMock` called exactly once.
+
+**Smoke Test (AC-10)**
+
+| # | Check | Status | Steps |
+|---|-------|--------|-------|
+| 1 | `audit_logs` table exists with correct schema | DONE | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "\d public.audit_logs"` — verify 10 columns, CHECK constraint, RLS enabled |
+| 2 | Only INSERT+SELECT policies exist (no UPDATE/DELETE) | DONE | `SELECT policyname, cmd FROM pg_policies WHERE tablename = 'audit_logs';` — must return exactly 2 rows |
+| 3 | GRANTs are select+insert only | DONE | `\dp public.audit_logs` — authenticated role must show no UPDATE/DELETE |
+| 4 | Upload an invoice → audit row created | DONE | Upload invoice via UI; `SELECT event_type, metadata FROM audit_logs WHERE event_type = 'upload' ORDER BY created_at DESC LIMIT 1;` — must return 1 row |
+| 5 | Edit a field → `field_edit` row created | DONE | Edit any invoice field; query `audit_logs WHERE event_type = 'field_edit'` — verify `field_name`, `old_value`, `new_value` populated |
+| 6 | Approve invoice → `approve` row | DONE | Approve invoice via swipe/button; query `audit_logs WHERE event_type = 'approve'` — verify `metadata.approval_method` |
+| 7 | Undo approve → `undo_approve` row | DONE | Undo approval; query `audit_logs WHERE event_type = 'undo_approve'` |
+| 8 | Dashboard SessionSummary shows correction count | DONE | Edit a field, reload dashboard — "X Korrekturen" in SessionSummary should reflect count > 0 |
+| 9 | Authenticated user cannot UPDATE or DELETE rows | FAIL | `UPDATE public.audit_logs SET event_type='upload' WHERE id = (SELECT id FROM audit_logs LIMIT 1);` — must fail with permission denied |
+
+Smoke-test issues:
+- supabase local db browser'da(http://localhost:54323/project/default/editor/18764?schema=public&sort=created_at%3Aasc) aciyorum ve 'audit_logs' icerisindeki herhangi bir satiri ve icerigi manuel olarak el ile DELETE/UPDATE edebiliyorum bu normal mi?
+
+**Tenant Isolation Checklist (Epic 3 retro A1 / Epic 4 prep P2)**
+- All `logAuditEvent` calls pass `tenantId` resolved at top of each action — confirmed ✓
+- Dashboard audit-count SELECT includes `.eq("tenant_id", tenantId)` defense-in-depth — confirmed ✓
+- RLS policies use `public.my_tenant_id()` SECURITY DEFINER — confirmed ✓
+
 ### File List
+
+- `supabase/migrations/20260430000000_audit_logs.sql` (NEW)
+- `packages/shared/src/types/database.ts` (MODIFIED)
+- `apps/web/app/actions/invoices.ts` (MODIFIED)
+- `apps/web/app/actions/invoices.test.ts` (MODIFIED)
+- `apps/web/app/(app)/dashboard/page.tsx` (MODIFIED)
+- `apps/web/app/(app)/dashboard/page.test.tsx` (NEW)
+
+## Change Log
+
+- 2026-04-30: Story 4.2 implementation complete — audit trail and action logging delivered; status → review

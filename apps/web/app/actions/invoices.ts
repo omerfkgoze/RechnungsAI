@@ -24,6 +24,51 @@ import { firstZodError } from "@/lib/zod-error";
 const LOG_PREFIX = "[invoices:upload]";
 const EXTRACT_LOG = "[invoices:extract]";
 const VERIFY_LOG = "[invoices:verify]";
+const AUDIT_LOG = "[invoices:audit]";
+
+type AuditEventType =
+  | "upload"
+  | "field_edit"
+  | "categorize"
+  | "approve"
+  | "flag"
+  | "undo_approve"
+  | "undo_flag"
+  | "export_datev"
+  | "hash_verify_mismatch";
+
+async function logAuditEvent(
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
+  params: {
+    tenantId: string;
+    invoiceId: string | null;
+    actorUserId: string;
+    eventType: AuditEventType;
+    fieldName?: string | null;
+    oldValue?: string | null;
+    newValue?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<void> {
+  const { error } = await supabase.from("audit_logs").insert({
+    tenant_id: params.tenantId,
+    invoice_id: params.invoiceId,
+    actor_user_id: params.actorUserId,
+    event_type: params.eventType,
+    field_name: params.fieldName ?? null,
+    old_value: params.oldValue ?? null,
+    new_value: params.newValue ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    metadata: (params.metadata ?? {}) as any,
+  });
+  if (error) {
+    console.error(AUDIT_LOG, "insert-failed", error);
+    Sentry.captureException(error, {
+      tags: { module: "gobd", action: "audit" },
+      extra: { eventType: params.eventType, invoiceId: params.invoiceId },
+    });
+  }
+}
 
 const invoiceIdSchema = z.guid({ message: "Ungültige Rechnungs-ID." });
 
@@ -171,6 +216,19 @@ export async function uploadInvoice(
         error: "Upload fehlgeschlagen. Bitte versuche es erneut.",
       };
     }
+
+    await logAuditEvent(supabase, {
+      tenantId,
+      invoiceId,
+      actorUserId: user.id,
+      eventType: "upload",
+      metadata: {
+        file_type: mime,
+        original_filename: parsed.data.originalFilename,
+        size_bytes: file.size,
+        sha256,
+      },
+    });
 
     revalidatePath("/dashboard");
     return { success: true, data: { invoiceId, filePath } };
@@ -599,6 +657,21 @@ export async function correctInvoiceField(input: {
       });
     }
 
+    await logAuditEvent(supabase, {
+      tenantId,
+      invoiceId,
+      actorUserId: user.id,
+      eventType: "field_edit",
+      fieldName: fieldPath,
+      oldValue: previousValue !== null ? JSON.stringify(previousValue) : null,
+      newValue: JSON.stringify(correctedValue),
+      metadata: {
+        corrected_to_ai: isRestoreToAi ?? false,
+        supplier_name: supplierName,
+        confidence_at_edit: newConfidence,
+      },
+    });
+
     revalidatePath("/dashboard");
     revalidatePath(`/rechnungen/${invoiceId}`);
     return { success: true, data: { newConfidence } };
@@ -767,6 +840,13 @@ export async function verifyInvoiceArchive(
 
     const ok = verifyBuffer(new Uint8Array(await blob.arrayBuffer()), row.sha256);
     if (!ok) {
+      await logAuditEvent(supabase, {
+        tenantId,
+        invoiceId,
+        actorUserId: user.id,
+        eventType: "hash_verify_mismatch",
+        metadata: { stored_hash: row.sha256 },
+      });
       Sentry.captureException(new Error("[gobd:archive] hash mismatch"), {
         tags: { module: "gobd", action: "verify" },
         extra: { invoiceId, storedHash: row.sha256 },
@@ -938,6 +1018,22 @@ export async function categorizeInvoice(
       return { success: false, error: "Kategorisierung konnte nicht gespeichert werden." };
     }
 
+    await logAuditEvent(supabase, {
+      tenantId,
+      invoiceId,
+      actorUserId: user.id,
+      eventType: "categorize",
+      fieldName: "skr_code",
+      oldValue: null,
+      newValue: skrCode,
+      metadata: {
+        source: "ai",
+        confidence,
+        bu_schluessel: buSchluessel,
+        supplier_name: supplierName,
+      },
+    });
+
     revalidatePath("/dashboard");
     revalidatePath(`/rechnungen/${invoiceId}`);
     console.info(CATEGORIZE_LOG, "done", { invoiceId, skrCode, confidence });
@@ -1083,6 +1179,17 @@ export async function approveInvoice(input: {
       };
     }
 
+    await logAuditEvent(supabase, {
+      tenantId,
+      invoiceId,
+      actorUserId: user.id,
+      eventType: "approve",
+      metadata: {
+        approval_method: method,
+        previous_status: row.status,
+      },
+    });
+
     revalidatePath("/dashboard");
     revalidatePath(`/rechnungen/${invoiceId}`);
     console.info(APPROVE_LOG, "done", { invoiceId, method });
@@ -1196,6 +1303,17 @@ export async function flagInvoice(input: {
         error: "Rechnung wurde zwischenzeitlich geändert. Bitte Seite neu laden.",
       };
     }
+
+    await logAuditEvent(supabase, {
+      tenantId,
+      invoiceId,
+      actorUserId: user.id,
+      eventType: "flag",
+      metadata: {
+        approval_method: method,
+        previous_status: "ready",
+      },
+    });
 
     revalidatePath("/dashboard");
     revalidatePath(`/rechnungen/${invoiceId}`);
@@ -1335,6 +1453,18 @@ export async function undoInvoiceAction(input: {
         error: "Rechnung wurde zwischenzeitlich geändert. Rückgängig nicht möglich.",
       };
     }
+
+    await logAuditEvent(supabase, {
+      tenantId,
+      invoiceId,
+      actorUserId: user.id,
+      eventType: expectedCurrentStatus === "ready" ? "undo_approve" : "undo_flag",
+      metadata: {
+        restored_status: snapshot.status,
+        expected_current_status: expectedCurrentStatus,
+        approval_method: snapshot.approval_method,
+      },
+    });
 
     revalidatePath("/dashboard");
     revalidatePath(`/rechnungen/${invoiceId}`);
@@ -1499,6 +1629,21 @@ export async function updateInvoiceSKR(input: {
         extra: { invoiceId },
       });
     }
+
+    await logAuditEvent(supabase, {
+      tenantId,
+      invoiceId,
+      actorUserId: user.id,
+      eventType: "categorize",
+      fieldName: "skr_code",
+      oldValue: row.skr_code ?? null,
+      newValue: newSkrCode,
+      metadata: {
+        source: "user",
+        bu_schluessel: buSchluessel,
+        supplier_name: supplierName,
+      },
+    });
 
     revalidatePath("/dashboard");
     revalidatePath(`/rechnungen/${invoiceId}`);
