@@ -11,7 +11,9 @@
 --   • NO UPDATE policy → any UPDATE attempt by `authenticated` is denied by RLS.
 --   • NO DELETE policy → any DELETE attempt is denied by RLS.
 --   • GRANTs are `select, insert` only (column-grant discipline from Story 1.5/2.1/4.1).
---   • Only `service_role` could mutate, and `service_role` does NOT exist in this codebase.
+--   • `service_role` and Supabase Studio bypass RLS by design. Accepted limitation —
+--     production access controls protect the service_role key. Application connections
+--     exclusively use the `authenticated` role; no service_role usage in this codebase.
 --
 -- Retention: 10-year retention enforced by absence of any DELETE path (mirrors invoices
 -- and storage.objects pattern from Story 4.1).
@@ -52,7 +54,7 @@ alter table public.audit_logs enable row level security;
 
 create policy "audit_logs_insert_own"
   on public.audit_logs for insert to authenticated
-  with check (tenant_id = public.my_tenant_id());
+  with check (tenant_id = public.my_tenant_id() and actor_user_id = auth.uid());
 
 create policy "audit_logs_select_own"
   on public.audit_logs for select to authenticated

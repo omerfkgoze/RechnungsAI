@@ -129,8 +129,10 @@ describe("DashboardPage — audit_logs count wiring", () => {
   });
 
   it("queries audit_logs with count:exact head:true and passes errorCount=3 to SessionSummary", async () => {
-    await DashboardPage({ searchParams: Promise.resolve({}) });
+    const result = await DashboardPage({ searchParams: Promise.resolve({}) });
 
     expect(auditCountMock).toHaveBeenCalledOnce();
+    // Verify errorCount:3 is threaded into the JSX props passed to SessionSummary
+    expect(JSON.stringify(result)).toContain('"errorCount":3');
   });
 });

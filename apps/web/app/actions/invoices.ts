@@ -63,10 +63,13 @@ async function logAuditEvent(
   });
   if (error) {
     console.error(AUDIT_LOG, "insert-failed", error);
-    Sentry.captureException(error, {
-      tags: { module: "gobd", action: "audit" },
-      extra: { eventType: params.eventType, invoiceId: params.invoiceId },
-    });
+    Sentry.captureException(
+      new Error((error as { message?: string }).message ?? "audit insert failed"),
+      {
+        tags: { module: "gobd", action: "audit" },
+        extra: { eventType: params.eventType, invoiceId: params.invoiceId, originalError: error },
+      },
+    );
   }
 }
 
@@ -1311,7 +1314,7 @@ export async function flagInvoice(input: {
       eventType: "flag",
       metadata: {
         approval_method: method,
-        previous_status: "ready",
+        previous_status: row.status,
       },
     });
 

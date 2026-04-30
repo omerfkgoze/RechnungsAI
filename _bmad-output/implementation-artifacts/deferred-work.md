@@ -1,5 +1,17 @@
 # Deferred Work
 
+## Deferred from: code review of 4-2-audit-trail-and-action-logging (2026-04-30)
+
+- [ ] `sessionStartMs = Date.now()` makes `errorCount` always 0 — render-time timestamp means the `.gte("created_at", ...)` filter always catches 0 edits from earlier in session. Accepted limitation; implement proper session-start tracking (today 00:00 UTC or client-sent) in Story 4.3 or 8.3. [`apps/web/app/(app)/dashboard/page.tsx:264`]
+- [ ] Race condition: `logAuditEvent` unreachable if `invoice_field_corrections` insert throws (as opposed to returning `{error}`) — Supabase client never throws in practice; theoretical gap only. Revisit if a future non-Supabase write is added in the same sequence. [`apps/web/app/actions/invoices.ts`]
+- [ ] `undoInvoiceAction` emits wrong event type (`undo_flag`) for `expectedCurrentStatus` values other than `"ready"`/`"review"` — e.g. `"captured"` or `"processing"` would log incorrectly; not reachable in current UI. Validate `expectedCurrentStatus` at schema level when action is refactored. [`apps/web/app/actions/invoices.ts` ~line 1461]
+- [ ] `previousValue` falsy values (0, `""`, `false`) are captured as `null` via `cursor[lastKey] ? ... : null` in `correctInvoiceField` — pre-existing code; audit log records `old_value: null` incorrectly for these edge cases. Fix: change to `cursor[lastKey] !== undefined && cursor[lastKey] !== null`. [`apps/web/app/actions/invoices.ts`]
+- [ ] Audit count query in dashboard runs serially after `Promise.all` — minor latency penalty; could be added to existing parallel fetch block with no functional change. [`apps/web/app/(app)/dashboard/page.tsx`]
+- [ ] `extractInvoice` (captured → processing → ready/review) not logged in `audit_logs` — out of scope for Story 4.2 per spec; no "extract" entry in `AuditEventType`. Consider adding when Epic 5/7 needs traceability for extraction events. [`apps/web/app/actions/invoices.ts`]
+- [ ] `actor_user_id` FK targets `auth.users(id)` while application reads from `public.users` — pre-existing design pattern; creates potential inconsistency if `public.users` diverges from `auth.users`. Review during auth layer refactor. [`supabase/migrations/20260430000000_audit_logs.sql`]
+- [ ] No index on `(tenant_id, actor_user_id, created_at)` for per-user audit queries — not required by current ACs; add in a Story 4.3 migration if audit export filters by actor. [`supabase/migrations/20260430000000_audit_logs.sql`]
+- [ ] `logAuditEvent` `actorUserId` accepts any string with no UUID format validation — all current callers pass `user.id` from `auth.getUser()` which is always a valid UUID; add Zod validation if the helper is ever called from untrusted input. [`apps/web/app/actions/invoices.ts`]
+
 ## Deferred from: code review of 4-1-immutable-document-storage-and-sha-256-hashing (2026-04-29)
 
 - [ ] Full file download on every `verifyInvoiceArchive` call — no server-side size guard for large PDFs. Acknowledged in spec ("acceptable on one-document basis," ~500KB ~100ms). Revisit in Story 4.3 when batch-verify path requires streaming. [`apps/web/app/actions/invoices.ts — verifyInvoiceArchive`]

@@ -1107,10 +1107,10 @@ describe("verifyInvoiceArchive", () => {
     expect(auditPayload.invoice_id).toBe(VALID_UUID);
     expect((auditPayload.metadata as Record<string, unknown>).stored_hash).toBe(STORED_HASH);
 
-    expect(sentrySpy).toHaveBeenCalled();
-    // Audit insert must precede Sentry capture
+    expect(sentrySpy).toHaveBeenCalledOnce();
+    // Audit insert must precede Sentry capture (both called exactly once here)
     expect(auditInsertMock.mock.invocationCallOrder[0])
-      .toBeLessThan(sentrySpy.mock.invocationCallOrder[sentrySpy.mock.invocationCallOrder.length - 1]!);
+      .toBeLessThan(sentrySpy.mock.invocationCallOrder[0]!);
   });
 
   it("verified path does NOT insert audit log", async () => {
@@ -1177,7 +1177,7 @@ describe("logAuditEvent — via uploadInvoice (happy path + failure)", () => {
 
     expect(result.success).toBe(true);
     expect(captureException).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "db-error", code: "42501" }),
+      expect.objectContaining({ message: "db-error" }),
       expect.objectContaining({ tags: { module: "gobd", action: "audit" } }),
     );
   });

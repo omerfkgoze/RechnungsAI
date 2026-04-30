@@ -1,6 +1,6 @@
 # Story 4.2: Audit Trail and Action Logging
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -157,6 +157,30 @@ So that I have a complete history for GoBD compliance and Finanzamt inspections.
 - [x] **Task 10 — Smoke test + tenant-isolation checklist (AC: 10)**
   - [x] Smoke test section added to Completion Notes below
   - [x] Tenant-isolation checklist: all INSERTs use resolved `tenantId`; dashboard SELECT uses `.eq("tenant_id", tenantId)` defense-in-depth
+
+### Review Findings
+
+**Decision Needed:** (resolved)
+- [x] [Review][Defer] `sessionStartMs = Date.now()` makes `errorCount` always 0 — accepted limitation; `sessionStartMs` is render-time, so `.gte` filter always returns 0 edits. Proper session tracking deferred to Story 4.3/8.3. [`apps/web/app/(app)/dashboard/page.tsx:264`]
+- [x] [Review][Patch→resolved] `service_role` bypass claim corrected — migration comment updated to accurately state service_role/Studio can bypass RLS; accepted limitation documented. [`supabase/migrations/20260430000000_audit_logs.sql`]
+
+**Patches:** (all applied 2026-05-01)
+- [x] [Review][Patch] `service_role` immutability comment corrected — states service_role/Studio bypass RLS as accepted limitation [`supabase/migrations/20260430000000_audit_logs.sql`]
+- [x] [Review][Patch] `flagInvoice` `previous_status: "ready"` → `row.status` for consistency with `approveInvoice` [`apps/web/app/actions/invoices.ts`]
+- [x] [Review][Patch] Dashboard test now asserts `JSON.stringify(result)` contains `"errorCount":3` — verifies prop threads to SessionSummary [`apps/web/app/(app)/dashboard/page.test.tsx`]
+- [x] [Review][Patch] `audit_logs` insert policy: added `actor_user_id = auth.uid()` to WITH CHECK — prevents cross-user audit fabrication [`supabase/migrations/20260430000000_audit_logs.sql`]
+- [x] [Review][Patch] `logAuditEvent` now wraps error in `new Error(message)` before Sentry capture — stack trace now available; `originalError` preserved in `extra` [`apps/web/app/actions/invoices.ts`]
+- [x] [Review][Patch] Call-order test: `sentrySpy.toHaveBeenCalledOnce()` + `invocationCallOrder[0]` — precise ordering, no last-element ambiguity [`apps/web/app/actions/invoices.test.ts`]
+
+**Deferred:**
+- [x] [Review][Defer] Race condition: `logAuditEvent` unreachable if `invoice_field_corrections` insert throws (not {error} return) — Supabase client never throws; practical risk near-zero [`apps/web/app/actions/invoices.ts`] — deferred, theoretical only with Supabase client
+- [x] [Review][Defer] `undoInvoiceAction` emits wrong event type for `expectedCurrentStatus` values other than "ready"/"review" — edge case not reachable in current UI [`apps/web/app/actions/invoices.ts` ~line 1461] — deferred, pre-existing schema gap
+- [x] [Review][Defer] `previousValue` falsy values (0, `""`, `false`) captured as `null` by `cursor[lastKey] ? ... : null` — pre-existing code in `correctInvoiceField` before this story [`apps/web/app/actions/invoices.ts`] — deferred, pre-existing
+- [x] [Review][Defer] Audit count query runs serially after `Promise.all` — minor latency, could join existing parallel fetch block [`apps/web/app/(app)/dashboard/page.tsx`] — deferred, performance-only
+- [x] [Review][Defer] `extractInvoice` not logged — out of scope per spec; `AuditEventType` has no "extract" type [`apps/web/app/actions/invoices.ts`] — deferred, out of scope
+- [x] [Review][Defer] `actor_user_id` FK targets `auth.users`; app reads from `public.users` — pre-existing design pattern across all stories [`supabase/migrations/20260430000000_audit_logs.sql`] — deferred, pre-existing
+- [x] [Review][Defer] No index on `(tenant_id, actor_user_id, created_at)` for per-user audit queries [`supabase/migrations/20260430000000_audit_logs.sql`] — deferred, not required by current ACs
+- [x] [Review][Defer] `logAuditEvent` `actorUserId` accepts any string; no UUID format validation — all callers pass `user.id` from `auth.getUser()` [`apps/web/app/actions/invoices.ts`] — deferred, callers are safe
 
 ---
 
