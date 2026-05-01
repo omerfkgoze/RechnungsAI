@@ -39,6 +39,29 @@ const fieldCorrectionInsertMock = vi.fn();
 const categorizationCorrectionInsertMock = vi.fn();
 const auditInsertMock = vi.fn();
 
+// Archive search chain mocks
+const archiveQueryResultMock = vi.fn();
+const archiveEqSpy = vi.fn();
+const archiveGteSpy = vi.fn();
+const archiveLteSpy = vi.fn();
+const archiveIlikeSpy = vi.fn();
+const archiveOrderSpy = vi.fn();
+const archiveRangeSpy = vi.fn();
+
+function makeArchiveChain(): Record<string, unknown> {
+  const chain: Record<string, unknown> = {};
+  const spy = (fn: (...a: unknown[]) => unknown) => (...args: unknown[]) => { fn(...args); return chain; };
+  chain.eq = spy(archiveEqSpy);
+  chain.gte = spy(archiveGteSpy);
+  chain.lte = spy(archiveLteSpy);
+  chain.ilike = spy(archiveIlikeSpy);
+  chain.order = spy(archiveOrderSpy);
+  chain.range = (...args: unknown[]) => { archiveRangeSpy(...args); return chain; };
+  chain.then = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+    archiveQueryResultMock().then(resolve, reject);
+  return chain;
+}
+
 vi.mock("@/lib/supabase/server", () => ({
   createServerClient: vi.fn(async () => ({
     auth: { getUser: authGetUserMock },
@@ -55,12 +78,17 @@ vi.mock("@/lib/supabase/server", () => ({
           insert: () => ({
             select: () => ({ single: insertSingleMock }),
           }),
-          select: () => ({
-            eq: (col: string, val: unknown) => ({
-              single: invoiceSelectSingleMock,
-              eq: () => ({ single: invoiceSelectSingleMock }),
-            }),
-          }),
+          select: (_cols: string, opts?: unknown) => {
+            if (opts && (opts as { count?: string }).count === "exact") {
+              return makeArchiveChain();
+            }
+            return {
+              eq: (_col: string, _val: unknown) => ({
+                single: invoiceSelectSingleMock,
+                eq: () => ({ single: invoiceSelectSingleMock }),
+              }),
+            };
+          },
           update: (patch: unknown) => ({
             eq: (col: string, val: unknown) => {
               const call = () => invoiceUpdateEqMock(patch, col, val);
@@ -115,7 +143,7 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-import { approveInvoice, categorizeInvoice, correctInvoiceField, extractInvoice, flagInvoice, getInvoiceSignedUrl, undoInvoiceAction, updateInvoiceSKR, uploadInvoice, verifyInvoiceArchive } from "./invoices";
+import { approveInvoice, categorizeInvoice, correctInvoiceField, extractInvoice, flagInvoice, getInvoiceSignedUrl, searchArchivedInvoices, undoInvoiceAction, updateInvoiceSKR, uploadInvoice, verifyInvoiceArchive } from "./invoices";
 
 function makeFile(
   name: string,
@@ -1345,6 +1373,80 @@ describe("audit_logs wiring — action-level assertions", () => {
     expect(captureException).toHaveBeenCalledWith(
       expect.objectContaining({ message: "audit-fail" }),
       expect.objectContaining({ tags: { module: "gobd", action: "audit" } }),
+    );
+  });
+});
+
+describe("searchArchivedInvoices", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authGetUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    userSingleMock.mockResolvedValue({ data: { tenant_id: "tenant-1" }, error: null });
+    tenantSingleMock.mockResolvedValue({ data: { fiscal_year_start_month: 1 }, error: null });
+    archiveQueryResultMock.mockResolvedValue({
+      data: [{ id: VALID_UUID, status: "ready", invoice_date_value: "2026-01-15" }],
+      count: 1,
+      error: null,
+    });
+  });
+
+  it("applies tenant filter and builds correct query chain", async () => {
+    const result = await searchArchivedInvoices({
+      page: 1,
+      pageSize: 50,
+      supplier: "Muster GmbH",
+      minAmount: 100,
+      maxAmount: 500,
+    });
+
+    expect(result.success).toBe(true);
+    expect(archiveEqSpy).toHaveBeenCalledWith("tenant_id", "tenant-1");
+    expect(archiveIlikeSpy).toHaveBeenCalledWith("supplier_name_value", expect.stringContaining("Muster"));
+    expect(archiveGteSpy).toHaveBeenCalledWith("gross_total_value", 100);
+    expect(archiveLteSpy).toHaveBeenCalledWith("gross_total_value", 500);
+    expect(archiveRangeSpy).toHaveBeenCalledWith(0, 49);
+  });
+
+  it("count:exact returns total separate from data rows", async () => {
+    archiveQueryResultMock.mockResolvedValue({
+      data: [{ id: VALID_UUID }],
+      count: 42,
+      error: null,
+    });
+
+    const result = await searchArchivedInvoices({ page: 1, pageSize: 50 });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.total).toBe(42);
+      expect(result.data.rows).toHaveLength(1);
+      expect(result.data.page).toBe(1);
+      expect(result.data.pageSize).toBe(50);
+    }
+  });
+
+  it("sort order is invoice_date_value desc nulls last then created_at desc", async () => {
+    await searchArchivedInvoices({ page: 1, pageSize: 50 });
+
+    const orderCalls = archiveOrderSpy.mock.calls;
+    expect(orderCalls[0]).toEqual(["invoice_date_value", { ascending: false, nullsFirst: false }]);
+    expect(orderCalls[1]).toEqual(["created_at", { ascending: false }]);
+  });
+
+  it("query error returns failure result and captures to Sentry", async () => {
+    archiveQueryResultMock.mockResolvedValue({
+      data: null,
+      count: null,
+      error: { message: "db-error", code: "42P01" },
+    });
+    const { captureException } = await import("@sentry/nextjs");
+
+    const result = await searchArchivedInvoices({ page: 1, pageSize: 50 });
+
+    expect(result.success).toBe(false);
+    expect(captureException).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ tags: { module: "gobd", action: "archive_search" } }),
     );
   });
 });

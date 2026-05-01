@@ -118,7 +118,7 @@ development_status:
   epic-4: in-progress
   4-1-immutable-document-storage-and-sha-256-hashing: done
   4-2-audit-trail-and-action-logging: done
-  4-3-archive-search-and-audit-export: ready-for-dev
+  4-3-archive-search-and-audit-export: review
   epic-4-retrospective: optional
 
   # Epic 5: DATEV Export

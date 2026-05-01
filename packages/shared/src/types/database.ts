@@ -199,6 +199,8 @@ export type Database = {
           gross_total_value: number | null
           id: string
           invoice_data: Json | null
+          invoice_date_value: string | null
+          invoice_number_value: string | null
           original_filename: string
           review_priority_key: number | null
           sha256: string | null
@@ -224,6 +226,8 @@ export type Database = {
           gross_total_value?: number | null
           id?: string
           invoice_data?: Json | null
+          invoice_date_value?: string | null
+          invoice_number_value?: string | null
           original_filename: string
           review_priority_key?: number | null
           sha256?: string | null

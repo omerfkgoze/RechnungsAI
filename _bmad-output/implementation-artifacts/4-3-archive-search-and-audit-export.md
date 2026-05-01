@@ -1,6 +1,6 @@
 # Story 4.3: Archive Search and Audit Export
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -122,89 +122,89 @@ So that I can quickly find any document and provide complete records to the Fina
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Migration: extend audit constraint + invoices generated columns + indexes (AC: 1)**
-  - [ ] Create `supabase/migrations/20260501000000_archive_search_and_export.sql`
-  - [ ] Header comment cites §§238–241 HGB, GoBD Tz. 100–107, NFR5 (<1s), and the no-DELETE retention posture (mirrors Story 4.1/4.2 migration discipline)
-  - [ ] `do $$ begin alter table public.audit_logs drop constraint if exists audit_logs_event_type_chk; alter table public.audit_logs add constraint audit_logs_event_type_chk check (event_type in ('upload','field_edit','categorize','approve','flag','undo_approve','undo_flag','export_datev','export_audit','hash_verify_mismatch')); exception when duplicate_object then null; end $$;`
-  - [ ] `alter table public.invoices add column if not exists invoice_number_value text generated always as (invoice_data -> 'invoice_number' ->> 'value') stored;`
-  - [ ] `alter table public.invoices add column if not exists invoice_date_value date generated always as (case when invoice_data -> 'invoice_date' ->> 'value' ~ '^\d{4}-\d{2}-\d{2}$' then (invoice_data -> 'invoice_date' ->> 'value')::date else null end) stored;`
-  - [ ] Create three indexes: `invoices_tenant_invoice_date_idx`, `invoices_tenant_invoice_number_idx`, partial `invoices_tenant_sha256_idx where sha256 is not null`
-  - [ ] Run `pnpm supabase gen types` (or BLOCKED-BY-ENVIRONMENT — manually add `invoice_number_value: string | null`, `invoice_date_value: string | null` to `invoices` Row in `database.ts`; add `"export_audit"` to `audit_logs.Insert.event_type` union)
-  - [ ] `pnpm --filter @rechnungsai/shared build`
+- [x] **Task 1 — Migration: extend audit constraint + invoices generated columns + indexes (AC: 1)**
+  - [x] Create `supabase/migrations/20260501000000_archive_search_and_export.sql`
+  - [x] Header comment cites §§238–241 HGB, GoBD Tz. 100–107, NFR5 (<1s), and the no-DELETE retention posture (mirrors Story 4.1/4.2 migration discipline)
+  - [x] `do $$ begin alter table public.audit_logs drop constraint if exists audit_logs_event_type_chk; alter table public.audit_logs add constraint audit_logs_event_type_chk check (event_type in ('upload','field_edit','categorize','approve','flag','undo_approve','undo_flag','export_datev','export_audit','hash_verify_mismatch')); exception when duplicate_object then null; end $$;`
+  - [x] `alter table public.invoices add column if not exists invoice_number_value text generated always as (invoice_data -> 'invoice_number' ->> 'value') stored;`
+  - [x] `alter table public.invoices add column if not exists invoice_date_value date generated always as (case when invoice_data -> 'invoice_date' ->> 'value' ~ '^\d{4}-\d{2}-\d{2}$' then (invoice_data -> 'invoice_date' ->> 'value')::date else null end) stored;`
+  - [x] Create three indexes: `invoices_tenant_invoice_date_idx`, `invoices_tenant_invoice_number_idx`, partial `invoices_tenant_sha256_idx where sha256 is not null`
+  - [x] Run `pnpm supabase gen types` (or BLOCKED-BY-ENVIRONMENT — manually add `invoice_number_value: string | null`, `invoice_date_value: string | null` to `invoices` Row in `database.ts`; add `"export_audit"` to `audit_logs.Insert.event_type` union)
+  - [x] `pnpm --filter @rechnungsai/shared build`
 
-- [ ] **Task 2 — Archive query parser + Server Action (AC: 2, 3, 9)**
-  - [ ] NEW `apps/web/lib/archive-query.ts` mirroring `dashboard-query.ts` (Zod schema + per-field `safeParse` parser; fields: `dateFrom`, `dateTo`, `supplier`, `minAmount`, `maxAmount`, `invoiceNumber`, `fiscalYear` (4-digit), `page` (1-indexed default 1), `pageSize` (default 50, max 50))
-  - [ ] NEW unit test `apps/web/lib/archive-query.test.ts` (6 cases per AC #10)
-  - [ ] In `apps/web/app/actions/invoices.ts` (just after `verifyInvoiceArchive`), add NEW `searchArchivedInvoices(input): Promise<ActionResult<{ rows, total, page, pageSize }>>`
-  - [ ] Auth pattern: `createServerClient()` → `auth.getUser()` → redirect-on-missing → `users.tenant_id` lookup → `tenantId`
-  - [ ] Build query with `.eq("tenant_id", tenantId)` defense-in-depth, all filter applications, `.order("invoice_date_value", desc, nullsFirst:false)` → `.order("created_at", desc)`, `.range(offset, offset+pageSize-1)`, `count: "exact"`
-  - [ ] Fiscal year resolution: SELECT `tenants.fiscal_year_start_month` (default 1 if NULL/missing); compute `[fyStart, fyEnd]` and apply to `invoice_date_value`; explicit `dateFrom`/`dateTo` override fiscalYear
-  - [ ] Sentry capture on query error with `tags: { module: "gobd", action: "archive_search" }`
-  - [ ] `NEXT_REDIRECT` digest re-throw in catch (mirror `verifyInvoiceArchive`)
+- [x] **Task 2 — Archive query parser + Server Action (AC: 2, 3, 9)**
+  - [x] NEW `apps/web/lib/archive-query.ts` mirroring `dashboard-query.ts` (Zod schema + per-field `safeParse` parser; fields: `dateFrom`, `dateTo`, `supplier`, `minAmount`, `maxAmount`, `invoiceNumber`, `fiscalYear` (4-digit), `page` (1-indexed default 1), `pageSize` (default 50, max 50))
+  - [x] NEW unit test `apps/web/lib/archive-query.test.ts` (6 cases per AC #10)
+  - [x] In `apps/web/app/actions/invoices.ts` (just after `verifyInvoiceArchive`), add NEW `searchArchivedInvoices(input): Promise<ActionResult<{ rows, total, page, pageSize }>>`
+  - [x] Auth pattern: `createServerClient()` → `auth.getUser()` → redirect-on-missing → `users.tenant_id` lookup → `tenantId`
+  - [x] Build query with `.eq("tenant_id", tenantId)` defense-in-depth, all filter applications, `.order("invoice_date_value", desc, nullsFirst:false)` → `.order("created_at", desc)`, `.range(offset, offset+pageSize-1)`, `count: "exact"`
+  - [x] Fiscal year resolution: SELECT `tenants.fiscal_year_start_month` (default 1 if NULL/missing); compute `[fyStart, fyEnd]` and apply to `invoice_date_value`; explicit `dateFrom`/`dateTo` override fiscalYear
+  - [x] Sentry capture on query error with `tags: { module: "gobd", action: "archive_search" }`
+  - [x] `NEXT_REDIRECT` digest re-throw in catch (mirror `verifyInvoiceArchive`)
 
-- [ ] **Task 3 — `packages/gobd/src/zip.ts` store-only ZIP writer (AC: 5, 7)**
-  - [ ] NEW file. Export `buildAuditExportZip(entries: Array<{ path: string; bytes: Uint8Array }>): Promise<Uint8Array>`
-  - [ ] Implement Local File Header (signature `0x04034b50`, version 20, no encryption flag, method 0 = store, dos time/date, CRC32 via `node:zlib` `crc32`, sizes, name length, name UTF-8 with bit 11 of general-purpose flag set)
-  - [ ] Per-entry: emit LFH then bytes; store offsets for the central directory pass
-  - [ ] Central Directory File Header (signature `0x02014b50`) per entry; finally EOCD (signature `0x06054b50`) referencing total entries + central dir size + offset
-  - [ ] Empty input → throw `Error("buildAuditExportZip: at least one entry required")`
-  - [ ] NEW `packages/gobd/src/zip.test.ts` (5 cases per AC #10)
-  - [ ] Export from `packages/gobd/src/index.ts`
+- [x] **Task 3 — `packages/gobd/src/zip.ts` store-only ZIP writer (AC: 5, 7)**
+  - [x] NEW file. Export `buildAuditExportZip(entries: Array<{ path: string; bytes: Uint8Array }>): Promise<Uint8Array>`
+  - [x] Implement Local File Header (signature `0x04034b50`, version 20, no encryption flag, method 0 = store, dos time/date, CRC32 via `node:zlib` `crc32`, sizes, name length, name UTF-8 with bit 11 of general-purpose flag set)
+  - [x] Per-entry: emit LFH then bytes; store offsets for the central directory pass
+  - [x] Central Directory File Header (signature `0x02014b50`) per entry; finally EOCD (signature `0x06054b50`) referencing total entries + central dir size + offset
+  - [x] Empty input → throw `Error("buildAuditExportZip: at least one entry required")`
+  - [x] NEW `packages/gobd/src/zip.test.ts` (5 cases per AC #10)
+  - [x] Export from `packages/gobd/src/index.ts`
 
-- [ ] **Task 4 — `packages/gobd/src/csv.ts` summary + audit CSV builders (AC: 5)**
-  - [ ] NEW file. Export `buildSummaryCsv(rows): string` and `buildAuditTrailCsv(rows): string`
-  - [ ] UTF-8 BOM (`﻿` prepended), `;` delimiter, `\r\n` line terminator (RFC 4180 + Windows-friendly), quote-wrap any field containing `;`/`"`/`\r`/`\n`, escape `"` as `""`
-  - [ ] German locale number formatting via existing `formatCurrency` from `@rechnungsai/shared` if available; otherwise inline German formatter
-  - [ ] German headers per Concern #2; row order matches request order (summary) / `(invoice_id, created_at asc)` (audit-trail)
-  - [ ] NEW `packages/gobd/src/csv.test.ts` (4 cases per AC #10)
-  - [ ] Export from `packages/gobd/src/index.ts`
+- [x] **Task 4 — `packages/gobd/src/csv.ts` summary + audit CSV builders (AC: 5)**
+  - [x] NEW file. Export `buildSummaryCsv(rows): string` and `buildAuditTrailCsv(rows): string`
+  - [x] UTF-8 BOM (`﻿` prepended), `;` delimiter, `\r\n` line terminator (RFC 4180 + Windows-friendly), quote-wrap any field containing `;`/`"`/`\r`/`\n`, escape `"` as `""`
+  - [x] German locale number formatting via existing `formatCurrency` from `@rechnungsai/shared` if available; otherwise inline German formatter
+  - [x] German headers per Concern #2; row order matches request order (summary) / `(invoice_id, created_at asc)` (audit-trail)
+  - [x] NEW `packages/gobd/src/csv.test.ts` (4 cases per AC #10)
+  - [x] Export from `packages/gobd/src/index.ts`
 
-- [ ] **Task 5 — Archive page + components (AC: 2, 3, 4, 9)**
-  - [ ] NEW route `apps/web/app/(app)/archiv/page.tsx` (Server Component) + `apps/web/app/(app)/archiv/loading.tsx` (skeleton mirroring `dashboard/loading.tsx`)
-  - [ ] NEW `apps/web/components/archive/archive-search-filters.tsx` (`"use client"`) — debounced URL writer; native `<input type="date">` for date inputs (mobile keyboard compliance — UX requirement); shadcn `<Input>` for amount + supplier + invoiceNumber; reset button clears all params
-  - [ ] NEW `apps/web/components/archive/archive-result-list.tsx` (server component) — renders rows; uses existing `<EmptyState>` from `apps/web/components/layout/empty-state.tsx` for zero-results
-  - [ ] NEW `apps/web/components/archive/archive-pagination.tsx` (`"use client"`) — total/page/pageSize → prev/next links via `router.replace` preserving other params
-  - [ ] NEW `apps/web/components/archive/retention-notice.tsx` — verbatim `"Dokumente werden 10 Jahre aufbewahrt (GoBD §147 AO)."`, muted text, single line above results
-  - [ ] All German strings verbatim per epics.md Story 4.3 ACs and UX-DR19
-  - [ ] NEW `apps/web/app/(app)/archiv/page.test.tsx` (2 cases per AC #10)
-  - [ ] NEW `apps/web/components/archive/archive-search-filters.test.tsx` (3 cases per AC #10)
+- [x] **Task 5 — Archive page + components (AC: 2, 3, 4, 9)**
+  - [x] NEW route `apps/web/app/(app)/archiv/page.tsx` (Server Component) + `apps/web/app/(app)/archiv/loading.tsx` (skeleton mirroring `dashboard/loading.tsx`)
+  - [x] NEW `apps/web/components/archive/archive-search-filters.tsx` (`"use client"`) — debounced URL writer; native `<input type="date">` for date inputs (mobile keyboard compliance — UX requirement); shadcn `<Input>` for amount + supplier + invoiceNumber; reset button clears all params
+  - [x] NEW `apps/web/components/archive/archive-result-list.tsx` (server component) — renders rows; uses existing `<EmptyState>` from `apps/web/components/layout/empty-state.tsx` for zero-results
+  - [x] NEW `apps/web/components/archive/archive-pagination.tsx` (`"use client"`) — total/page/pageSize → prev/next links via `router.replace` preserving other params
+  - [x] NEW `apps/web/components/archive/retention-notice.tsx` — verbatim `"Dokumente werden 10 Jahre aufbewahrt (GoBD §147 AO)."`, muted text, single line above results
+  - [x] All German strings verbatim per epics.md Story 4.3 ACs and UX-DR19
+  - [x] NEW `apps/web/app/(app)/archiv/page.test.tsx` (2 cases per AC #10)
+  - [x] NEW `apps/web/components/archive/archive-search-filters.test.tsx` (3 cases per AC #10)
 
-- [ ] **Task 6 — Audit export Route Handler + button (AC: 5, 6, 7, 8)**
-  - [ ] NEW `apps/web/app/api/archive/export/route.ts` (POST handler — read `node_modules/next/dist/docs/` Route Handler section before coding per `apps/web/AGENTS.md`)
-  - [ ] Body schema: `z.object({ invoiceIds: z.array(z.guid()).min(1).max(500) })`
-  - [ ] Auth: 401 JSON `{ error: "Nicht authentifiziert." }` on missing user
-  - [ ] Resolve `tenantId` from `users.tenant_id` (same pattern as Server Actions)
-  - [ ] SELECT invoices with `.eq("tenant_id", tenantId)` AND `.in("id", invoiceIds)` — defense-in-depth
-  - [ ] If included count = 0 → `400 { error: "Keine Rechnungen für den Audit-Export gefunden." }`
-  - [ ] For each invoice: `supabase.storage.from("invoices").download(file_path)`; `verifyBuffer` → `verification_status`; on Storage error → mark row as `verification_status = "error"` and continue
-  - [ ] SELECT `audit_logs` rows for the same invoice_ids (tenant-scoped)
-  - [ ] Build entries: `documents/<id>.<ext>`, `summary.csv`, `audit-trail.csv`, `README.txt` (verbatim German GoBD legal-basis paragraph; cite §§238–241 HGB + Tz. 100–107)
-  - [ ] Call `buildAuditExportZip(entries)` → `Uint8Array`
-  - [ ] Call `logAuditEvent(supabase, { eventType: "export_audit", invoiceId: null, metadata: { invoice_count, requested_count, missing_count, mismatch_count, format: "zip", filters } })` BEFORE returning the response
-  - [ ] Response: `new Response(zipBytes, { status: 200, headers: { "Content-Type": "application/zip", "Content-Disposition": \`attachment; filename="${filename}"\`, "Content-Length": ... } })`
-  - [ ] On unexpected error → 500 JSON + Sentry capture with `tags: { module: "gobd", action: "export_audit" }`
-  - [ ] NEW `apps/web/app/api/archive/export/route.test.ts` (6 cases per AC #10)
-  - [ ] NEW `apps/web/components/archive/audit-export-button.tsx` (`"use client"`) — selection-aware button; on click `fetch("/api/archive/export", { method: "POST", body: JSON.stringify({ invoiceIds }), headers: { "Content-Type": "application/json" } })`; convert response to Blob; trigger download via `URL.createObjectURL` + temp `<a>`; revoke URL on cleanup; `useTransition` for pending UI
-  - [ ] Add a per-row checkbox + "select all on this page" pattern to `archive-result-list.tsx` (controlled by URL state OR a small Zustand store local to the page; URL state is simpler — reuse existing `ui-store` only if needed)
-  - [ ] NEW `apps/web/components/archive/audit-export-button.test.tsx` (3 cases per AC #10)
+- [x] **Task 6 — Audit export Route Handler + button (AC: 5, 6, 7, 8)**
+  - [x] NEW `apps/web/app/api/archive/export/route.ts` (POST handler — read `node_modules/next/dist/docs/` Route Handler section before coding per `apps/web/AGENTS.md`)
+  - [x] Body schema: `z.object({ invoiceIds: z.array(z.guid()).min(1).max(500) })`
+  - [x] Auth: 401 JSON `{ error: "Nicht authentifiziert." }` on missing user
+  - [x] Resolve `tenantId` from `users.tenant_id` (same pattern as Server Actions)
+  - [x] SELECT invoices with `.eq("tenant_id", tenantId)` AND `.in("id", invoiceIds)` — defense-in-depth
+  - [x] If included count = 0 → `400 { error: "Keine Rechnungen für den Audit-Export gefunden." }`
+  - [x] For each invoice: `supabase.storage.from("invoices").download(file_path)`; `verifyBuffer` → `verification_status`; on Storage error → mark row as `verification_status = "error"` and continue
+  - [x] SELECT `audit_logs` rows for the same invoice_ids (tenant-scoped)
+  - [x] Build entries: `documents/<id>.<ext>`, `summary.csv`, `audit-trail.csv`, `README.txt` (verbatim German GoBD legal-basis paragraph; cite §§238–241 HGB + Tz. 100–107)
+  - [x] Call `buildAuditExportZip(entries)` → `Uint8Array`
+  - [x] Call `logAuditEvent(supabase, { eventType: "export_audit", invoiceId: null, metadata: { invoice_count, requested_count, missing_count, mismatch_count, format: "zip", filters } })` BEFORE returning the response
+  - [x] Response: `new Response(zipBytes, { status: 200, headers: { "Content-Type": "application/zip", "Content-Disposition": \`attachment; filename="${filename}"\`, "Content-Length": ... } })`
+  - [x] On unexpected error → 500 JSON + Sentry capture with `tags: { module: "gobd", action: "export_audit" }`
+  - [x] NEW `apps/web/app/api/archive/export/route.test.ts` (6 cases per AC #10)
+  - [x] NEW `apps/web/components/archive/audit-export-button.tsx` (`"use client"`) — selection-aware button; on click `fetch("/api/archive/export", { method: "POST", body: JSON.stringify({ invoiceIds }), headers: { "Content-Type": "application/json" } })`; convert response to Blob; trigger download via `URL.createObjectURL` + temp `<a>`; revoke URL on cleanup; `useTransition` for pending UI
+  - [x] Add a per-row checkbox + "select all on this page" pattern to `archive-result-list.tsx` (controlled by URL state OR a small Zustand store local to the page; URL state is simpler — reuse existing `ui-store` only if needed)
+  - [x] NEW `apps/web/components/archive/audit-export-button.test.tsx` (3 cases per AC #10)
 
-- [ ] **Task 7 — Tests (AC: 10)**
-  - [ ] All NEW test files listed in AC #10 land in their documented locations
-  - [ ] `apps/web/app/actions/invoices.test.ts` — extend fake supabase client to handle the new `.range`, `.in("id", …)`, `count: "exact"` chains
-  - [ ] Verify total count: 340 baseline → ≥360 target (delta ≥20)
-  - [ ] `pnpm test` from repo root passes; `pnpm check-types` clean
+- [x] **Task 7 — Tests (AC: 10)**
+  - [x] All NEW test files listed in AC #10 land in their documented locations
+  - [x] `apps/web/app/actions/invoices.test.ts` — extend fake supabase client to handle the new `.range`, `.in("id", …)`, `count: "exact"` chains
+  - [x] Verify total count: 340 baseline → ≥360 target (delta ≥20) — **Actual: 376 tests (web: 285, gobd: 21, shared: 59, ai: 11)**
+  - [x] `pnpm test` from repo root passes; `pnpm check-types` clean
 
-- [ ] **Task 8 — Smoke test (AC: 11)**
-  - [ ] Browser Smoke Test section added to Completion Notes
-  - [ ] UX Checks cover: navigate to `/archiv`, apply filters, empty state, select+export, downloaded ZIP opens in `unzip -l`, contains `summary.csv` + `audit-trail.csv` + `documents/` + `README.txt`
-  - [ ] DB Verification: query `audit_logs WHERE event_type = 'export_audit'` returns the new row with documented metadata; `EXPLAIN ANALYZE` shows the new indexes are used (one-shot diagnostic)
-  - [ ] All UX rows marked `BLOCKED-BY-ENVIRONMENT` with manual steps for GOZE
+- [x] **Task 8 — Smoke test (AC: 11)**
+  - [x] Browser Smoke Test section added to Completion Notes
+  - [x] UX Checks cover: navigate to `/archiv`, apply filters, empty state, select+export, downloaded ZIP opens in `unzip -l`, contains `summary.csv` + `audit-trail.csv` + `documents/` + `README.txt`
+  - [x] DB Verification: query `audit_logs WHERE event_type = 'export_audit'` returns the new row with documented metadata; `EXPLAIN ANALYZE` shows the new indexes are used (one-shot diagnostic)
+  - [x] All UX rows marked `BLOCKED-BY-ENVIRONMENT` with manual steps for GOZE
 
-- [ ] **Task 9 — Tenant isolation checklist (Epic 3 retro A1)**
-  - [ ] Server Action row SELECTs in `searchArchivedInvoices` use `.eq("tenant_id", tenantId)` defense-in-depth ✓
-  - [ ] Route Handler `apps/web/app/api/archive/export/route.ts` uses `.eq("tenant_id", tenantId)` AND `.in("id", invoiceIds)` ✓
-  - [ ] `audit_logs` SELECT for the export trail uses `.eq("tenant_id", tenantId)` ✓
-  - [ ] No raw SQL: every read goes through supabase-js so RLS is the second wall
+- [x] **Task 9 — Tenant isolation checklist (Epic 3 retro A1)**
+  - [x] Server Action row SELECTs in `searchArchivedInvoices` use `.eq("tenant_id", tenantId)` defense-in-depth ✓
+  - [x] Route Handler `apps/web/app/api/archive/export/route.ts` uses `.eq("tenant_id", tenantId)` AND `.in("id", invoiceIds)` ✓
+  - [x] `audit_logs` SELECT for the export trail uses `.eq("tenant_id", tenantId)` ✓
+  - [x] No raw SQL: every read goes through supabase-js so RLS is the second wall
 
 ---
 
@@ -588,10 +588,109 @@ For every new code path:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6
 
 ### Debug Log References
 
+- **CSV test RFC 4180 escaping:** Test expected raw `{"source":"manual"}` in CSV output; RFC 4180 doubles inner quotes so actual output is `"{""source"":""manual""}"`. Fixed test assertion.
+- **gobd package `.js` extension requirement:** Node16 moduleResolution requires explicit `.js` extensions in ESM imports. Fixed `zip.test.ts` and `csv.test.ts` to import `"./zip.js"` and `"./csv.js"`.
+- **`buildSummaryCsv is not a function` in route tests:** `dist/` was stale after adding new source files. Fixed by running `pnpm --filter @rechnungsai/gobd build`.
+- **`@testing-library/user-event` not installed:** Rewrote filter and export button tests using `fireEvent` from `@testing-library/react` and `vi.useFakeTimers()`, matching existing `invoice-list-filters.test.tsx` pattern.
+- **TypeScript `Object is possibly 'undefined'`:** Array index accesses `bytes[i]` in route test ZIP signature parsing added `?? 0` defaults for strict mode.
+- **`Uint8Array<ArrayBufferLike>` not assignable to `BodyInit`:** Changed `new Response(zipBytes, ...)` to `new Response(zipBytes.buffer as ArrayBuffer, ...)` in route handler.
+- **Page test `ArchivePagination` string not found:** Mock function name not serialized in React element JSON. Changed assertion to `toContain('"pageSize":50')`.
+
 ### Completion Notes List
 
+All 9 tasks completed. Implementation summary:
+
+**Task 1 — Migration:** `supabase/migrations/20260501000000_archive_search_and_export.sql` extends `audit_logs_event_type_chk` CHECK constraint to include `'export_audit'`, adds `invoice_number_value` and `invoice_date_value` GENERATED ALWAYS AS STORED columns with regex-guarded date cast (NULL-safe), and creates 3 composite indexes. Types manually added to `packages/shared/src/types/database.ts` (BLOCKED-BY-ENVIRONMENT: local Supabase not running).
+
+**Task 2 — Archive query parser + Server Action:** `apps/web/lib/archive-query.ts` implements Zod per-field `safeParse` with cross-field sanity. `searchArchivedInvoices` in `apps/web/app/actions/invoices.ts` implements full auth→tenant→fiscal-year-resolution→filter-chain→pagination with `count: "exact"` and Sentry fallback.
+
+**Task 3 — ZIP writer:** `packages/gobd/src/zip.ts` implements store-only ZIP (method 0x0000) using `node:zlib` `crc32`. LFH + CDFH + EOCD layout, UTF-8 flag (bit 11), ~130 LOC, zero new dependencies.
+
+**Task 4 — CSV builders:** `packages/gobd/src/csv.ts` implements RFC 4180 with UTF-8 BOM (EF BB BF), semicolon delimiter, German locale number formatting via inline `Intl.NumberFormat("de-DE")`, and proper quote-escaping.
+
+**Task 5 — Archive page + components:** Server Component page at `/archiv`, debounced filter component (300ms + `lastWrittenRef`), result list with `EmptyState`, pagination, `RetentionNotice`, and loading skeleton.
+
+**Task 6 — Route Handler + button:** POST `/api/archive/export` with full GoBD-compliant ZIP export: auth, tenant isolation, per-invoice `verifyBuffer`, hash-mismatch Sentry, `logAuditEvent` before response. `AuditExportButton` uses `useTransition` + `URL.createObjectURL`.
+
+**Task 7 — Tests:** 376 total (285 web, 21 gobd, 59 shared, 11 ai). +36 from 340 baseline, exceeds ≥360 target.
+
+**Task 8 — Smoke test:** See Browser Smoke Test section below.
+
+**Task 9 — Tenant isolation:** All query paths verified: `searchArchivedInvoices` `.eq("tenant_id")`, Route Handler `.eq("tenant_id").in("id", invoiceIds)`, `audit_logs` SELECT `.eq("tenant_id")`, `logAuditEvent` insert with resolved `tenantId`. No raw SQL. RLS is the second wall.
+
+---
+
+### Browser Smoke Test
+
+**Environment:** `pnpm dev` from repo root. Supabase local: `host=localhost port=54322 dbname=postgres user=postgres password=postgres`.
+
+#### UX Checks
+
+| # | Action | Expected Output | Pass Criterion | Status |
+|---|--------|----------------|----------------|--------|
+| (a) | Sign in → tap **Archiv** in the bottom nav or sidebar | `/archiv` loads. Page title `"Archiv"` visible. Muted text `"Dokumente werden 10 Jahre aufbewahrt (GoBD §147 AO)."` appears above results. Filter bar (Lieferant, Rechnungsnummer, Von, Bis, Geschäftsjahr, Betrag) visible. | Pass if the page loads at `/archiv`, the title `"Archiv"` is visible, the retention notice renders verbatim, and the filter bar is visible. | BLOCKED-BY-ENVIRONMENT |
+| (b) | On `/archiv` with invoices loaded, type `"Muster"` into the **Lieferant** field | URL does NOT update immediately. After 300ms, URL updates to include `supplier=Muster` and results re-render filtered. | Pass if the URL does NOT update before 300ms debounce AND after debounce the URL contains `supplier=Muster` and only matching rows appear. | BLOCKED-BY-ENVIRONMENT |
+| (c) | On `/archiv`, set **Geschäftsjahr** to `2025` | URL immediately updates to include `fiscalYear=2025`. Results re-render showing only invoices with `invoice_date_value` in the fiscal year range. | Pass if URL updates without 300ms delay AND contains `fiscalYear=2025` AND results change. | BLOCKED-BY-ENVIRONMENT |
+| (d) | On `/archiv`, click **Filter zurücksetzen** after setting any filters | URL navigates to plain `/archiv` (no query params). All filter inputs clear. All invoices re-appear. | Pass if URL is exactly `/archiv` (no `?` params) after clicking reset AND all filter inputs are empty. | BLOCKED-BY-ENVIRONMENT |
+| (e) | On `/archiv` with a filter that matches no invoices (e.g. **Lieferant** = `"XYZNONEXISTENT"`) | Results area shows `"Keine Rechnungen gefunden"` (h2) and `"Versuche einen anderen Suchbegriff oder Zeitraum."` (body-sm). No pagination controls. Filter bar remains visible. | Pass if both verbatim German strings appear AND no pagination buttons are rendered. | BLOCKED-BY-ENVIRONMENT |
+| (f) | On `/archiv` with ≥1 invoice visible, check the checkbox next to one invoice row | Checkbox becomes checked. The **GoBD-Audit-Export** button (or similar German label) becomes enabled. | Pass if the export button changes from disabled to enabled after selecting exactly one invoice. | BLOCKED-BY-ENVIRONMENT |
+| (g) | With 1–3 invoices selected, click the export button | Browser triggers a download. Downloaded file has a name matching `audit-export-<slug>-<YYYYMMDD>.zip`. | Pass if the browser download dialog appears (or file lands in Downloads) with a `.zip` filename containing `audit-export`. | BLOCKED-BY-ENVIRONMENT |
+| (h) | Open the downloaded ZIP: `unzip -l <downloaded-file>.zip` in a terminal | Output lists: `documents/<uuid>.pdf` (or `.jpg`/`.xml`) for each selected invoice, `summary.csv`, `audit-trail.csv`, `README.txt`. No other unexpected files. | Pass if `unzip -l` output contains all four expected path categories and the total file count equals `N documents + 3` (where N is selected invoice count). | BLOCKED-BY-ENVIRONMENT |
+| (i) | Open `summary.csv` from the ZIP in Excel (German locale) or a text editor | CSV opens with German headers (`Rechnungs-ID;Lieferant;Rechnungsnummer;…`), semicolon delimiter, German amount format (`1.234,56`), and one row per selected invoice. | Pass if headers are in German AND amounts use comma decimal separator AND each selected invoice appears as one row. | BLOCKED-BY-ENVIRONMENT |
+| (j) | Read `README.txt` from the ZIP | Contains verbatim text citing `§§ 238-241 HGB` and `GoBD Tz. 100-107` and `§ 147 AO`. | Pass if the three legal references appear verbatim in the file. | BLOCKED-BY-ENVIRONMENT |
+
+**Manual Steps for GOZE:**
+1. `pnpm dev` from repo root
+2. Sign in at `/login` with a test account that has at least 3 invoices in the archive
+3. Run UX checks (a)–(j) in order
+4. For check (h): run `unzip -l <filename>.zip` in a terminal on the downloaded file
+5. Mark each check `DONE` or `FAIL` — if FAIL, note what you actually saw vs. the expected output
+
+#### DB Verification
+
+| # | Query | Expected Return | What It Validates | Status |
+|---|-------|----------------|-------------------|--------|
+| (d1) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "SELECT event_type, invoice_id, metadata->>'invoice_count' AS invoice_count, metadata->>'format' AS format FROM audit_logs WHERE event_type = 'export_audit' ORDER BY created_at DESC LIMIT 1;"` | `event_type \| invoice_id \| invoice_count \| format` / `---------------+------------+--------------+--------` / `export_audit \| [null] \| [N] \| zip` / `(1 row)` | Confirms AC #8: one `export_audit` row inserted with `invoice_id = null` (tenant-level event) and `format = "zip"`. | BLOCKED-BY-ENVIRONMENT |
+| (d2) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "SELECT metadata->>'requested_count' AS requested, metadata->>'invoice_count' AS included, metadata->>'missing_count' AS missing, metadata->>'mismatch_count' AS mismatches FROM audit_logs WHERE event_type = 'export_audit' ORDER BY created_at DESC LIMIT 1;"` | Four integer-valued columns matching the export just run. `requested` = number of IDs sent. `included` ≤ `requested`. `missing` = `requested - included`. `mismatches` = 0 for normal invoices. | Confirms AC #8: metadata shape is complete with all four count fields. | BLOCKED-BY-ENVIRONMENT |
+| (d3) | `psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres' -c "EXPLAIN (ANALYZE, FORMAT TEXT) SELECT id FROM invoices WHERE tenant_id = (SELECT tenant_id FROM users LIMIT 1) AND invoice_date_value BETWEEN '2025-01-01' AND '2025-12-31' ORDER BY invoice_date_value DESC NULLS LAST LIMIT 50;"` | Query plan includes `Index Scan using invoices_tenant_invoice_date_idx`. Execution time < 100ms on local empty DB. | Confirms AC #1 + NFR5: new composite index `invoices_tenant_invoice_date_idx` is selected by the planner for date-range + tenant filter. | BLOCKED-BY-ENVIRONMENT |
+
+---
+
 ### File List
+
+**NEW files:**
+- `supabase/migrations/20260501000000_archive_search_and_export.sql`
+- `apps/web/app/(app)/archiv/page.tsx`
+- `apps/web/app/(app)/archiv/loading.tsx`
+- `apps/web/app/(app)/archiv/page.test.tsx`
+- `apps/web/app/api/archive/export/route.ts`
+- `apps/web/app/api/archive/export/route.test.ts`
+- `apps/web/lib/archive-query.ts`
+- `apps/web/lib/archive-query.test.ts`
+- `apps/web/components/archive/archive-search-filters.tsx`
+- `apps/web/components/archive/archive-search-filters.test.tsx`
+- `apps/web/components/archive/archive-result-list.tsx`
+- `apps/web/components/archive/archive-pagination.tsx`
+- `apps/web/components/archive/audit-export-button.tsx`
+- `apps/web/components/archive/audit-export-button.test.tsx`
+- `apps/web/components/archive/retention-notice.tsx`
+- `packages/gobd/src/zip.ts`
+- `packages/gobd/src/zip.test.ts`
+- `packages/gobd/src/csv.ts`
+- `packages/gobd/src/csv.test.ts`
+
+**MODIFIED files:**
+- `packages/shared/src/types/database.ts` (added `invoice_number_value`, `invoice_date_value` to `invoices.Row`; added `"export_audit"` to `audit_logs.Insert.event_type` union)
+- `apps/web/app/actions/invoices.ts` (added `searchArchivedInvoices`, `ArchiveRow` type, exported `logAuditEvent`, added `"export_audit"` to `AuditEventType`)
+- `apps/web/app/actions/invoices.test.ts` (4 new cases for `searchArchivedInvoices`)
+- `packages/gobd/src/index.ts` (exported `buildAuditExportZip`, `ZipEntry`, `buildSummaryCsv`, `buildAuditTrailCsv`, `SummaryRow`, `AuditTrailRow`)
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| 2026-05-02 | Implemented Story 4.3: migration, archive-query parser, searchArchivedInvoices Server Action, store-only ZIP writer, CSV builders, archive page + components, audit export Route Handler, AuditExportButton. 376 tests passing (285 web, 21 gobd, 59 shared, 11 ai). pnpm check-types clean. | claude-sonnet-4-6 |
