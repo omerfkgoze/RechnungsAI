@@ -43,12 +43,19 @@ alter table public.invoices
 -- invoice_date_value: extracted with a regex guard (mirrors gross_total_value safe-cast
 -- from migration 20260424100000). AI extractor occasionally emits non-ISO dates;
 -- NULL on malformed input is safer than failing the migration on one bad row.
+--
+-- make_date() is used instead of ::date because text::date depends on the DateStyle
+-- GUC parameter and is therefore not IMMUTABLE. make_date(y, m, d) is IMMUTABLE.
 alter table public.invoices
   add column if not exists invoice_date_value date
     generated always as (
       case
         when invoice_data -> 'invoice_date' ->> 'value' ~ '^\d{4}-\d{2}-\d{2}$'
-        then (invoice_data -> 'invoice_date' ->> 'value')::date
+        then make_date(
+          left(invoice_data -> 'invoice_date' ->> 'value', 4)::int,
+          substring(invoice_data -> 'invoice_date' ->> 'value', 6, 2)::int,
+          right(invoice_data -> 'invoice_date' ->> 'value', 2)::int
+        )
         else null
       end
     ) stored;
