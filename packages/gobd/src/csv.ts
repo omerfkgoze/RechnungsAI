@@ -16,7 +16,7 @@ function escapeField(v: unknown): string {
   if (FORMULA_INJECTION_PREFIXES.has(s[0] ?? "")) {
     s = `'${s}`;
   }
-  if (s.includes(DELIM) || s.includes('"') || s.includes("\r") || s.includes("\n")) {
+  if (s.includes(DELIM) || s.includes('"') || s.includes("\r") || s.includes("\n") || s.includes(",")) {
     return `"${s.replace(/"/g, '""')}"`;
   }
   return s;

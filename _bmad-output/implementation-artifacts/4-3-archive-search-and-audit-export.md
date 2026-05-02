@@ -1,6 +1,6 @@
 # Story 4.3: Archive Search and Audit Export
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -790,3 +790,4 @@ UX issues:
 | 2026-05-02 | Implemented Story 4.3: migration, archive-query parser, searchArchivedInvoices Server Action, store-only ZIP writer, CSV builders, archive page + components, audit export Route Handler, AuditExportButton. 376 tests passing (285 web, 21 gobd, 59 shared, 11 ai). pnpm check-types clean. | claude-sonnet-4-6 |
 | 2026-05-02 | Applied all 24 code-review patches: CSV formula injection guard, ZIP guards, MISSING.txt for failed downloads, new migration fix for date column, Server Action input validation, logAuditEvent try/catch, URL.revokeObjectURL defer, README Umlaute, upload date column, filter contradiction validation, active-mask date inputs (archiv + dashboard), ArchiveResultList refactor to server component + ArchiveSelectionLayer, metadata DSGVO whitelist, phantom-page redirect, mobile overflow fix, AGENTS.md convention rule. 382 tests passing (291 web, 21 gobd, 59 shared, 11 ai). pnpm check-types clean. | claude-sonnet-4-6 |
 | 2026-05-02 | Post-review mobile fix: (1) `overflow-x-clip` on AppShell root div prevents document expanding beyond viewport → fixes `position: fixed` bottom nav on iOS Safari; (2) archive table hides Hochgeladen+Status on mobile (<640px) and SHA-256 on <768px via `hidden sm:table-cell`/`hidden md:table-cell` — 4 columns on mobile fits 375px; (3) Lieferant cell gets `max-w-[8rem] sm:max-w-none truncate`. 291 web tests passing. pnpm check-types clean. | claude-sonnet-4-6 |
+| 2026-05-02 | Fix summary.csv column-shift in LibreOffice: `escapeField` now also quotes fields containing comma, so German decimal amounts like "222,51" are rendered as `"222,51"` and not split when LibreOffice auto-detects comma as delimiter. New test verifies gross_total field is quoted. 22 gobd + 291 web tests passing. | claude-sonnet-4-6 |

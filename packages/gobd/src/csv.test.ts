@@ -42,6 +42,12 @@ describe("buildSummaryCsv", () => {
     const csv = buildSummaryCsv([{ ...baseSummaryRow, gross_total: 1234.56 }]);
     expect(csv).toContain("1.234,56");
   });
+
+  it("quotes gross_total so LibreOffice comma-detection cannot split the decimal comma", () => {
+    const csv = buildSummaryCsv([{ ...baseSummaryRow, gross_total: 222.51 }]);
+    // The field must be wrapped in double-quotes so "222,51" is never split on comma.
+    expect(csv).toContain('"222,51"');
+  });
 });
 
 describe("buildAuditTrailCsv", () => {

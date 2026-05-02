@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-02 (story 4-3 review patches applied, status → review)"
+last_updated: "2026-05-02 (story 4-3 review patches applied, status → done)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -118,7 +118,7 @@ development_status:
   epic-4: in-progress
   4-1-immutable-document-storage-and-sha-256-hashing: done
   4-2-audit-trail-and-action-logging: done
-  4-3-archive-search-and-audit-export: review
+  4-3-archive-search-and-audit-export: done
   epic-4-retrospective: optional
 
   # Epic 5: DATEV Export
