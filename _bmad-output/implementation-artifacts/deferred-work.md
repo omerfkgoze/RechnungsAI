@@ -150,3 +150,11 @@
 - `globalThis.process?.env` indirection in provider.ts — minor style issue, not new in this story; simplify to `process.env` when environment is confirmed Node-only. (`packages/ai/src/provider.ts`)
 - `invoice[key]` cast breaks silently on schema evolution — low risk until schema changes; add a type guard if `Invoice` gains non-envelope fields. (`apps/web/components/invoice/extraction-results-client.tsx`)
 - Out-of-range confidence values from manually edited JSONB misclassify confidence level — Epic 3 DB access controls will prevent manual edits; add Zod validation at the RSC boundary if needed. (`apps/web/components/invoice/extraction-results-client.tsx`)
+
+## Deferred from: code review of 4-3-archive-search-and-audit-export (2026-05-02)
+
+- Streaming ZIP / memory pressure at 500-invoice export — 250MB peak acceptable on Hetzner tier; raise cap when a real Steuerberater request needs more. Switch to `Readable.from` + per-file Storage stream then. (`apps/web/app/api/archive/export/route.ts`)
+- Supabase `.in("id", invoiceIds)` URL length at 500 UUIDs (~18.5 KB) may hit PostgREST/proxy limits — mitigation if observed in production: chunked fetches (50 IDs per batch). (`apps/web/app/api/archive/export/route.ts:1114`)
+- `ArchiveResultList` selection state persists across page navigation; user can export rows from previous pages they no longer see. UX polish, not a security bug (server tenant-checks). (`apps/web/components/archive/archive-result-list.tsx`)
+- `invoice_number_value` btree key size (~2700 bytes default) — malicious AI extraction with very long string would fail INSERT. Add length cap on the generated column or on AI-extracted values when observed. (`supabase/migrations/20260501000000_archive_search_and_export.sql`)
+- Per-tenant rate limit on `/api/archive/export` — authenticated user can repeatedly trigger 500-invoice exports. No story currently owns rate-limiting infrastructure; revisit in Epic 8 (billing/usage tracking) or earlier if abuse observed. (`apps/web/app/api/archive/export/route.ts`)
