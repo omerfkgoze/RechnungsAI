@@ -6,7 +6,7 @@ import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-clip">
       <TrustBadgeBarClient />
       <div className="flex flex-1">
         <SidebarNav footer={<SignOutMenu />} />

@@ -71,10 +71,10 @@ export function ArchiveSelectionLayer({ rows, total }: ArchiveSelectionLayerProp
               </th>
               <th className="px-3 py-2 text-left">Lieferant</th>
               <th className="px-3 py-2 text-left">Belegdatum</th>
-              <th className="px-3 py-2 text-left text-muted-foreground">Hochgeladen</th>
+              <th className="hidden sm:table-cell px-3 py-2 text-left text-muted-foreground">Hochgeladen</th>
               <th className="px-3 py-2 text-right">Brutto</th>
-              <th className="px-3 py-2 text-left">Status</th>
-              <th className="px-3 py-2 text-left">SHA-256</th>
+              <th className="hidden sm:table-cell px-3 py-2 text-left">Status</th>
+              <th className="hidden md:table-cell px-3 py-2 text-left">SHA-256</th>
             </tr>
           </thead>
           <tbody>
@@ -99,8 +99,10 @@ export function ArchiveSelectionLayer({ rows, total }: ArchiveSelectionLayerProp
                       onChange={() => toggleRow(row.id)}
                     />
                   </td>
-                  <td className="px-3 py-2 font-medium">
-                    {row.supplier_name_value ?? "Unbekannter Lieferant"}
+                  <td className="max-w-[8rem] px-3 py-2 font-medium sm:max-w-none">
+                    <span className="block truncate">
+                      {row.supplier_name_value ?? "Unbekannter Lieferant"}
+                    </span>
                   </td>
                   <td className="px-3 py-2">
                     {invoiceDate ?? (
@@ -108,7 +110,7 @@ export function ArchiveSelectionLayer({ rows, total }: ArchiveSelectionLayerProp
                     )}
                   </td>
                   {/* AC #2: upload date always shown in muted text as a separate column */}
-                  <td className="px-3 py-2 text-caption text-muted-foreground">
+                  <td className="hidden sm:table-cell px-3 py-2 text-caption text-muted-foreground">
                     {uploadDate}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
@@ -116,12 +118,12 @@ export function ArchiveSelectionLayer({ rows, total }: ArchiveSelectionLayerProp
                       ? formatEur(row.gross_total_value)
                       : "—"}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="hidden sm:table-cell px-3 py-2">
                     <span className="rounded-full bg-muted px-2 py-0.5 text-caption">
                       {statusLabelDe(row.status)}
                     </span>
                   </td>
-                  <td className="px-3 py-2 font-mono text-caption text-muted-foreground">
+                  <td className="hidden md:table-cell px-3 py-2 font-mono text-caption text-muted-foreground">
                     {hashChip ?? "—"}
                   </td>
                 </tr>
