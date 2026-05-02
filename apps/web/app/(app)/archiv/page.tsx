@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { redirect } from "next/navigation";
 import { parseArchiveQuery } from "@/lib/archive-query";
 import { searchArchivedInvoices, type ArchiveRow } from "@/app/actions/invoices";
 import { ArchiveSearchFilters } from "@/components/archive/archive-search-filters";
@@ -24,6 +25,19 @@ export default async function ArchivPage({
   if (result.success) {
     rows = result.data.rows;
     total = result.data.total;
+    // Phantom page: user navigated to a page beyond the last page — redirect to page 1.
+    if (rows.length === 0 && total > 0 && query.page > 1) {
+      const raw2 = searchParams ? await searchParams : {};
+      const params = new URLSearchParams(
+        Object.fromEntries(
+          Object.entries(raw2).flatMap(([k, v]) =>
+            typeof v === "string" ? [[k, v]] : Array.isArray(v) ? [[k, v[0] ?? ""]] : [],
+          ),
+        ),
+      );
+      params.delete("page");
+      redirect(`/archiv${params.size > 0 ? `?${params.toString()}` : ""}`);
+    }
   } else {
     Sentry.captureMessage("archive page: search action failed", {
       level: "error",
@@ -32,7 +46,7 @@ export default async function ArchivPage({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="min-w-0 flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h1 className="text-h2">Archiv</h1>
         <RetentionNotice />

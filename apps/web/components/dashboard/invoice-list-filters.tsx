@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { applyGermanDateMask, isoToGermanDateInput, parseGermanDate } from "@/lib/format";
 
 type Draft = {
   supplier: string;
@@ -79,8 +80,24 @@ export function InvoiceListFilters() {
   const currentStatus = new URLSearchParams(paramString).get("status") ?? "all";
   const currentSort =
     new URLSearchParams(paramString).get("sort") ?? "confidence";
-  const currentFrom = new URLSearchParams(paramString).get("from") ?? "";
-  const currentTo = new URLSearchParams(paramString).get("to") ?? "";
+
+  // Date draft state — German format (TT.MM.JJJJ), synced from URL ISO params.
+  const [draftDateFrom, setDraftDateFrom] = useState(
+    () => isoToGermanDateInput(new URLSearchParams(paramString).get("from") ?? ""),
+  );
+  const [draftDateTo, setDraftDateTo] = useState(
+    () => isoToGermanDateInput(new URLSearchParams(paramString).get("to") ?? ""),
+  );
+
+  // Sync date drafts when URL changes externally (reset, deep-link).
+  const prevParamStringRef = useRef(paramString);
+  useEffect(() => {
+    if (paramString === prevParamStringRef.current) return;
+    prevParamStringRef.current = paramString;
+    const sp = new URLSearchParams(paramString);
+    setDraftDateFrom(isoToGermanDateInput(sp.get("from") ?? ""));
+    setDraftDateTo(isoToGermanDateInput(sp.get("to") ?? ""));
+  }, [paramString]);
 
   const onReset = () => {
     const cleared: Draft = { supplier: "", minAmount: "", maxAmount: "" };
@@ -181,23 +198,41 @@ export function InvoiceListFilters() {
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="filter-from">Von</Label>
-          <Input
+          <input
             id="filter-from"
-            type="date"
-            value={currentFrom}
-            onChange={(e) =>
-              writeParams({ from: e.target.value || null })
-            }
+            type="text"
+            inputMode="numeric"
+            maxLength={10}
+            placeholder="TT.MM.JJJJ"
+            aria-label="Von"
+            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={draftDateFrom}
+            onChange={(e) => {
+              const masked = applyGermanDateMask(e.target.value, draftDateFrom);
+              setDraftDateFrom(masked);
+              const iso = parseGermanDate(masked);
+              if (iso !== null || masked === "") writeParams({ from: iso });
+            }}
           />
         </div>
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="filter-to">Bis</Label>
-          <Input
+          <input
             id="filter-to"
-            type="date"
-            value={currentTo}
-            onChange={(e) => writeParams({ to: e.target.value || null })}
+            type="text"
+            inputMode="numeric"
+            maxLength={10}
+            placeholder="TT.MM.JJJJ"
+            aria-label="Bis"
+            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={draftDateTo}
+            onChange={(e) => {
+              const masked = applyGermanDateMask(e.target.value, draftDateTo);
+              setDraftDateTo(masked);
+              const iso = parseGermanDate(masked);
+              if (iso !== null || masked === "") writeParams({ to: iso });
+            }}
           />
         </div>
       </div>

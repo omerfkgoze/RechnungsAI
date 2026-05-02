@@ -62,10 +62,19 @@ describe("buildAuditTrailCsv", () => {
     expect(csv.charCodeAt(0)).toBe(0xfeff);
   });
 
-  it("serializes metadata as JSON string (RFC 4180 quote-escaped)", () => {
-    const csv = buildAuditTrailCsv([baseAuditRow]);
-    // JSON contains " characters, so the field is wrapped and " doubled per RFC 4180
-    expect(csv).toContain('"{""source"":""manual""}"');
+  it("whitelists audit-relevant metadata and strips PII fields", () => {
+    const row: AuditTrailRow = {
+      ...baseAuditRow,
+      // Only whitelisted keys (e.g. confidence_score) survive; "source" is stripped.
+      metadata: { confidence_score: 0.95, source: "manual" },
+    };
+    const csv = buildAuditTrailCsv([row]);
+    // confidence_score is whitelisted → appears in JSON
+    expect(csv).toContain("confidence_score");
+    // "source" is not in the whitelist → stripped
+    expect(csv).not.toContain("source");
+    // The JSON cell is quote-escaped (contains " → doubled)
+    expect(csv).toContain('"{""confidence_score"":0.95}"');
   });
 
   it("handles null field_name and old_value as empty strings", () => {

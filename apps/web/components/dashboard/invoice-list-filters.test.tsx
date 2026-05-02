@@ -56,12 +56,12 @@ describe("InvoiceListFilters", () => {
     expect(replaceMock).toHaveBeenCalledWith("/dashboard", { scroll: false });
   });
 
-  it("date inputs commit 'from' and 'to' params on change", () => {
+  it("date inputs accept German format (TT.MM.JJJJ) and write ISO to URL", () => {
     render(<InvoiceListFilters />);
     const from = screen.getByLabelText("Von");
-    fireEvent.change(from, { target: { value: "2026-04-01" } });
+    fireEvent.change(from, { target: { value: "01.04.2026" } });
     const to = screen.getByLabelText("Bis");
-    fireEvent.change(to, { target: { value: "2026-04-30" } });
+    fireEvent.change(to, { target: { value: "30.04.2026" } });
     const calls = replaceMock.mock.calls.map((c) => c[0] as string);
     expect(calls.some((c) => c.includes("from=2026-04-01"))).toBe(true);
     expect(calls.some((c) => c.includes("to=2026-04-30"))).toBe(true);

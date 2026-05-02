@@ -1,19 +1,25 @@
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
-import { buildAuditExportZip, buildSummaryCsv, buildAuditTrailCsv } from "@rechnungsai/gobd";
+import { buildAuditExportZip, buildSummaryCsv, buildAuditTrailCsv, filterAuditMetadata } from "@rechnungsai/gobd";
 import { verifyBuffer } from "@rechnungsai/gobd";
 import { createServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/app/actions/invoices";
 
 type VerificationStatus = "verified" | "mismatch" | "legacy" | "error";
 
+const isoDateOrNull = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/)
+  .nullable()
+  .optional();
+
 const bodySchema = z.object({
   invoiceIds: z.array(z.string().uuid()).min(1).max(500),
   filters: z
     .object({
-      dateFrom: z.string().nullable().optional(),
-      dateTo: z.string().nullable().optional(),
-      fiscalYear: z.number().nullable().optional(),
+      dateFrom: isoDateOrNull,
+      dateTo: isoDateOrNull,
+      fiscalYear: z.number().int().min(1900).max(9999).nullable().optional(),
     })
     .optional(),
 });
@@ -41,24 +47,28 @@ function formatYYYYMMDD(d = new Date()): string {
   return d.toISOString().slice(0, 10).replace(/-/g, "");
 }
 
+// Metadata keys included in audit-trail.csv are restricted to the DSGVO-safe whitelist
+// defined in @rechnungsai/gobd csv.ts (filterAuditMetadata). PII fields are stripped.
 const README_TXT = `GoBD-konformer Audit-Export
 =============================
 
-Dieses ZIP-Archiv wurde von RechnungsAI gemaess den GoBD-Anforderungen erstellt.
+Dieses ZIP-Archiv wurde von RechnungsAI gemäß den GoBD-Anforderungen erstellt.
 
 Inhalt:
-  documents/      - Originaldokumente (unveraenderter Originalzustand)
-  summary.csv     - Rechnungsuebersicht mit Verifikationsstatus
-  audit-trail.csv - Vollstaendiges Aenderungsprotokoll
+  documents/      - Originaldokumente (unveränderter Originalzustand)
+  summary.csv     - Rechnungsübersicht mit Verifikationsstatus
+  audit-trail.csv - Änderungsprotokoll der ausgewählten Belege
+                    (Metadaten-Felder: confidence_score, ai_model, extraction_attempt,
+                     batch_id, previous_status, flag_reason)
 
 Rechtliche Grundlage:
-  §§ 238-241 HGB  - Buchfuehrungspflicht und Unveraenderbarkeit
-  GoBD Tz. 100-107 - Maschinelle Auswertbarkeit (§ 147 Abs. 2 AO)
-  § 147 AO        - Aufbewahrungspflicht (10 Jahre)
+  §§ 238–241 HGB   - Buchführungspflicht und Unveränderbarkeit
+  GoBD Tz. 100–107 - Maschinelle Auswertbarkeit (§ 147 Abs. 2 AO)
+  § 147 AO         - Aufbewahrungspflicht (10 Jahre)
 
 Aufbewahrungspflicht:
   Alle enthaltenen Dokumente unterliegen der gesetzlichen Aufbewahrungsfrist
-  von mindestens 10 Jahren gemaeß § 147 AO.
+  von mindestens 10 Jahren gemäß § 147 AO.
 `;
 
 export async function POST(request: Request): Promise<Response> {
@@ -104,14 +114,17 @@ export async function POST(request: Request): Promise<Response> {
   const { invoiceIds, filters } = body;
   const requestedCount = invoiceIds.length;
 
-  // Fetch invoices scoped to tenant + requested IDs (defense-in-depth: RLS is the second wall)
+  // Fetch invoices scoped to tenant + requested IDs (defense-in-depth: RLS is the second wall).
+  // .order() ensures a deterministic ZIP byte sequence across repeated exports of the same IDs.
   const { data: invoiceRows, error: invoiceErr } = await supabase
     .from("invoices")
     .select(
-      "id, file_path, file_type, sha256, original_filename, supplier_name_value, gross_total_value, invoice_number_value, invoice_date_value, status, skr_code, bu_schluessel, approved_at",
+      "id, file_path, file_type, sha256, original_filename, supplier_name_value, gross_total_value, invoice_number_value, invoice_date_value, status, skr_code, bu_schluessel, approved_at, approved_by, created_at",
     )
     .eq("tenant_id", tenantId)
-    .in("id", invoiceIds);
+    .in("id", invoiceIds)
+    .order("invoice_date_value", { ascending: true, nullsFirst: false })
+    .order("id", { ascending: true });
 
   if (invoiceErr) {
     Sentry.captureException(invoiceErr, { tags: { module: "gobd", action: "export_audit" } });
@@ -154,11 +167,16 @@ export async function POST(request: Request): Promise<Response> {
         tags: { module: "gobd", action: "export_audit" },
         extra: { invoiceId: row.id },
       });
+      const reason = dlErr?.message ?? "Storage download failed";
+      const missingBytes = new TextEncoder().encode(
+        `MISSING: ${row.id}\nReason: ${reason}\nThis file could not be retrieved from storage at export time.\n`,
+      );
       rowsWithStatus.push({
         ...row,
         verification_status: "error",
-        bytes: new Uint8Array(),
-      } as RowWithStatus);
+        bytes: missingBytes,
+        _isMissing: true,
+      } as RowWithStatus & { _isMissing?: boolean });
       continue;
     }
 
@@ -198,9 +216,11 @@ export async function POST(request: Request): Promise<Response> {
   const enc = new TextEncoder();
   const zipEntries: { path: string; bytes: Uint8Array }[] = [];
 
-  // Document files
+  // Document files — failed downloads become <id>.MISSING.txt so the auditor
+  // knows the file was missing at export time rather than seeing a corrupt 0-byte file.
   for (const row of rowsWithStatus) {
-    const ext = extFromFileType(row.file_type ?? "");
+    const isMissing = (row as RowWithStatus & { _isMissing?: boolean })._isMissing === true;
+    const ext = isMissing ? "MISSING.txt" : extFromFileType(row.file_type ?? "");
     const filePath = `documents/${row.id}.${ext}`;
     zipEntries.push({ path: filePath, bytes: row.bytes });
   }
@@ -222,6 +242,7 @@ export async function POST(request: Request): Promise<Response> {
   zipEntries.push({ path: "summary.csv", bytes: enc.encode(buildSummaryCsv(summaryRows)) });
 
   // audit-trail.csv
+  // Whitelist metadata to DSGVO-safe audit-relevant keys (filterAuditMetadata in @rechnungsai/gobd).
   const auditTrailRows = (auditLogRows ?? []).map((r) => ({
     id: r.id,
     invoice_id: r.invoice_id ?? null,
@@ -230,7 +251,7 @@ export async function POST(request: Request): Promise<Response> {
     field_name: r.field_name ?? null,
     old_value: r.old_value ?? null,
     new_value: r.new_value ?? null,
-    metadata: r.metadata,
+    metadata: filterAuditMetadata(r.metadata),
     created_at: r.created_at,
   }));
   zipEntries.push({ path: "audit-trail.csv", bytes: enc.encode(buildAuditTrailCsv(auditTrailRows)) });
@@ -247,25 +268,34 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "ZIP-Erstellung fehlgeschlagen." }, { status: 500 });
   }
 
-  // Audit log entry — BEFORE response is returned; non-fatal on failure (per Story 4.2 contract)
-  await logAuditEvent(supabase, {
-    tenantId,
-    invoiceId: null,
-    actorUserId: user.id,
-    eventType: "export_audit",
-    metadata: {
-      invoice_count: includedCount,
-      requested_count: requestedCount,
-      missing_count: missingCount,
-      mismatch_count: mismatchCount,
-      format: "zip",
-      filters: {
-        dateFrom: filters?.dateFrom ?? null,
-        dateTo: filters?.dateTo ?? null,
-        fiscalYear: filters?.fiscalYear ?? null,
+  // Audit log entry — BEFORE response is returned; wrapped in try/catch so a failed
+  // audit insert does not prevent the ZIP from being delivered (GoBD-compliant non-fatal
+  // per Story 4.2 contract), but the failure is surfaced via Sentry.
+  try {
+    await logAuditEvent(supabase, {
+      tenantId,
+      invoiceId: null,
+      actorUserId: user.id,
+      eventType: "export_audit",
+      metadata: {
+        invoice_count: includedCount,
+        requested_count: requestedCount,
+        missing_count: missingCount,
+        mismatch_count: mismatchCount,
+        format: "zip",
+        filters: {
+          dateFrom: filters?.dateFrom ?? null,
+          dateTo: filters?.dateTo ?? null,
+          fiscalYear: filters?.fiscalYear ?? null,
+        },
       },
-    },
-  });
+    });
+  } catch (auditErr) {
+    Sentry.captureException(auditErr, {
+      tags: { module: "gobd", action: "export_audit_log_failed" },
+      extra: { includedCount, requestedCount },
+    });
+  }
 
   const filename = `audit-export-${tenantSlug}-${formatYYYYMMDD()}.zip`;
 

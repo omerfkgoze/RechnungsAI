@@ -3,14 +3,15 @@ import { crc32 } from "node:zlib";
 export type ZipEntry = { path: string; bytes: Uint8Array };
 
 function dosTime(d = new Date()): { time: number; date: number } {
+  // Use UTC fields so the time is deterministic across server timezones.
   const time =
-    ((d.getHours() & 0x1f) << 11) |
-    ((d.getMinutes() & 0x3f) << 5) |
-    (Math.floor(d.getSeconds() / 2) & 0x1f);
+    ((d.getUTCHours() & 0x1f) << 11) |
+    ((d.getUTCMinutes() & 0x3f) << 5) |
+    (Math.floor(d.getUTCSeconds() / 2) & 0x1f);
   const date =
-    (((d.getFullYear() - 1980) & 0x7f) << 9) |
-    (((d.getMonth() + 1) & 0x0f) << 5) |
-    (d.getDate() & 0x1f);
+    (((d.getUTCFullYear() - 1980) & 0x7f) << 9) |
+    (((d.getUTCMonth() + 1) & 0x0f) << 5) |
+    (d.getUTCDate() & 0x1f);
   return { time, date };
 }
 
@@ -21,6 +22,14 @@ function dosTime(d = new Date()): { time: number; date: number } {
 export async function buildAuditExportZip(entries: ZipEntry[]): Promise<Uint8Array> {
   if (entries.length === 0) {
     throw new Error("buildAuditExportZip: at least one entry required");
+  }
+  // ZIP32 limits: max 65 534 entries and max 4 GiB total size.
+  if (entries.length > 0xfffe) {
+    throw new Error(`buildAuditExportZip: too many entries (${entries.length} > 65534)`);
+  }
+  const totalBytes = entries.reduce((s, e) => s + e.bytes.byteLength, 0);
+  if (totalBytes > 0xffffffff) {
+    throw new Error(`buildAuditExportZip: total payload exceeds 4 GiB ZIP32 limit`);
   }
 
   const enc = new TextEncoder();

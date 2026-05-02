@@ -877,7 +877,7 @@ export async function verifyInvoiceArchive(
 
 // ─── Archive Search ──────────────────────────────────────────────────────────
 
-import { type ArchiveQuery } from "@/lib/archive-query";
+import { type ArchiveQuery, PAGE_SIZE } from "@/lib/archive-query";
 
 const ARCHIVE_SEARCH_LOG = "[invoices:archive-search]";
 
@@ -901,6 +901,12 @@ export type ArchiveRow = {
 export async function searchArchivedInvoices(
   input: ArchiveQuery,
 ): Promise<ActionResult<{ rows: ArchiveRow[]; total: number; page: number; pageSize: number }>> {
+  // Defensive server-side validation: clamp page and pin pageSize regardless of
+  // what the caller passed (action is publicly callable, parseArchiveQuery is client-only).
+  const safePage = Number.isInteger(input.page) && input.page >= 1 ? input.page : 1;
+  const safePageSize = PAGE_SIZE;
+  input = { ...input, page: safePage, pageSize: safePageSize };
+
   try {
     const supabase = await createServerClient();
     const {

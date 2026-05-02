@@ -6,9 +6,16 @@ const BOM = "﻿";
 const DELIM = ";";
 const EOL = "\r\n";
 
+// Formula injection guard: prefix with ' when the field starts with =, +, -, @, \t, or \r.
+// These prefixes trigger formula execution in Excel/LibreOffice when the CSV is opened.
+const FORMULA_INJECTION_PREFIXES = new Set(["=", "+", "-", "@", "\t", "\r"]);
+
 function escapeField(v: unknown): string {
   if (v === null || v === undefined) return "";
-  const s = String(v);
+  let s = String(v);
+  if (FORMULA_INJECTION_PREFIXES.has(s[0] ?? "")) {
+    s = `'${s}`;
+  }
   if (s.includes(DELIM) || s.includes('"') || s.includes("\r") || s.includes("\n")) {
     return `"${s.replace(/"/g, '""')}"`;
   }
@@ -88,6 +95,30 @@ export function buildSummaryCsv(rows: SummaryRow[]): string {
   return lines.join(EOL) + EOL;
 }
 
+// DSGVO data minimisation: only these metadata keys are audit-relevant and safe
+// to include in the external-auditor CSV. PII fields (e.g., raw invoice_data,
+// user email, IP addresses) are stripped before the file leaves the server.
+const AUDIT_METADATA_WHITELIST = new Set([
+  "confidence_score",
+  "ai_model",
+  "extraction_attempt",
+  "batch_id",
+  "previous_status",
+  "flag_reason",
+]);
+
+export function filterAuditMetadata(raw: unknown): Record<string, unknown> | null {
+  if (raw === null || raw === undefined || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const obj = raw as Record<string, unknown>;
+  const filtered: Record<string, unknown> = {};
+  for (const key of AUDIT_METADATA_WHITELIST) {
+    if (key in obj) filtered[key] = obj[key];
+  }
+  return Object.keys(filtered).length > 0 ? filtered : null;
+}
+
 export function buildAuditTrailCsv(rows: AuditTrailRow[]): string {
   const headers = [
     "Audit-ID",
@@ -111,9 +142,10 @@ export function buildAuditTrailCsv(rows: AuditTrailRow[]): string {
         r.field_name ?? "",
         r.old_value ?? "",
         r.new_value ?? "",
-        r.metadata !== null && r.metadata !== undefined
-          ? JSON.stringify(r.metadata)
-          : "",
+        (() => {
+          const filtered = filterAuditMetadata(r.metadata);
+          return filtered !== null ? JSON.stringify(filtered) : "";
+        })(),
         r.created_at,
       ]
         .map(escapeField)

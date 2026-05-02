@@ -2,9 +2,14 @@ import { z } from "zod";
 
 export const PAGE_SIZE = 50;
 
+// Validate as ISO date: correct format AND a real calendar date (e.g. rejects 2026-13-45).
 const isoDate = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "invalid date" });
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "invalid date" })
+  .refine((s) => {
+    const d = new Date(s + "T00:00:00Z");
+    return !isNaN(d.getTime()) && d.toISOString().startsWith(s);
+  }, { message: "invalid date" });
 
 const amount = z.coerce.number().finite().min(0).max(1_000_000);
 
