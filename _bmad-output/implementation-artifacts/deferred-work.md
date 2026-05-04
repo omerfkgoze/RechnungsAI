@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: P0 prep — invoices.ts split (2026-05-04)
+
+- [ ] `searchArchivedInvoices` does not check `authError` from `supabase.auth.getUser()` — only checks `!user`. Pre-existing pattern from original `invoices.ts`; other actions check `authError || !user`. Low real-world risk (Supabase client returns `authError` and `null` user together in practice). Align with other actions' pattern in a future cleanup pass. [`apps/web/app/actions/invoices/archive.ts`]
+
 ## Deferred from: code review of 4-2-audit-trail-and-action-logging (2026-04-30)
 
 - [ ] `sessionStartMs = Date.now()` makes `errorCount` always 0 — render-time timestamp means the `.gte("created_at", ...)` filter always catches 0 edits from earlier in session. Accepted limitation; implement proper session-start tracking (today 00:00 UTC or client-sent) in Story 4.3 or 8.3. [`apps/web/app/(app)/dashboard/page.tsx:264`]
