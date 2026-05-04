@@ -121,6 +121,16 @@ development_status:
   4-3-archive-search-and-audit-export: done
   epic-4-retrospective: done
 
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 5 PREPARATION SPRINT (must complete before Story 5.1)
+  # Source: epic-4-retro-2026-05-04.md — Action Items + Prep Tasks
+  # ─────────────────────────────────────────────────────────────
+
+  # 🔴 Critical (blocks Epic 5)
+  prep-p0-invoices-action-split: backlog       # Refactor invoices.ts (1795 lines) → upload/review/approval/archive sub-files + barrel; no breaking changes via re-export
+  prep-p1-datev-format-spike: backlog          # EXTF Buchungsstapel v700 spec; versioned format architecture; Windows-1252 encoding in Node.js; output: spike-p1-datev-format.md
+  prep-p2-datev-settings-scope: backlog        # Which tenant settings Story 5.1 needs (Berater-Nr, Mandanten-Nr, fiscal_year_start_month); output: prep-p2-datev-settings-scope.md
+
   # Epic 5: DATEV Export
   epic-5: backlog
   5-1-datev-settings-configuration: backlog
