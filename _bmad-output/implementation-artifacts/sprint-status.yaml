@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-04 (prep-p1 datev format spike + prep-p2 settings scope + epic-4 → done)"
+last_updated: "2026-05-04 (story 5.1 created → ready-for-dev; epic-5 → in-progress)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -132,8 +132,8 @@ development_status:
   prep-p2-datev-settings-scope: done           # All 4 DATEV fields already in DB/schema/UI; Story 5.1 adds datev_default_kreditorenkonto + tests; output: prep-p2-datev-settings-scope-2026-05-04.md
 
   # Epic 5: DATEV Export
-  epic-5: backlog
-  5-1-datev-settings-configuration: backlog
+  epic-5: in-progress
+  5-1-datev-settings-configuration: ready-for-dev
   5-2-datev-buchungsstapel-csv-generation: backlog
   5-3-datev-export-flow-and-download: backlog
   epic-5-retrospective: optional
