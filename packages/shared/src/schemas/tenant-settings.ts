@@ -104,6 +104,21 @@ export const tenantSettingsSchema = z.object({
     .max(12, {
       message: "Geschäftsjahr-Beginn muss ein Monat zwischen 1 und 12 sein.",
     }),
+
+  datev_default_kreditorenkonto: optionalString
+    .transform((v) => {
+      if (v == null) return null;
+      const cleaned = normalizeName(v);
+      return cleaned.length === 0 ? null : cleaned;
+    })
+    .pipe(
+      z
+        .string()
+        .regex(/^[0-9]{5,9}$/, {
+          message: "Kreditorenkonto darf nur Ziffern enthalten (5–9 Stellen).",
+        })
+        .nullable(),
+    ),
 });
 
 export type TenantSettingsInput = z.input<typeof tenantSettingsSchema>;

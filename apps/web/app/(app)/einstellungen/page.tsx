@@ -14,7 +14,7 @@ export default async function EinstellungenPage() {
   const { data: tenant, error } = await supabase
     .from("tenants")
     .select(
-      "company_name, company_address, tax_id, skr_plan, steuerberater_name, datev_berater_nr, datev_mandanten_nr, datev_sachkontenlaenge, datev_fiscal_year_start",
+      "company_name, company_address, tax_id, skr_plan, steuerberater_name, datev_berater_nr, datev_mandanten_nr, datev_sachkontenlaenge, datev_fiscal_year_start, datev_default_kreditorenkonto",
     )
     .single();
 
@@ -49,6 +49,7 @@ export default async function EinstellungenPage() {
           datev_mandanten_nr: tenant.datev_mandanten_nr ?? "",
           datev_sachkontenlaenge: tenant.datev_sachkontenlaenge ?? 4,
           datev_fiscal_year_start: tenant.datev_fiscal_year_start ?? 1,
+          datev_default_kreditorenkonto: tenant.datev_default_kreditorenkonto ?? "",
         }}
       />
     </div>

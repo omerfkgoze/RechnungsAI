@@ -133,7 +133,7 @@ development_status:
 
   # Epic 5: DATEV Export
   epic-5: in-progress
-  5-1-datev-settings-configuration: ready-for-dev
+  5-1-datev-settings-configuration: review
   5-2-datev-buchungsstapel-csv-generation: backlog
   5-3-datev-export-flow-and-download: backlog
   epic-5-retrospective: optional

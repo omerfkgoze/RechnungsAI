@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const GERMAN_MONTHS = [
@@ -55,6 +56,8 @@ export function TenantSettingsForm({ defaultValues }: Props) {
   });
 
   const skrValue = form.watch("skr_plan");
+  const [beraterNr, mandantenNr] = form.watch(["datev_berater_nr", "datev_mandanten_nr"]);
+  const datevReady = Boolean(beraterNr) && Boolean(mandantenNr);
   const isSubmitting = form.formState.isSubmitting;
 
   async function submit(values: TenantSettingsInput) {
@@ -81,6 +84,7 @@ export function TenantSettingsForm({ defaultValues }: Props) {
           datev_mandanten_nr: parsed.data.datev_mandanten_nr ?? "",
           datev_sachkontenlaenge: parsed.data.datev_sachkontenlaenge,
           datev_fiscal_year_start: parsed.data.datev_fiscal_year_start,
+          datev_default_kreditorenkonto: parsed.data.datev_default_kreditorenkonto ?? "",
         },
         { keepDirty: false, keepErrors: false },
       );
@@ -222,6 +226,18 @@ export function TenantSettingsForm({ defaultValues }: Props) {
               )}
             />
 
+            {datevReady ? (
+              <span className="inline-flex items-center gap-1 text-success text-body-sm">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                DATEV-Export bereit
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-warning text-body-sm">
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                Konfiguration unvollständig
+              </span>
+            )}
+
             <h3 className="mt-2 text-body-sm font-semibold text-foreground">
               DATEV-Konfiguration
             </h3>
@@ -311,6 +327,29 @@ export function TenantSettingsForm({ defaultValues }: Props) {
                       ))}
                     </select>
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="datev_default_kreditorenkonto"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Standard-Kreditorenkonto</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      placeholder="z. B. 70000"
+                      maxLength={9}
+                      inputMode="numeric"
+                    />
+                  </FormControl>
+                  <p className="text-body-sm text-muted-foreground">
+                    Wird als Gegenkonto in jeder DATEV-Buchung verwendet (optional — leer lassen für SKR-Standard).
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

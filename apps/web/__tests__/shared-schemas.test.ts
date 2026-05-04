@@ -51,6 +51,7 @@ describe("tenantSettingsSchema", () => {
       datev_mandanten_nr: "",
       datev_sachkontenlaenge: 4,
       datev_fiscal_year_start: 1,
+      datev_default_kreditorenkonto: null,
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -71,6 +72,7 @@ describe("tenantSettingsSchema", () => {
       datev_mandanten_nr: null,
       datev_sachkontenlaenge: 4,
       datev_fiscal_year_start: 1,
+      datev_default_kreditorenkonto: null,
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -91,6 +93,7 @@ describe("tenantSettingsSchema", () => {
       datev_mandanten_nr: "",
       datev_sachkontenlaenge: 4,
       datev_fiscal_year_start: 1,
+      datev_default_kreditorenkonto: null,
     });
     expect(result.success).toBe(false);
   });

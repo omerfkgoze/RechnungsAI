@@ -36,40 +36,42 @@ export type Database = {
     Tables: {
       audit_logs: {
         Row: {
-          id: string
-          tenant_id: string
-          invoice_id: string | null
           actor_user_id: string
+          created_at: string
           event_type: string
           field_name: string | null
-          old_value: string | null
-          new_value: string | null
+          id: string
+          invoice_id: string | null
           metadata: Json
-          created_at: string
+          new_value: string | null
+          old_value: string | null
+          tenant_id: string
         }
         Insert: {
-          id?: string
-          tenant_id: string
-          invoice_id?: string | null
           actor_user_id: string
+          created_at?: string
           event_type: string
           field_name?: string | null
-          old_value?: string | null
-          new_value?: string | null
+          id?: string
+          invoice_id?: string | null
           metadata?: Json
-          created_at?: string
+          new_value?: string | null
+          old_value?: string | null
+          tenant_id: string
         }
         Update: {
-          [key in never]: never
+          actor_user_id?: string
+          created_at?: string
+          event_type?: string
+          field_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          metadata?: Json
+          new_value?: string | null
+          old_value?: string | null
+          tenant_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "audit_logs_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "audit_logs_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -78,10 +80,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "audit_logs_actor_user_id_fkey"
-            columns: ["actor_user_id"]
+            foreignKeyName: "audit_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -253,8 +255,11 @@ export type Database = {
           gross_total_value?: number | null
           id?: string
           invoice_data?: Json | null
+          invoice_date_value?: string | null
+          invoice_number_value?: string | null
           original_filename?: string
           review_priority_key?: number | null
+          sha256?: string | null
           skr_code?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           supplier_name_value?: string | null
@@ -284,6 +289,7 @@ export type Database = {
           company_name: string
           created_at: string
           datev_berater_nr: string | null
+          datev_default_kreditorenkonto: string | null
           datev_fiscal_year_start: number
           datev_mandanten_nr: string | null
           datev_sachkontenlaenge: number
@@ -298,6 +304,7 @@ export type Database = {
           company_name: string
           created_at?: string
           datev_berater_nr?: string | null
+          datev_default_kreditorenkonto?: string | null
           datev_fiscal_year_start?: number
           datev_mandanten_nr?: string | null
           datev_sachkontenlaenge?: number
@@ -312,6 +319,7 @@ export type Database = {
           company_name?: string
           created_at?: string
           datev_berater_nr?: string | null
+          datev_default_kreditorenkonto?: string | null
           datev_fiscal_year_start?: number
           datev_mandanten_nr?: string | null
           datev_sachkontenlaenge?: number
@@ -395,6 +403,7 @@ export type Database = {
         }[]
       }
       my_tenant_id: { Args: never; Returns: string }
+      parse_iso_date_safe: { Args: { v: string }; Returns: string }
       tenant_weekly_value_summary: {
         Args: never
         Returns: {
