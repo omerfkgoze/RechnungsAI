@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-02 (story 4-3 review patches applied, status → done)"
+last_updated: "2026-05-04 (prep-p1 datev format spike + prep-p2 settings scope + epic-4 → done)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -115,7 +115,7 @@ development_status:
   prep-p5-deferred-work-triage: done           # deferred-work.md epic boundary triage: prep-p5-deferred-work-triage-2026-04-28.md — no hard blockers
 
   # Epic 4: GoBD-Compliant Archive and Audit Trail
-  epic-4: in-progress
+  epic-4: done
   4-1-immutable-document-storage-and-sha-256-hashing: done
   4-2-audit-trail-and-action-logging: done
   4-3-archive-search-and-audit-export: done
@@ -128,8 +128,8 @@ development_status:
 
   # 🔴 Critical (blocks Epic 5)
   prep-p0-invoices-action-split: done       # Refactor invoices.ts (1795 lines) → upload/review/approval/archive sub-files + barrel; no breaking changes via re-export
-  prep-p1-datev-format-spike: backlog          # EXTF Buchungsstapel v700 spec; versioned format architecture; Windows-1252 encoding in Node.js; output: spike-p1-datev-format.md
-  prep-p2-datev-settings-scope: backlog        # Which tenant settings Story 5.1 needs (Berater-Nr, Mandanten-Nr, fiscal_year_start_month); output: prep-p2-datev-settings-scope.md
+  prep-p1-datev-format-spike: done             # EXTF Buchungsstapel v700 spec; versioned format architecture; UTF-8+BOM (no new deps); output: spike-p1-datev-format-2026-05-04.md
+  prep-p2-datev-settings-scope: done           # All 4 DATEV fields already in DB/schema/UI; Story 5.1 adds datev_default_kreditorenkonto + tests; output: prep-p2-datev-settings-scope-2026-05-04.md
 
   # Epic 5: DATEV Export
   epic-5: backlog
