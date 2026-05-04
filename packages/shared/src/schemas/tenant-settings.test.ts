@@ -113,20 +113,14 @@ describe("tenantSettingsSchema", () => {
   });
 
   // (l) datev_fiscal_year_start = 0 and 13 → error
-  it("(l) datev_fiscal_year_start = 0 → Geschäftsjahr error", () => {
-    const result = tenantSettingsSchema.safeParse({ ...BASE_VALID, datev_fiscal_year_start: 0 });
-    expect(result.success).toBe(false);
-    if (result.success) return;
-    const messages = result.error.issues.map((i) => i.message);
-    expect(messages).toContain("Geschäftsjahr-Beginn muss ein Monat zwischen 1 und 12 sein.");
-  });
-
-  it("(l2) datev_fiscal_year_start = 13 → Geschäftsjahr error", () => {
-    const result = tenantSettingsSchema.safeParse({ ...BASE_VALID, datev_fiscal_year_start: 13 });
-    expect(result.success).toBe(false);
-    if (result.success) return;
-    const messages = result.error.issues.map((i) => i.message);
-    expect(messages).toContain("Geschäftsjahr-Beginn muss ein Monat zwischen 1 und 12 sein.");
+  it("(l) datev_fiscal_year_start out of range (0 and 13) → Geschäftsjahr error", () => {
+    for (const val of [0, 13]) {
+      const result = tenantSettingsSchema.safeParse({ ...BASE_VALID, datev_fiscal_year_start: val });
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      const messages = result.error.issues.map((i) => i.message);
+      expect(messages).toContain("Geschäftsjahr-Beginn muss ein Monat zwischen 1 und 12 sein.");
+    }
   });
 
   // (m) datev_default_kreditorenkonto = "70000" → parses

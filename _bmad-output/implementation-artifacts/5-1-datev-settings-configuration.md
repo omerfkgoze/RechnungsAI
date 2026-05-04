@@ -1,6 +1,6 @@
 # Story 5.1: DATEV Settings Configuration
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -280,6 +280,14 @@ psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres'
 - `apps/web/app/(app)/einstellungen/page.tsx` (updated — SELECT + defaultValues)
 - `apps/web/components/settings/tenant-settings-form.tsx` (updated — new field, readiness indicator, form.reset extension)
 - `apps/web/__tests__/shared-schemas.test.ts` (updated — added new field to 2 existing tests)
+
+### Review Findings
+
+- [x] [Review][Patch] Test case (l) split into two `it()` blocks (`(l)` and `(l2)`) — AC #8 specifies a single case covering both `datev_fiscal_year_start = 0` and `13`; merge into one `it("(l)")` with both bounds asserted [`packages/shared/src/schemas/tenant-settings.test.ts:116–128`]
+- [x] [Review][Defer] Sentry.captureException fires unconditionally for ALL DB errors in tenant.ts including expected 23514 constraint violations — pre-existing; AC #7 explicitly prohibits touching tenant.ts in this story [`apps/web/app/actions/tenant.ts:52–58`] — deferred, pre-existing
+- [x] [Review][Defer] Test (c) in tenant.test.ts lacks negative Sentry assertion for 23514 path — cannot patch independently without fixing the unconditional call in tenant.ts first [`apps/web/app/actions/tenant.test.ts:115–125`] — deferred, pre-existing
+- [x] [Review][Defer] `users` row lookup failure path (userSingleMock error/null) has no test coverage — not required by AC #9's 6 cases; pre-existing untested branch in tenant.ts [`apps/web/app/actions/tenant.test.ts`] — deferred, out of AC scope
+- [x] [Review][Defer] Migration `add constraint` lacks idempotency guard — Postgres has no `ADD CONSTRAINT IF NOT EXISTS` syntax; a DO block workaround is needed for true idempotency; Supabase migration tracking prevents duplicate execution in normal operation [`supabase/migrations/20260504000000_datev_default_kreditorenkonto.sql:18–20`] — deferred, low risk in Supabase migration model
 
 ### Change Log
 
