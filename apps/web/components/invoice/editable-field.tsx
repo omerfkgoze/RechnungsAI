@@ -267,7 +267,7 @@ export function EditableField({
         </p>
       )}
 
-      <div className="flex items-center gap-2 mt-1">
+      <div className="flex flex-wrap items-center gap-2 mt-1">
         <Button
           variant="default"
           size="sm"

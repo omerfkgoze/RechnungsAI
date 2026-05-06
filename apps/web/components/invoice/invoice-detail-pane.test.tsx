@@ -107,6 +107,56 @@ describe("InvoiceDetailPane", () => {
     expect(flag.disabled).toBe(true);
   });
 
+  it("renders Positionen as both desktop table and mobile card list with all 6 fields per item", () => {
+    const invoice = makeInvoice();
+    invoice.line_items = [
+      {
+        description: field("B-3025, Farbe Grün Musterartikel"),
+        quantity: field(1),
+        unit_price: field(47),
+        net_amount: field(47),
+        vat_rate: field(19),
+        vat_amount: field(8.93),
+      },
+    ];
+    const { container } = renderInProvider(
+      <InvoiceDetailPane {...DEFAULT_PROPS} invoice={invoice} />,
+    );
+
+    // Desktop table is hidden on small viewports via Tailwind classes; assert it exists with both layouts coexisting.
+    const table = container.querySelector("table");
+    expect(table).not.toBeNull();
+    expect(table?.parentElement?.className).toMatch(/hidden\s+sm:block/);
+
+    // Mobile card list renders one card per line item with all 6 labels visible.
+    const cardList = screen.getByTestId("line-items-cards");
+    expect(cardList.className).toMatch(/block\s+sm:hidden/);
+    const card = screen.getByTestId("line-item-card-0");
+    for (const label of ["Beschreibung", "Menge", "Einzel", "Netto", "USt-Satz", "USt-Betrag"]) {
+      expect(card.textContent).toContain(label);
+    }
+  });
+
+  it("renders Positionen card values as read-only formatted text when isExported=true", () => {
+    const invoice = makeInvoice();
+    invoice.line_items = [
+      {
+        description: field("Versand und Verpackung"),
+        quantity: field(1),
+        unit_price: field(11.99),
+        net_amount: field(11.99),
+        vat_rate: field(19),
+        vat_amount: field(2.28),
+      },
+    ];
+    renderInProvider(<InvoiceDetailPane {...DEFAULT_PROPS} invoice={invoice} isExported />);
+    const card = screen.getByTestId("line-item-card-0");
+    expect(card.textContent).toContain("19%");
+    expect(card.textContent).toContain("Versand und Verpackung");
+    // No edit affordance on exported card — tapping a value shouldn't reveal an Übernehmen button.
+    expect(card.querySelector("input")).toBeNull();
+  });
+
   it("shows compliance warning banner AND approve button still works on a warning-laden invoice", () => {
     const invoiceWithMissingUstId = makeInvoice();
     invoiceWithMissingUstId.supplier_tax_id = field(null, 0.1);

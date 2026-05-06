@@ -195,55 +195,106 @@ export function InvoiceDetailPane({
           {invoice.line_items.length > 0 && (
             <div className="mt-6">
               <h2 className="mb-2 text-base font-semibold">Positionen</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-muted-foreground">
-                      <th className="py-1 pr-2">Beschreibung</th>
-                      <th className="py-1 pr-2">Menge</th>
-                      <th className="py-1 pr-2">Einzel</th>
-                      <th className="py-1 pr-2">Netto</th>
-                      <th className="py-1 pr-2">USt-Satz</th>
-                      <th className="py-1 pr-2">USt-Betrag</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoice.line_items.map((li, idx) => (
-                      <tr key={idx} className="border-t">
-                        {(["description", "quantity", "unit_price", "net_amount", "vat_rate", "vat_amount"] as const).map((fieldKey) => {
-                          const liField = li[fieldKey] as { value: string | number | null; confidence: number; reason: string | null };
-                          return (
-                            <td key={fieldKey} className="py-1 pr-2 align-top">
-                              {isExported ? (
-                                liField.value !== null
-                                  ? (fieldKey === "unit_price" || fieldKey === "net_amount" || fieldKey === "vat_amount"
-                                      ? formatEur(liField.value as number, currencyValue)
-                                      : fieldKey === "vat_rate"
-                                        ? `${liField.value}%`
-                                        : String(liField.value))
-                                  : "—"
-                              ) : (
-                                <EditableField
-                                  invoiceId={invoiceId}
-                                  fieldPath={`line_items.${idx}.${fieldKey}`}
-                                  label={fieldKey}
-                                  value={liField.value}
-                                  initialAiValue={liField.value}
-                                  aiConfidence={liField.confidence}
-                                  currencyCode={currencyValue}
-                                  inputKind={lineItemInputKind(fieldKey)}
-                                  isExported={isExported}
-                                  updatedAt={updatedAt}
-                                />
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {(() => {
+                const LI_FIELDS = [
+                  { key: "description", label: "Beschreibung" },
+                  { key: "quantity", label: "Menge" },
+                  { key: "unit_price", label: "Einzel" },
+                  { key: "net_amount", label: "Netto" },
+                  { key: "vat_rate", label: "USt-Satz" },
+                  { key: "vat_amount", label: "USt-Betrag" },
+                ] as const;
+                type LiKey = (typeof LI_FIELDS)[number]["key"];
+                const renderReadOnly = (key: LiKey, value: string | number | null) => {
+                  if (value === null) return "—";
+                  if (key === "unit_price" || key === "net_amount" || key === "vat_amount") {
+                    return formatEur(value as number, currencyValue);
+                  }
+                  if (key === "vat_rate") return `${value}%`;
+                  return String(value);
+                };
+                return (
+                  <>
+                    <div className="hidden sm:block overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-muted-foreground">
+                            {LI_FIELDS.map((f) => (
+                              <th key={f.key} className="py-1 pr-2">{f.label}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {invoice.line_items.map((li, idx) => (
+                            <tr key={idx} className="border-t">
+                              {LI_FIELDS.map(({ key, label }) => {
+                                const liField = li[key] as { value: string | number | null; confidence: number; reason: string | null };
+                                return (
+                                  <td key={key} className="py-1 pr-2 align-top">
+                                    {isExported ? (
+                                      renderReadOnly(key, liField.value)
+                                    ) : (
+                                      <EditableField
+                                        invoiceId={invoiceId}
+                                        fieldPath={`line_items.${idx}.${key}`}
+                                        label={label}
+                                        value={liField.value}
+                                        initialAiValue={liField.value}
+                                        aiConfidence={liField.confidence}
+                                        currencyCode={currencyValue}
+                                        inputKind={lineItemInputKind(key)}
+                                        isExported={isExported}
+                                        updatedAt={updatedAt}
+                                      />
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <ul className="block sm:hidden space-y-3" data-testid="line-items-cards">
+                      {invoice.line_items.map((li, idx) => (
+                        <li
+                          key={idx}
+                          className="rounded-md border bg-card p-3 space-y-2"
+                          data-testid={`line-item-card-${idx}`}
+                        >
+                          {LI_FIELDS.map(({ key, label }) => {
+                            const liField = li[key] as { value: string | number | null; confidence: number; reason: string | null };
+                            return (
+                              <div key={key} className="space-y-1">
+                                <div className="text-caption text-muted-foreground">{label}</div>
+                                <div className="text-sm min-w-0 break-words">
+                                  {isExported ? (
+                                    renderReadOnly(key, liField.value)
+                                  ) : (
+                                    <EditableField
+                                      invoiceId={invoiceId}
+                                      fieldPath={`line_items.${idx}.${key}`}
+                                      label={label}
+                                      value={liField.value}
+                                      initialAiValue={liField.value}
+                                      aiConfidence={liField.confidence}
+                                      currencyCode={currencyValue}
+                                      inputKind={lineItemInputKind(key)}
+                                      isExported={isExported}
+                                      updatedAt={updatedAt}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                );
+              })()}
             </div>
           )}
 

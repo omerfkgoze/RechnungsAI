@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: spec-fix-positionen-table-edit-overflow (2026-05-06)
+
+- [ ] Duplicate DOM `id="field-line_items.{idx}.{key}"` between hidden desktop table and visible mobile card list. `EditableField` renders an `id` derived from `fieldPath`; with both layouts coexisting in the DOM (`hidden sm:block` + `block sm:hidden`), the same id appears twice. Currently harmless because `compliance-warnings-banner.tsx`'s `getElementById('field-${path}')` jumpToField only emits top-level field paths — never `line_items.*`. If compliance ever points at line-item paths, scroll-into-view will land on the `display:none` desktop row first and silently fail. Fix when needed: pass a layout suffix into `fieldPath` for one branch, or conditionally mount one layout only.
+
 ## Deferred from: P0 prep — invoices.ts split (2026-05-04)
 
 - [ ] `searchArchivedInvoices` does not check `authError` from `supabase.auth.getUser()` — only checks `!user`. Pre-existing pattern from original `invoices.ts`; other actions check `authError || !user`. Low real-world risk (Supabase client returns `authError` and `null` user together in practice). Align with other actions' pattern in a future cleanup pass. [`apps/web/app/actions/invoices/archive.ts`]
