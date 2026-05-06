@@ -1,6 +1,6 @@
 import type { DatevTenantConfig, DatevBookingRow, DatevExportResult } from "../types.js";
 
-const BOM = "﻿";
+const BOM = "\uFEFF";
 const SEP = ";";
 const EOL = "\r\n";
 
@@ -19,7 +19,7 @@ export function escapeField(v: unknown): string {
   if (FORMULA_INJECTION_PREFIXES.has(s[0] ?? "")) {
     s = `'${s}`;
   }
-  if (s.includes(SEP) || s.includes('"') || s.includes("\r") || s.includes("\n") || s.includes(",")) {
+  if (s.includes(SEP) || s.includes('"') || s.includes("\r") || s.includes("\n")) {
     return `"${s.replace(/"/g, '""')}"`;
   }
   return s;

@@ -1,6 +1,6 @@
 # Story 5.2: DATEV Buchungsstapel CSV Generation
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -460,7 +460,13 @@ No blockers or debugging needed. Implementation followed gobd patterns exactly.
 
 ### Review Findings
 
-_to be filled_
+- [x] [Review][Patch] Amount field incorrectly quoted: `escapeField` triggers RFC 4180 quoting on comma (`,`), wrapping `"1190,00"` as `"\"1190,00\""`. DATEV semicolon-delimited format does not need comma quoting — DATEV will reject quoted amounts. Fix: remove `|| s.includes(",")` from quoting condition in `escapeField`. [`packages/datev/src/formats/extf-v700.ts`:`escapeField`] ✓ fixed
+- [x] [Review][Patch] BOM defined as literal Unicode character `"﻿"` (U+FEFF embedded in source) instead of `"﻿"` — fragile if any tool strips the BOM character silently. [`packages/datev/src/formats/extf-v700.ts`:3] ✓ fixed
+- [x] [Review][Defer] `formatBelegdatum` no ISO validation: non-ISO dates (e.g., `"2024-01-05T12:00:00Z"`) pass `!row.invoice_date` guard and produce garbage Belegdatum via `parts[2]!` non-null assertion. — deferred, caller (Story 5.3) responsible for ISO-format input [`packages/datev/src/formats/extf-v700.ts`:`formatBelegdatum`]
+- [x] [Review][Defer] `padAccount` does not truncate `skr_code` longer than `sachkontenlaenge` — `padStart` is no-op when string already exceeds target length, emitting over-length Konto field. — deferred, caller responsibility [`packages/datev/src/formats/extf-v700.ts`:`padAccount`]
+- [x] [Review][Defer] `beraterNr`/`mandantenNr` not escaped in `buildHeader` — direct join without `escapeField`; a semicolon in these values would corrupt header field count. — deferred, numerically constrained in DB [`packages/datev/src/formats/extf-v700.ts`:`buildHeader`]
+- [x] [Review][Defer] `computeWjBeginn` no range validation for `fiscalYearStart` — out-of-range values (0, 13+) produce invalid DATEV dates. — deferred, DB constrains value [`packages/datev/src/formats/extf-v700.ts`:`computeWjBeginn`]
+- [x] [Review][Defer] `formatErzeugtAm` uses local server time, not UTC/German local time — timestamp may be off by 1-2 hours for CET/CEST tenants. — deferred, erzeugtAm is metadata, pre-existing architectural pattern [`packages/datev/src/formats/extf-v700.ts`:`formatErzeugtAm`]
 
 ### Change Log
 

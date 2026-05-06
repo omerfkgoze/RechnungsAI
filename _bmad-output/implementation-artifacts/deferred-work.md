@@ -173,3 +173,11 @@
 - Test (c) in `tenant.test.ts` lacks a negative `expect(Sentry.captureException).not.toHaveBeenCalled()` assertion for the 23514 path — cannot add until the unconditional Sentry call above is fixed. (`apps/web/app/actions/tenant.test.ts:115–125`)
 - `users` row lookup failure path (userSingleMock returns error or `data: null`) has no test coverage in `tenant.test.ts` — not required by AC #9's 6 specified cases; pre-existing untested branch. Add in a future test-coverage cleanup pass. (`apps/web/app/actions/tenant.test.ts`)
 - Migration `add constraint tenants_datev_default_kreditorenkonto_format` lacks an idempotency guard — Postgres has no `ADD CONSTRAINT IF NOT EXISTS` syntax; a DO block workaround needed for true idempotency. Supabase migration tracking prevents duplicate execution in normal operation; risk is low. (`supabase/migrations/20260504000000_datev_default_kreditorenkonto.sql:18–20`)
+
+## Deferred from: code review of 5-2-datev-buchungsstapel-csv-generation (2026-05-06)
+
+- `formatBelegdatum` no ISO format validation — non-ISO dates (e.g., timestamps with `T`) pass `!row.invoice_date` guard and produce garbage via `parts[2]!` non-null assertion. Caller (Story 5.3) must ensure ISO-format input. (`packages/datev/src/formats/extf-v700.ts:formatBelegdatum`)
+- `padAccount` does not truncate over-length `skr_code` — `padStart` is no-op when string exceeds target length; emits over-length Konto field. Caller should validate `skr_code` length ≤ `sachkontenlaenge`. (`packages/datev/src/formats/extf-v700.ts:padAccount`)
+- `beraterNr`/`mandantenNr` not escaped in `buildHeader` — direct join without `escapeField`; a semicolon in these values would corrupt header field count. Numerically constrained in DB; low practical risk. (`packages/datev/src/formats/extf-v700.ts:buildHeader`)
+- `computeWjBeginn` no range validation for `fiscalYearStart` — values outside 1–12 produce invalid DATEV dates (e.g., month "13"). DB constrains this; validate in caller if data source expands. (`packages/datev/src/formats/extf-v700.ts:computeWjBeginn`)
+- `formatErzeugtAm` uses local server time, not German local time (CET/CEST) — erzeugtAm timestamp may be off by 1–2 hours; metadata field only, not business-critical. Revisit if DATEV import rejects timestamps outside booking period. (`packages/datev/src/formats/extf-v700.ts:formatErzeugtAm`)
