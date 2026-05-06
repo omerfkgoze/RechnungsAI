@@ -23,7 +23,9 @@ export const onboardingSetupSchema = z.object({
   }),
   steuerberater_name: z
     .string()
+    .nullable()
     .transform((v) => {
+      if (v === null) return null;
       const cleaned = normalizeName(v);
       return cleaned.length === 0 ? null : cleaned;
     })

@@ -205,6 +205,7 @@ export function SetupForm() {
                 <FormControl>
                   <Input
                     {...field}
+                    value={field.value ?? ""}
                     placeholder="Vorname Nachname"
                     autoComplete="name"
                     maxLength={100}
