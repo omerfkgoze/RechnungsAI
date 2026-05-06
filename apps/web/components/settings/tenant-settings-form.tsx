@@ -238,7 +238,7 @@ export function TenantSettingsForm({ defaultValues }: Props) {
               </span>
             )}
 
-            <h3 className="mt-2 text-body-sm font-semibold text-foreground">
+            <h3 id="datev" className="mt-2 text-body-sm font-semibold text-foreground">
               DATEV-Konfiguration
             </h3>
 

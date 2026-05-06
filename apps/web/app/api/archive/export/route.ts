@@ -4,6 +4,7 @@ import { buildAuditExportZip, buildSummaryCsv, buildAuditTrailCsv, filterAuditMe
 import { verifyBuffer } from "@rechnungsai/gobd";
 import { createServerClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/app/actions/invoices";
+import { toTenantSlug } from "@/app/api/_helpers/filename";
 
 type VerificationStatus = "verified" | "mismatch" | "legacy" | "error";
 
@@ -33,14 +34,6 @@ function extFromFileType(fileType: string): string {
     case "application/xml": return "xml";
     default: return "bin";
   }
-}
-
-function toTenantSlug(companyName: string): string {
-  return companyName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
 }
 
 function formatYYYYMMDD(d = new Date()): string {

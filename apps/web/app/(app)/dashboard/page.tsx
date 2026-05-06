@@ -21,7 +21,7 @@ import { DashboardRealtimeRefresher } from "@/components/dashboard/dashboard-rea
 import { DashboardEscHandler } from "@/components/dashboard/dashboard-esc-handler";
 import { DashboardKeyboardShortcuts } from "@/components/dashboard/dashboard-keyboard-shortcuts";
 import { SessionSummary } from "@/components/dashboard/session-summary";
-import { ExportAction } from "@/components/dashboard/export-action";
+import { ExportActionWithDialog } from "@/components/dashboard/export-action-with-dialog";
 import { WeeklyValueSummary } from "@/components/dashboard/weekly-value-summary";
 import { InvoiceDetailPane } from "@/components/invoice/invoice-detail-pane";
 import { DEFAULT_SORT, parseDashboardQuery } from "@/lib/dashboard-query";
@@ -220,11 +220,17 @@ export default async function DashboardPage({
     }
   }
 
-  const [listRes, stageRes, statsRes] = await Promise.all([
+  const [listRes, stageRes, statsRes, tenantRes] = await Promise.all([
     q,
     supabase.rpc("invoice_stage_counts"),
     supabase.rpc("invoice_processing_stats"),
+    supabase
+      .from("tenants")
+      .select("company_name, datev_berater_nr, datev_mandanten_nr")
+      .eq("id", tenantId)
+      .maybeSingle(),
   ]);
+  const tenantInfo = tenantRes.data;
 
   if (listRes.error || stageRes.error || statsRes.error) {
     const err = listRes.error ?? stageRes.error ?? statsRes.error;
@@ -296,9 +302,12 @@ export default async function DashboardPage({
             sessionStartMs={sessionStartMs}
           />
 
-          <ExportAction
+          <ExportActionWithDialog
             readyCount={readyCount}
             exportedThisMonthCount={exportedCount}
+            tenantBeraterNr={tenantInfo?.datev_berater_nr ?? null}
+            tenantMandantenNr={tenantInfo?.datev_mandanten_nr ?? null}
+            tenantCompanyName={tenantInfo?.company_name ?? ""}
           />
 
           <InvoiceListFilters />

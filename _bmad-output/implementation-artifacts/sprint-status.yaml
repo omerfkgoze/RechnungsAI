@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-06 (story 5.3 ready-for-dev)"
+last_updated: "2026-05-06 (story 5.3 review)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -135,7 +135,7 @@ development_status:
   epic-5: in-progress
   5-1-datev-settings-configuration: done
   5-2-datev-buchungsstapel-csv-generation: done
-  5-3-datev-export-flow-and-download: ready-for-dev
+  5-3-datev-export-flow-and-download: review
   epic-5-retrospective: optional
 
   # Epic 6: E-Invoice Validation

@@ -42,6 +42,9 @@ vi.mock("@/components/dashboard/session-summary", () => ({
 vi.mock("@/components/dashboard/export-action", () => ({
   ExportAction: () => null,
 }));
+vi.mock("@/components/dashboard/export-action-with-dialog", () => ({
+  ExportActionWithDialog: () => null,
+}));
 vi.mock("@/components/dashboard/weekly-value-summary", () => ({
   WeeklyValueSummary: () => null,
 }));
@@ -99,6 +102,15 @@ vi.mock("@/lib/supabase/server", () => ({
       }
       if (table === "invoices") {
         return makeInvoiceChain();
+      }
+      if (table === "tenants") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        };
       }
       if (table === "audit_logs") {
         return {

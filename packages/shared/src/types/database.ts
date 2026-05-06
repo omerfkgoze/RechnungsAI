@@ -133,6 +133,53 @@ export type Database = {
           },
         ]
       }
+      datev_exports: {
+        Row: {
+          created_at: string
+          created_by: string
+          csv: string
+          date_from: string
+          date_to: string
+          expires_at: string
+          id: string
+          row_count: number
+          skipped_count: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          csv: string
+          date_from: string
+          date_to: string
+          expires_at: string
+          id?: string
+          row_count: number
+          skipped_count?: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          csv?: string
+          date_from?: string
+          date_to?: string
+          expires_at?: string
+          id?: string
+          row_count?: number
+          skipped_count?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "datev_exports_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_field_corrections: {
         Row: {
           corrected_to_ai: boolean
