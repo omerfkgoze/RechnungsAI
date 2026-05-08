@@ -56,19 +56,28 @@ export function LastExportCard({
   return (
     <Card aria-label="Letzter DATEV-Export">
       <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-col">
           <p className="text-body-sm font-medium">Letzter Export</p>
           <p className="text-caption text-muted-foreground">
             {rangeLabel} · {rowCount}{" "}
             {rowCount === 1 ? "Rechnung" : "Rechnungen"} · {relativeLabel}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button nativeButton={false} variant="outline" render={<a href={mailtoHref} />}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-shrink-0">
+          <Button
+            nativeButton={false}
+            variant="outline"
+            className="w-full sm:w-auto"
+            render={<a href={mailtoHref} />}
+          >
             <Mail className="mr-1 h-4 w-4" aria-hidden="true" />
             An Steuerberater senden
           </Button>
-          <Button nativeButton={false} render={<a href={downloadHref} />}>
+          <Button
+            nativeButton={false}
+            className="w-full sm:w-auto"
+            render={<a href={downloadHref} />}
+          >
             <Download className="mr-1 h-4 w-4" aria-hidden="true" />
             Erneut herunterladen
           </Button>
