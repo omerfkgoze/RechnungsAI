@@ -22,6 +22,7 @@ import { DashboardEscHandler } from "@/components/dashboard/dashboard-esc-handle
 import { DashboardKeyboardShortcuts } from "@/components/dashboard/dashboard-keyboard-shortcuts";
 import { SessionSummary } from "@/components/dashboard/session-summary";
 import { ExportActionWithDialog } from "@/components/dashboard/export-action-with-dialog";
+import { LastExportCard } from "@/components/dashboard/last-export-card";
 import { WeeklyValueSummary } from "@/components/dashboard/weekly-value-summary";
 import { InvoiceDetailPane } from "@/components/invoice/invoice-detail-pane";
 import { DEFAULT_SORT, parseDashboardQuery } from "@/lib/dashboard-query";
@@ -220,7 +221,8 @@ export default async function DashboardPage({
     }
   }
 
-  const [listRes, stageRes, statsRes, tenantRes] = await Promise.all([
+  const nowIso = new Date().toISOString();
+  const [listRes, stageRes, statsRes, tenantRes, lastExportRes] = await Promise.all([
     q,
     supabase.rpc("invoice_stage_counts"),
     supabase.rpc("invoice_processing_stats"),
@@ -229,13 +231,33 @@ export default async function DashboardPage({
       .select("company_name, datev_berater_nr, datev_mandanten_nr")
       .eq("id", tenantId)
       .maybeSingle(),
+    // P17 — most recent non-expired DATEV export, used to render the
+    // "Letzter Export" recovery card. Single row by `(tenant_id, created_at desc)`.
+    supabase
+      .from("datev_exports")
+      .select("id, row_count, date_from, date_to, created_at, expires_at")
+      .eq("tenant_id", tenantId)
+      .gt("expires_at", nowIso)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   const tenantInfo = tenantRes.data;
 
-  if (listRes.error || stageRes.error || statsRes.error) {
-    const err = listRes.error ?? stageRes.error ?? statsRes.error;
+  // P4 — tenants query is load-bearing for the export CTA + LastExportCard.
+  // Treat its error like the other three rather than silently dropping into
+  // "configure DATEV" prompts for tenants that have configured DATEV.
+  if (listRes.error || stageRes.error || statsRes.error || tenantRes.error) {
+    const err = listRes.error ?? stageRes.error ?? statsRes.error ?? tenantRes.error;
     return renderError(err, { conflict });
   }
+  if (lastExportRes.error) {
+    console.error(LOG, "last-export-fetch-failed", lastExportRes.error);
+    Sentry.captureException(lastExportRes.error, {
+      tags: { module: "datev", action: "last_export_lookup" },
+    });
+  }
+  const lastExport = lastExportRes.data ?? null;
 
   const rows = (listRes.data ?? []) as InvoiceRow[];
   const stageCounts = aggregateStageCounts(
@@ -309,6 +331,17 @@ export default async function DashboardPage({
             tenantMandantenNr={tenantInfo?.datev_mandanten_nr ?? null}
             tenantCompanyName={tenantInfo?.company_name ?? ""}
           />
+
+          {lastExport && (
+            <LastExportCard
+              exportId={lastExport.id}
+              rowCount={lastExport.row_count}
+              dateFromCompact={lastExport.date_from}
+              dateToCompact={lastExport.date_to}
+              createdAtIso={lastExport.created_at}
+              tenantCompanyName={tenantInfo?.company_name ?? ""}
+            />
+          )}
 
           <InvoiceListFilters />
 

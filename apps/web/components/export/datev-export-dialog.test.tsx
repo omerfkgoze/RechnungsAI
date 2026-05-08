@@ -71,6 +71,7 @@ describe("DatevExportDialog", () => {
         skippedCount: 0,
         dateFrom: "20260501",
         dateTo: "20260506",
+        truncated: false,
       },
     });
     render(<DatevExportDialog {...baseProps} />);
@@ -80,7 +81,12 @@ describe("DatevExportDialog", () => {
     await waitFor(() => {
       const anchor = screen.getByTestId("datev-export-download-anchor") as HTMLAnchorElement;
       expect(anchor.getAttribute("href")).toBe("/api/export/datev/abc-123");
-      expect(anchor.getAttribute("download")).toBe("datev-export-20260501-20260506.csv");
+      // P7 — download attribute must include the tenant slug so the on-disk
+      // filename matches the server-side `Content-Disposition`. P10 transliterates
+      // umlauts: "Müller GmbH" → "mueller-gmbh".
+      expect(anchor.getAttribute("download")).toBe(
+        "datev-export-mueller-gmbh-20260501-20260506.csv",
+      );
     });
   });
 

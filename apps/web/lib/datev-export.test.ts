@@ -28,4 +28,35 @@ describe("buildSteuerberaterMailto", () => {
     // Body contains the German date range with the en-dash.
     expect(decodeURIComponent(url.split("&body=")[1]!)).toContain("01.05.2026 – 06.05.2026");
   });
+
+  // P19 — month label reflects the actual range, not a single midpoint month.
+  it("single-month range — single month label", () => {
+    const url = buildSteuerberaterMailto({
+      dateFromIso: "2026-05-01",
+      dateToIso: "2026-05-31",
+      tenantCompanyName: "X",
+    });
+    const subject = decodeURIComponent(url.split("?subject=")[1]!.split("&")[0]!);
+    expect(subject).toBe("DATEV Export Mai 2026 X");
+  });
+
+  it("cross-month same-year range — both months separated by en-dash", () => {
+    const url = buildSteuerberaterMailto({
+      dateFromIso: "2026-04-25",
+      dateToIso: "2026-05-04",
+      tenantCompanyName: "X",
+    });
+    const subject = decodeURIComponent(url.split("?subject=")[1]!.split("&")[0]!);
+    expect(subject).toBe("DATEV Export April–Mai 2026 X");
+  });
+
+  it("cross-year range — fully-qualified labels on each side", () => {
+    const url = buildSteuerberaterMailto({
+      dateFromIso: "2026-12-15",
+      dateToIso: "2027-01-15",
+      tenantCompanyName: "X",
+    });
+    const subject = decodeURIComponent(url.split("?subject=")[1]!.split("&")[0]!);
+    expect(subject).toBe("DATEV Export Dezember 2026–Januar 2027 X");
+  });
 });

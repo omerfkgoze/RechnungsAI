@@ -8,7 +8,10 @@ vi.mock("@sentry/nextjs", () => ({
 const authGetUserMock = vi.fn();
 const userSingleMock = vi.fn();
 const tenantSingleMock = vi.fn();
-const datevSelectResultMock = vi.fn();
+// (a) freshness query — select.eq.eq.gt.maybeSingle
+const datevFreshSelectMock = vi.fn();
+// (b) staleness query — select.eq.eq.maybeSingle (used only when fresh select returns null)
+const datevStaleSelectMock = vi.fn();
 const auditInsertMock = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -25,7 +28,12 @@ vi.mock("@/lib/supabase/server", () => ({
         return {
           select: () => ({
             eq: () => ({
-              eq: () => ({ maybeSingle: datevSelectResultMock }),
+              eq: () => ({
+                // freshness query (with .gt)
+                gt: () => ({ maybeSingle: datevFreshSelectMock }),
+                // staleness fallback (no .gt)
+                maybeSingle: datevStaleSelectMock,
+              }),
             }),
           }),
         };
@@ -59,9 +67,9 @@ describe("GET /api/export/datev/[exportId]", () => {
     });
   });
 
-  it("(a) valid request — 200 text/csv with attachment Content-Disposition and stored CSV body", async () => {
+  it("(a) valid request — 200 text/csv with transliterated tenant slug + cache headers", async () => {
     const csv = "﻿EXTF;700;...";
-    datevSelectResultMock.mockResolvedValueOnce({
+    datevFreshSelectMock.mockResolvedValueOnce({
       data: {
         id: VALID_UUID,
         tenant_id: TENANT_ID,
@@ -76,7 +84,13 @@ describe("GET /api/export/datev/[exportId]", () => {
     const res = await GET(new Request(`https://x/api/export/datev/${VALID_UUID}`), makeCtx(VALID_UUID));
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("text/csv; charset=utf-8");
-    expect(res.headers.get("Content-Disposition")).toContain('filename="datev-export-m-ller-gmbh-20260501-20260506.csv"');
+    // P10 — "Müller GmbH" → "mueller-gmbh" (umlaut transliteration, not strip).
+    expect(res.headers.get("Content-Disposition")).toContain(
+      'filename="datev-export-mueller-gmbh-20260501-20260506.csv"',
+    );
+    // P8 — never cache the financial CSV.
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("Content-Length")).toBe(String(new TextEncoder().encode(csv).byteLength));
     const body = new TextDecoder("utf-8", { ignoreBOM: true }).decode(
       new Uint8Array(await res.arrayBuffer()),
     );
@@ -98,23 +112,16 @@ describe("GET /api/export/datev/[exportId]", () => {
   });
 
   it("(d) export from another tenant (not found via RLS+filter) — 404", async () => {
-    datevSelectResultMock.mockResolvedValueOnce({ data: null, error: null });
+    // freshness query empty AND staleness fallback empty → 404
+    datevFreshSelectMock.mockResolvedValueOnce({ data: null, error: null });
+    datevStaleSelectMock.mockResolvedValueOnce({ data: null, error: null });
     const res = await GET(new Request(`https://x/api/export/datev/${VALID_UUID}`), makeCtx(VALID_UUID));
     expect(res.status).toBe(404);
   });
 
-  it("(e) expired — 410 with German message", async () => {
-    datevSelectResultMock.mockResolvedValueOnce({
-      data: {
-        id: VALID_UUID,
-        tenant_id: TENANT_ID,
-        csv: "x",
-        date_from: "20260501",
-        date_to: "20260506",
-        expires_at: new Date(Date.now() - 60_000).toISOString(),
-      },
-      error: null,
-    });
+  it("(e) expired — fresh query empty, stale fallback returns row → 410 with German message", async () => {
+    datevFreshSelectMock.mockResolvedValueOnce({ data: null, error: null });
+    datevStaleSelectMock.mockResolvedValueOnce({ data: { id: VALID_UUID }, error: null });
     const res = await GET(new Request(`https://x/api/export/datev/${VALID_UUID}`), makeCtx(VALID_UUID));
     expect(res.status).toBe(410);
     const json = (await res.json()) as { error: string };
@@ -122,7 +129,7 @@ describe("GET /api/export/datev/[exportId]", () => {
   });
 
   it("(f) Supabase select error — 500 + Sentry capture", async () => {
-    datevSelectResultMock.mockResolvedValueOnce({
+    datevFreshSelectMock.mockResolvedValueOnce({
       data: null,
       error: { code: "XX000", message: "boom" },
     });

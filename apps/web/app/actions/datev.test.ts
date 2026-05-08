@@ -22,9 +22,7 @@ const authGetUserMock = vi.fn();
 const userSingleMock = vi.fn();
 const tenantSingleMock = vi.fn();
 const invoiceQueryResultMock = vi.fn();
-const invoiceUpdateResultMock = vi.fn();
-const datevInsertResultMock = vi.fn();
-const auditInsertMock = vi.fn();
+const rpcMock = vi.fn();
 
 function makeChain(terminal: () => Promise<unknown>): Record<string, unknown> {
   const chain: Record<string, unknown> = {};
@@ -43,6 +41,7 @@ function makeChain(terminal: () => Promise<unknown>): Record<string, unknown> {
 vi.mock("@/lib/supabase/server", () => ({
   createServerClient: vi.fn(async () => ({
     auth: { getUser: authGetUserMock },
+    rpc: (name: string, args: unknown) => rpcMock(name, args),
     from: (table: string) => {
       if (table === "users") {
         return {
@@ -57,23 +56,7 @@ vi.mock("@/lib/supabase/server", () => ({
       if (table === "invoices") {
         return {
           select: () => makeChain(invoiceQueryResultMock),
-          update: () => {
-            const chain = makeChain(invoiceUpdateResultMock);
-            (chain as { select: (...a: unknown[]) => unknown }).select = () =>
-              invoiceUpdateResultMock();
-            return chain;
-          },
         };
-      }
-      if (table === "datev_exports") {
-        return {
-          insert: () => ({
-            select: () => ({ single: datevInsertResultMock }),
-          }),
-        };
-      }
-      if (table === "audit_logs") {
-        return { insert: (values: unknown) => auditInsertMock(values) };
       }
       return {};
     },
@@ -123,18 +106,16 @@ describe("prepareDatevExport", () => {
     authGetUserMock.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null });
     userSingleMock.mockResolvedValue({ data: { tenant_id: TENANT_ID }, error: null });
     tenantSingleMock.mockResolvedValue({ data: { ...baseTenant }, error: null });
-    auditInsertMock.mockResolvedValue({ error: null });
     buildExtfMock.mockReturnValue({ ...buildOk });
-    datevInsertResultMock.mockResolvedValue({ data: { id: EXPORT_ID }, error: null });
-  });
-
-  it("(a) happy path — returns rowCount, calls audit once with export_datev metadata", async () => {
-    const rows = [row("a"), row("b"), row("c")];
-    invoiceQueryResultMock.mockResolvedValueOnce({ data: rows, error: null });
-    invoiceUpdateResultMock.mockResolvedValueOnce({
-      data: rows.map((r) => ({ id: r.id })),
+    rpcMock.mockResolvedValue({
+      data: [{ export_id: EXPORT_ID, transitioned_count: 3 }],
       error: null,
     });
+  });
+
+  it("(a) happy path — calls commit_datev_export RPC with full metadata, returns rowCount", async () => {
+    const rows = [row("a"), row("b"), row("c")];
+    invoiceQueryResultMock.mockResolvedValueOnce({ data: rows, error: null });
 
     const result = await prepareDatevExport({ dateFrom: "2026-05-01", dateTo: "2026-05-06" });
 
@@ -147,18 +128,23 @@ describe("prepareDatevExport", () => {
         skippedCount: 0,
         dateFrom: "20260501",
         dateTo: "20260506",
+        truncated: false,
       },
     });
-    expect(auditInsertMock).toHaveBeenCalledOnce();
-    const auditArg = auditInsertMock.mock.calls[0]![0] as Record<string, unknown>;
-    expect(auditArg.event_type).toBe("export_datev");
-    expect((auditArg.metadata as Record<string, unknown>).format).toBe("extf-v700");
-    expect((auditArg.metadata as Record<string, unknown>).row_count).toBe(3);
-    expect((auditArg.metadata as Record<string, unknown>).invoice_ids).toEqual(["a", "b", "c"]);
-    expect((auditArg.metadata as Record<string, unknown>).date_from).toBe("20260501");
+    expect(rpcMock).toHaveBeenCalledOnce();
+    const [rpcName, rpcArgs] = rpcMock.mock.calls[0]!;
+    expect(rpcName).toBe("commit_datev_export");
+    expect(rpcArgs).toMatchObject({
+      p_csv: buildOk.csv,
+      p_row_count: 3,
+      p_skipped_count: 0,
+      p_date_from: "20260501",
+      p_date_to: "20260506",
+      p_invoice_ids: ["a", "b", "c"],
+    });
   });
 
-  it("(b) missing settings — returns missingSettings branch, no invoice query, no audit", async () => {
+  it("(b) missing settings — returns missingSettings branch, no invoice query, no RPC", async () => {
     tenantSingleMock.mockResolvedValueOnce({
       data: { ...baseTenant, datev_berater_nr: null },
       error: null,
@@ -169,19 +155,17 @@ describe("prepareDatevExport", () => {
       data: { missingSettings: true, missingFields: ["datev_berater_nr"] },
     });
     expect(invoiceQueryResultMock).not.toHaveBeenCalled();
-    expect(auditInsertMock).not.toHaveBeenCalled();
-    expect(datevInsertResultMock).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 
-  it("(c) zero rows — returns German error, no insert, no audit", async () => {
+  it("(c) zero rows — returns German error, no RPC", async () => {
     invoiceQueryResultMock.mockResolvedValueOnce({ data: [], error: null });
     const result = await prepareDatevExport({ dateFrom: "2026-05-01", dateTo: "2026-05-06" });
     expect(result).toEqual({
       success: false,
       error: "Im gewählten Zeitraum gibt es keine freigegebenen Rechnungen für den Export.",
     });
-    expect(datevInsertResultMock).not.toHaveBeenCalled();
-    expect(auditInsertMock).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 
   it("(d) dateFrom > dateTo — Zod cross-field error in German", async () => {
@@ -199,33 +183,30 @@ describe("prepareDatevExport", () => {
     ).rejects.toThrow(/NEXT_REDIRECT/);
   });
 
-  it("(f) concurrent skip — only 3 of 5 transitioned, audit logs 3 actually-transitioned ids, console.warn invoked", async () => {
+  it("(f) concurrent_skip — RPC raises P0001, action returns user-facing German error", async () => {
     const rows = [row("a"), row("b"), row("c"), row("d"), row("e")];
     invoiceQueryResultMock.mockResolvedValueOnce({ data: rows, error: null });
     buildExtfMock.mockReturnValueOnce({ ...buildOk, rowCount: 5 });
-    invoiceUpdateResultMock.mockResolvedValueOnce({
-      data: [{ id: "a" }, { id: "b" }, { id: "c" }],
-      error: null,
+    rpcMock.mockResolvedValueOnce({
+      data: null,
+      error: { code: "P0001", message: "concurrent_skip" },
     });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const result = await prepareDatevExport({ dateFrom: "2026-05-01", dateTo: "2026-05-06" });
 
-    expect(result.success).toBe(true);
-    if (result.success && !result.data.missingSettings) {
-      expect(result.data.rowCount).toBe(3);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("anderen Export");
     }
     expect(warnSpy).toHaveBeenCalled();
-    const auditArg = auditInsertMock.mock.calls[0]![0] as Record<string, unknown>;
-    expect((auditArg.metadata as Record<string, unknown>).invoice_ids).toEqual(["a", "b", "c"]);
-    expect((auditArg.metadata as Record<string, unknown>).row_count).toBe(3);
     warnSpy.mockRestore();
   });
 
-  it("(g) datev_exports insert fails — generic German error + Sentry tag module:datev", async () => {
+  it("(g) RPC fails with non-concurrent error — generic German error + Sentry tag module:datev", async () => {
     invoiceQueryResultMock.mockResolvedValueOnce({ data: [row("a")], error: null });
     buildExtfMock.mockReturnValueOnce({ ...buildOk, rowCount: 1 });
-    datevInsertResultMock.mockResolvedValueOnce({
+    rpcMock.mockResolvedValueOnce({
       data: null,
       error: { code: "XX000", message: "boom" },
     });
@@ -250,11 +231,35 @@ describe("prepareDatevExport", () => {
     });
     invoiceQueryResultMock.mockResolvedValueOnce({ data: [row("a")], error: null });
     buildExtfMock.mockReturnValueOnce({ ...buildOk, rowCount: 1 });
-    invoiceUpdateResultMock.mockResolvedValueOnce({ data: [{ id: "a" }], error: null });
+    rpcMock.mockResolvedValueOnce({
+      data: [{ export_id: EXPORT_ID, transitioned_count: 1 }],
+      error: null,
+    });
 
     await prepareDatevExport({ dateFrom: "2026-05-01", dateTo: "2026-05-06" });
     expect(buildExtfMock).toHaveBeenCalledOnce();
     const tenantArg = buildExtfMock.mock.calls[0]![0] as { skrPlan: string };
     expect(tenantArg.skrPlan).toBe("SKR04");
+  });
+
+  it("(i) truncation flag — when ROW_CAP+1 rows returned, truncated=true and only first ROW_CAP get exported", async () => {
+    const ROW_CAP = 500;
+    const rows = Array.from({ length: ROW_CAP + 1 }, (_, i) => row(`id-${i}`));
+    invoiceQueryResultMock.mockResolvedValueOnce({ data: rows, error: null });
+    buildExtfMock.mockReturnValueOnce({ ...buildOk, rowCount: ROW_CAP });
+    rpcMock.mockResolvedValueOnce({
+      data: [{ export_id: EXPORT_ID, transitioned_count: ROW_CAP }],
+      error: null,
+    });
+
+    const result = await prepareDatevExport({ dateFrom: "2026-05-01", dateTo: "2026-05-06" });
+
+    expect(result.success).toBe(true);
+    if (result.success && !result.data.missingSettings) {
+      expect(result.data.truncated).toBe(true);
+      expect(result.data.rowCount).toBe(ROW_CAP);
+    }
+    const [, rpcArgs] = rpcMock.mock.calls[0]! as [string, { p_invoice_ids: string[] }];
+    expect(rpcArgs.p_invoice_ids).toHaveLength(ROW_CAP);
   });
 });

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { applyGermanDateMask, isoToGermanDateInput, parseGermanDate } from "@/lib/format";
 import { buildSteuerberaterMailto } from "@/lib/datev-export";
+import { toTenantSlug } from "@/app/api/_helpers/filename";
 import { prepareDatevExport } from "@/app/actions/datev";
 
 const PROGRESS_STEPS = [
@@ -32,6 +33,7 @@ type DialogState =
       exportId: string;
       rowCount: number;
       skippedCount: number;
+      truncated: boolean;
       dateFromIso: string;
       dateToIso: string;
       dateFromCompact: string;
@@ -69,7 +71,13 @@ export function DatevExportDialog({
   tenantMandantenNr,
   tenantCompanyName,
 }: Props) {
-  const today = React.useMemo(() => new Date(), []);
+  // P12 — recompute "today" each time the dialog opens so the prefill stays
+  // correct after midnight / month boundary while the dashboard tab stayed up.
+  const [todayKey, setTodayKey] = React.useState(0);
+  const today = React.useMemo(() => {
+    void todayKey;
+    return new Date();
+  }, [todayKey]);
   const initialFromIso = React.useMemo(() => firstOfMonthIso(today), [today]);
   const initialToIso = React.useMemo(() => todayIso(today), [today]);
 
@@ -78,17 +86,29 @@ export function DatevExportDialog({
   const [state, setState] = React.useState<DialogState>({ type: "idle" });
   const [isPending, startTransition] = React.useTransition();
   const didSucceedRef = React.useRef(false);
+  const mountedRef = React.useRef(true);
   const anchorRef = React.useRef<HTMLAnchorElement | null>(null);
 
-  // Reset on close
+  React.useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Reset on close + recompute today when reopening.
   React.useEffect(() => {
     if (!open) {
       setState({ type: "idle" });
       setFromInput(isoToGermanDateInput(initialFromIso));
       setToInput(isoToGermanDateInput(initialToIso));
       didSucceedRef.current = false;
+    } else {
+      setTodayKey((k) => k + 1);
     }
-  }, [open, initialFromIso, initialToIso]);
+    // intentionally exclude initial*Iso so reopen recomputes via setTodayKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const fromIso = parseGermanDate(fromInput);
   const toIso = parseGermanDate(toInput);
@@ -101,43 +121,64 @@ export function DatevExportDialog({
     setToInput((prev) => applyGermanDateMask(e.target.value, prev));
   }
 
+  // P18 — block close while the action is in flight so the user cannot lose
+  // the resulting `exportId` to a mid-flight Esc / outside-click. Success
+  // state stays freely closable because the dashboard "Letzter Export" card
+  // (P17) recovers the download link.
+  function handleOpenChange(next: boolean) {
+    if (!next && isPending) return;
+    onOpenChange(next, didSucceedRef.current);
+  }
+
   function runExport() {
     if (!datesValid) return;
     setState({ type: "pending", step: 0 });
-    const t1 = setTimeout(() => {
-      setState((s) => (s.type === "pending" ? { type: "pending", step: 1 } : s));
-    }, 200);
-    const t2 = setTimeout(() => {
-      setState((s) => (s.type === "pending" ? { type: "pending", step: 2 } : s));
-    }, 400);
+    let t1: ReturnType<typeof setTimeout> | null = null;
+    let t2: ReturnType<typeof setTimeout> | null = null;
     const startMs = Date.now();
     startTransition(async () => {
-      const result = await prepareDatevExport({ dateFrom: fromIso!, dateTo: toIso! });
-      clearTimeout(t1);
-      clearTimeout(t2);
-      const elapsed = Date.now() - startMs;
-      if (elapsed > 8000) {
-        console.warn("[datev:export] slow", { ms: elapsed });
+      // P3 — wrap timer setup + the await in try/finally so a thrown
+      // NEXT_REDIRECT (or any other rejection) still clears the timers
+      // instead of leaving the UI stuck on "Wird formatiert...".
+      t1 = setTimeout(() => {
+        if (!mountedRef.current) return;
+        setState((s) => (s.type === "pending" ? { type: "pending", step: 1 } : s));
+      }, 200);
+      t2 = setTimeout(() => {
+        if (!mountedRef.current) return;
+        setState((s) => (s.type === "pending" ? { type: "pending", step: 2 } : s));
+      }, 400);
+      try {
+        const result = await prepareDatevExport({ dateFrom: fromIso!, dateTo: toIso! });
+        const elapsed = Date.now() - startMs;
+        if (elapsed > 8000) {
+          console.warn("[datev:export] slow", { ms: elapsed });
+        }
+        if (!mountedRef.current) return;
+        if (!result.success) {
+          setState({ type: "error", message: result.error });
+          return;
+        }
+        if (result.data.missingSettings) {
+          setState({ type: "missing-settings", missingFields: result.data.missingFields });
+          return;
+        }
+        didSucceedRef.current = true;
+        setState({
+          type: "success",
+          exportId: result.data.exportId,
+          rowCount: result.data.rowCount,
+          skippedCount: result.data.skippedCount,
+          truncated: result.data.truncated,
+          dateFromIso: fromIso!,
+          dateToIso: toIso!,
+          dateFromCompact: result.data.dateFrom,
+          dateToCompact: result.data.dateTo,
+        });
+      } finally {
+        if (t1) clearTimeout(t1);
+        if (t2) clearTimeout(t2);
       }
-      if (!result.success) {
-        setState({ type: "error", message: result.error });
-        return;
-      }
-      if (result.data.missingSettings) {
-        setState({ type: "missing-settings", missingFields: result.data.missingFields });
-        return;
-      }
-      didSucceedRef.current = true;
-      setState({
-        type: "success",
-        exportId: result.data.exportId,
-        rowCount: result.data.rowCount,
-        skippedCount: result.data.skippedCount,
-        dateFromIso: fromIso!,
-        dateToIso: toIso!,
-        dateFromCompact: result.data.dateFrom,
-        dateToCompact: result.data.dateTo,
-      });
     });
   }
 
@@ -150,6 +191,14 @@ export function DatevExportDialog({
     });
   }, [state, tenantCompanyName]);
 
+  // P7 — include tenant slug in the `download` attribute so the on-disk name
+  // matches the server-side `Content-Disposition` filename.
+  const downloadFilename = React.useMemo(() => {
+    if (state.type !== "success") return "";
+    const slug = toTenantSlug(tenantCompanyName) || "export";
+    return `datev-export-${slug}-${state.dateFromCompact}-${state.dateToCompact}.csv`;
+  }, [state, tenantCompanyName]);
+
   const subline =
     readyCount === 1
       ? "1 Rechnung bereit für den Export"
@@ -160,10 +209,7 @@ export function DatevExportDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => onOpenChange(next, didSucceedRef.current)}
-    >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>DATEV-Export</DialogTitle>
@@ -275,11 +321,22 @@ export function DatevExportDialog({
               </div>
             </div>
 
+            {state.truncated && (
+              <div
+                role="status"
+                className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-body-sm"
+              >
+                Es wurden 500 Rechnungen in diesem Export verarbeitet. Im gewählten
+                Zeitraum liegen weitere Rechnungen vor — bitte führe den Export erneut
+                aus, um die restlichen einzubeziehen.
+              </div>
+            )}
+
             <a
               ref={anchorRef}
               className="hidden"
               href={`/api/export/datev/${state.exportId}`}
-              download={`datev-export-${state.dateFromCompact}-${state.dateToCompact}.csv`}
+              download={downloadFilename}
               data-testid="datev-export-download-anchor"
               aria-hidden="true"
             >

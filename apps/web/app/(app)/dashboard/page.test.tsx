@@ -45,6 +45,9 @@ vi.mock("@/components/dashboard/export-action", () => ({
 vi.mock("@/components/dashboard/export-action-with-dialog", () => ({
   ExportActionWithDialog: () => null,
 }));
+vi.mock("@/components/dashboard/last-export-card", () => ({
+  LastExportCard: () => null,
+}));
 vi.mock("@/components/dashboard/weekly-value-summary", () => ({
   WeeklyValueSummary: () => null,
 }));
@@ -108,6 +111,24 @@ vi.mock("@/lib/supabase/server", () => ({
           select: () => ({
             eq: () => ({
               maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === "datev_exports") {
+        return {
+          select: () => ({
+            eq: () => ({
+              gt: () => ({
+                order: () => ({
+                  limit: () => ({
+                    maybeSingle: vi
+                      .fn()
+                      .mockResolvedValue({ data: null, error: null }),
+                  }),
+                }),
+              }),
             }),
           }),
         };

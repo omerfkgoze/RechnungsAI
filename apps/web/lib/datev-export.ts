@@ -28,6 +28,28 @@ export function formatDateRangeGerman(dateFromIso: string, dateToIso: string): s
   return `${isoToGermanDay(dateFromIso)} – ${isoToGermanDay(dateToIso)}`;
 }
 
+// P19 — when the date range spans more than one calendar month, the subject
+// reflects both ends ("April–Mai 2026"). When it spans more than one year, we
+// fall back to fully-qualified labels on each side ("Dezember 2026–Januar 2027").
+function monthLabelForRange(dateFromIso: string, dateToIso: string): string {
+  const [fromYearStr, fromMonthStr] = dateFromIso.split("-");
+  const [toYearStr, toMonthStr] = dateToIso.split("-");
+  const fromYear = Number(fromYearStr);
+  const toYear = Number(toYearStr);
+  const fromMonth = Number(fromMonthStr) - 1;
+  const toMonth = Number(toMonthStr) - 1;
+  const fromName = MONTHS_DE[fromMonth];
+  const toName = MONTHS_DE[toMonth];
+
+  if (fromYear === toYear && fromMonth === toMonth) {
+    return `${fromName} ${fromYear}`;
+  }
+  if (fromYear === toYear) {
+    return `${fromName}–${toName} ${fromYear}`;
+  }
+  return `${fromName} ${fromYear}–${toName} ${toYear}`;
+}
+
 export function buildSteuerberaterMailto(args: {
   dateFromIso: string;
   dateToIso: string;
@@ -35,11 +57,7 @@ export function buildSteuerberaterMailto(args: {
 }): string {
   const { dateFromIso, dateToIso, tenantCompanyName } = args;
 
-  // Use the midpoint of the date range to label the export's dominant month.
-  const fromMs = Date.parse(`${dateFromIso}T00:00:00Z`);
-  const toMs = Date.parse(`${dateToIso}T00:00:00Z`);
-  const midDate = new Date(Math.floor((fromMs + toMs) / 2));
-  const monthLabel = `${MONTHS_DE[midDate.getUTCMonth()]} ${midDate.getUTCFullYear()}`;
+  const monthLabel = monthLabelForRange(dateFromIso, dateToIso);
 
   const subject = `DATEV Export ${monthLabel} ${tenantCompanyName}`;
   const body =

@@ -11,7 +11,6 @@ import {
 } from "@rechnungsai/datev";
 import { createServerClient } from "@/lib/supabase/server";
 import { firstZodError } from "@/lib/zod-error";
-import { logAuditEvent } from "@/app/actions/invoices/shared";
 
 const LOG = "[datev:export]";
 const ROW_CAP = 500;
@@ -46,6 +45,7 @@ type PrepareDatevExportData =
       skippedCount: number;
       dateFrom: string;
       dateTo: string;
+      truncated: boolean;
     };
 
 export async function prepareDatevExport(
@@ -104,7 +104,9 @@ export async function prepareDatevExport(
       };
     }
 
-    const { data: invoiceRows, error: invoiceErr } = await supabase
+    // P5 — fetch one extra to detect truncation: if we get back ROW_CAP+1, we
+    // know more invoices remain and should warn the user.
+    const { data: invoiceRowsAll, error: invoiceErr } = await supabase
       .from("invoices")
       .select(
         "id, gross_total_value, invoice_date_value, invoice_number_value, supplier_name_value, skr_code, bu_schluessel",
@@ -115,7 +117,7 @@ export async function prepareDatevExport(
       .lte("invoice_date_value", dateTo)
       .order("invoice_date_value", { ascending: true })
       .order("id", { ascending: true })
-      .limit(ROW_CAP);
+      .limit(ROW_CAP + 1);
 
     if (invoiceErr) {
       console.error(LOG, "invoice-fetch-failed", invoiceErr);
@@ -126,7 +128,10 @@ export async function prepareDatevExport(
       return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
     }
 
-    if (!invoiceRows || invoiceRows.length === 0) {
+    const truncated = (invoiceRowsAll?.length ?? 0) > ROW_CAP;
+    const invoiceRows = (invoiceRowsAll ?? []).slice(0, ROW_CAP);
+
+    if (invoiceRows.length === 0) {
       return {
         success: false,
         error: "Im gewählten Zeitraum gibt es keine freigegebenen Rechnungen für den Export.",
@@ -168,92 +173,75 @@ export async function prepareDatevExport(
     const built = buildExtfV700(tenantConfig, bookingRows);
     const buildMs = Date.now() - t0;
 
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const { data: insertRow, error: insertErr } = await supabase
-      .from("datev_exports")
-      .insert({
-        tenant_id: tenantId,
-        created_by: user.id,
-        csv: built.csv,
-        row_count: built.rowCount,
-        skipped_count: built.skippedCount + preSkipped,
-        date_from: built.dateFrom,
-        date_to: built.dateTo,
-        expires_at: expiresAt,
-      })
-      .select("id")
-      .single();
+    const totalSkipped = built.skippedCount + preSkipped;
+    const includedIds = usableRows.map((r) => r.id);
 
-    if (insertErr || !insertRow) {
-      console.error(LOG, "insert-failed", insertErr);
-      Sentry.captureException(insertErr ?? new Error("datev_exports insert failed"), {
+    // P1 + P2 — atomic insert + status flip + audit. If any included invoice
+    // failed to flip ready→exported (concurrent flow already exported it),
+    // the RPC raises P0001/concurrent_skip and the whole transaction rolls
+    // back, so no orphan CSV row and no half-written audit trail.
+    const { data: rpcRows, error: rpcErr } = await supabase.rpc(
+      "commit_datev_export",
+      {
+        p_csv: built.csv,
+        p_row_count: built.rowCount,
+        p_skipped_count: totalSkipped,
+        p_date_from: built.dateFrom,
+        p_date_to: built.dateTo,
+        p_invoice_ids: includedIds,
+      },
+    );
+
+    if (rpcErr) {
+      const code = (rpcErr as { code?: string }).code;
+      const message = (rpcErr as { message?: string }).message ?? "";
+      if (code === "P0001" && message.includes("concurrent_skip")) {
+        console.warn(LOG, "concurrent-skip", { rpcErr });
+        return {
+          success: false,
+          error:
+            "Diese Rechnungen werden gerade von einem anderen Export verarbeitet. Bitte versuche es erneut.",
+        };
+      }
+      console.error(LOG, "commit-failed", rpcErr);
+      Sentry.captureException(rpcErr, {
         tags: { module: "datev", action: "prepare_export" },
         extra: { dateFrom, dateTo },
       });
       return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
     }
 
-    const includedIds = usableRows.map((r) => r.id);
-    const { data: transitionedRows, error: updateErr } = await supabase
-      .from("invoices")
-      .update({ status: "exported" })
-      .eq("tenant_id", tenantId)
-      .in("id", includedIds)
-      .eq("status", "ready")
-      .select("id");
-
-    if (updateErr) {
-      console.error(LOG, "status-update-failed", updateErr);
-      Sentry.captureException(updateErr, {
+    const rpcResult = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+    if (!rpcResult || !rpcResult.export_id) {
+      console.error(LOG, "commit-empty-result", rpcRows);
+      Sentry.captureException(new Error("commit_datev_export returned no rows"), {
         tags: { module: "datev", action: "prepare_export" },
-        extra: { dateFrom, dateTo, exportId: insertRow.id },
+        extra: { dateFrom, dateTo },
       });
       return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
     }
-
-    const transitionedIds = (transitionedRows ?? []).map((r) => r.id);
-    if (transitionedIds.length !== built.rowCount) {
-      console.warn(LOG, "concurrent-skip", {
-        expected: built.rowCount,
-        actual: transitionedIds.length,
-      });
-    }
-
-    await logAuditEvent(supabase, {
-      tenantId,
-      invoiceId: null,
-      actorUserId: user.id,
-      eventType: "export_datev",
-      metadata: {
-        export_id: insertRow.id,
-        row_count: transitionedIds.length,
-        skipped_count: built.skippedCount + preSkipped,
-        date_from: built.dateFrom,
-        date_to: built.dateTo,
-        format: "extf-v700",
-        invoice_ids: transitionedIds,
-      },
-    });
 
     if (buildMs > 8000) {
       console.warn(LOG, "slow", { ms: buildMs });
     }
 
     console.info(LOG, "done", {
-      exportId: insertRow.id,
-      rowCount: transitionedIds.length,
-      skippedCount: built.skippedCount + preSkipped,
+      exportId: rpcResult.export_id,
+      rowCount: rpcResult.transitioned_count,
+      skippedCount: totalSkipped,
+      truncated,
     });
 
     return {
       success: true,
       data: {
         missingSettings: false,
-        exportId: insertRow.id,
-        rowCount: transitionedIds.length,
-        skippedCount: built.skippedCount + preSkipped,
+        exportId: rpcResult.export_id,
+        rowCount: rpcResult.transitioned_count,
+        skippedCount: totalSkipped,
         dateFrom: built.dateFrom,
         dateTo: built.dateTo,
+        truncated,
       },
     };
   } catch (err) {

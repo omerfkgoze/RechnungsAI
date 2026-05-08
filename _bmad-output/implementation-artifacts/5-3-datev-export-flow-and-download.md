@@ -1,6 +1,6 @@
 # Story 5.3: DATEV Export Flow and Download
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -377,14 +377,14 @@ $ select count(*) from public.datev_exports where expires_at < now();
 
 | # | Action | Expected Output | Pass Criterion | Status |
 |---|--------|----------------|----------------|--------|
-| (a) | Open `/dashboard` with at least 1 `ready` invoice. Tap **DATEV Export** in the export action card. | A modal opens, heading `"DATEV-Export"`, sub-line `"N Rechnung(en) bereit für den Export"`, Von/Bis inputs prefilled with first-of-month / today in `TT.MM.JJJJ` format, Format `"DATEV EXTF"`, Berater-Nr / Mandanten-Nr show the tenant's settings. | Pass if the dialog renders with the prefilled date range, the readyCount-aware sub-line, and both the "Export erstellen" + "Abbrechen" buttons. | DONE |
-| (b) | In the open dialog, tap into the Von field and type `01052026`. | Field shows `01.05.2026` (active-mask auto-inserts dots between segments). | Pass if the masked value `01.05.2026` appears character-by-character without using the OS native date picker. | DONE |
-| (c) | With both dates valid and `ready` invoices in range, tap **Export erstellen**. | The form area is replaced by an `aria-live` text cycling through `Wird validiert...` → `Wird formatiert...` → `Wird zusammengestellt...`, then a green check icon, the heading `"Export bereit"` and the summary `"N von N Rechnung(en) exportiert"`, with **Herunterladen** + **Per E-Mail an Steuerberater senden** buttons. | Pass if the success state renders within ~1s on a small dataset and the download button is enabled. | DONE |
-| (d) | Tap **Herunterladen**. | Browser downloads `datev-export-<tenant-slug>-YYYYMMDD-YYYYMMDD.csv`. | Pass if the file lands in the Downloads folder with non-empty bytes. | DONE |
-| (e) | Tap **Per E-Mail an Steuerberater senden**. | OS mail client opens with subject `DATEV Export <Month YYYY> <Tenant>` and the German body referencing the date range. No file is attached (mailto cannot attach). | Pass if the mail client opens with the encoded subject + body and the user can manually attach the just-downloaded CSV. | DONE |
-| (f) | Close the dialog after a successful export. | Dashboard re-renders; the **Bereit** count drops by N and the **Exportiert** count increments by N. | Pass if `router.refresh()` brought back updated counts (visible in `<ExportAction>` and the pipeline header). | DONE |
-| (g) | With `datev_berater_nr = NULL`, open the dialog and tap **Export erstellen**. | The progress UI is replaced by `"Für den DATEV-Export werden noch deine Berater- und Mandantennummer benötigt."` with a **Zu den Einstellungen** button linking to `/einstellungen#datev`. | Pass if the missing-settings branch renders and the link scrolls the settings page to the DATEV section. | DONE |
-| (h) | With 0 ready invoices in the date range, tap **Export erstellen**. | A red `role="alert"` paragraph reads `"Im gewählten Zeitraum gibt es keine freigegebenen Rechnungen für den Export."` and the primary button reverts to **Export erstellen** for retry. | Pass if the error path is non-toast, inline, and the button stays usable. | DONE |
+| (a) | Open `/dashboard` with at least 1 `ready` invoice. Tap **DATEV Export** in the export action card. | A modal opens, heading `"DATEV-Export"`, sub-line `"N Rechnung(en) bereit für den Export"`, Von/Bis inputs prefilled with first-of-month / today in `TT.MM.JJJJ` format, Format `"DATEV EXTF"`, Berater-Nr / Mandanten-Nr show the tenant's settings. | Pass if the dialog renders with the prefilled date range, the readyCount-aware sub-line, and both the "Export erstellen" + "Abbrechen" buttons. | BLOCKED-BY-ENVIRONMENT |
+| (b) | In the open dialog, tap into the Von field and type `01052026`. | Field shows `01.05.2026` (active-mask auto-inserts dots between segments). | Pass if the masked value `01.05.2026` appears character-by-character without using the OS native date picker. | BLOCKED-BY-ENVIRONMENT |
+| (c) | With both dates valid and `ready` invoices in range, tap **Export erstellen**. | The form area is replaced by an `aria-live` text cycling through `Wird validiert...` → `Wird formatiert...` → `Wird zusammengestellt...`, then a green check icon, the heading `"Export bereit"` and the summary `"N von N Rechnung(en) exportiert"`, with **Herunterladen** + **Per E-Mail an Steuerberater senden** buttons. | Pass if the success state renders within ~1s on a small dataset and the download button is enabled. | BLOCKED-BY-ENVIRONMENT |
+| (d) | Tap **Herunterladen**. | Browser downloads `datev-export-<tenant-slug>-YYYYMMDD-YYYYMMDD.csv`. | Pass if the file lands in the Downloads folder with non-empty bytes. | BLOCKED-BY-ENVIRONMENT |
+| (e) | Tap **Per E-Mail an Steuerberater senden**. | OS mail client opens with subject `DATEV Export <Month YYYY> <Tenant>` and the German body referencing the date range. No file is attached (mailto cannot attach). | Pass if the mail client opens with the encoded subject + body and the user can manually attach the just-downloaded CSV. | BLOCKED-BY-ENVIRONMENT |
+| (f) | Close the dialog after a successful export. | Dashboard re-renders; the **Bereit** count drops by N and the **Exportiert** count increments by N. | Pass if `router.refresh()` brought back updated counts (visible in `<ExportAction>` and the pipeline header). | BLOCKED-BY-ENVIRONMENT |
+| (g) | With `datev_berater_nr = NULL`, open the dialog and tap **Export erstellen**. | The progress UI is replaced by `"Für den DATEV-Export werden noch deine Berater- und Mandantennummer benötigt."` with a **Zu den Einstellungen** button linking to `/einstellungen#datev`. | Pass if the missing-settings branch renders and the link scrolls the settings page to the DATEV section. | BLOCKED-BY-ENVIRONMENT |
+| (h) | With 0 ready invoices in the date range, tap **Export erstellen**. | A red `role="alert"` paragraph reads `"Im gewählten Zeitraum gibt es keine freigegebenen Rechnungen für den Export."` and the primary button reverts to **Export erstellen** for retry. | Pass if the error path is non-toast, inline, and the button stays usable. | BLOCKED-BY-ENVIRONMENT |
 
 **Smoke Test — Tier 2 DB Verification** — *DONE for the table+policy state above; remainder BLOCKED until a real export runs against seeded data.*
 
@@ -392,17 +392,17 @@ $ select count(*) from public.datev_exports where expires_at < now();
 |---|-------|----------------|-------------------|--------|
 | (d1) | `\d public.datev_exports` | columns + indexes + RLS as listed above | Confirms AC #11 — table shape, FKs, check constraints, RLS index. | DONE |
 | (d2) | `select policyname, cmd from pg_policies where tablename='datev_exports';` | 2 rows: `datev_exports_tenant_select` SELECT, `datev_exports_tenant_insert` INSERT | Confirms AC #11 — both RLS policies present with correct command scope. | DONE |
-| (d3) | After running an export, `select id, row_count, skipped_count, expires_at - created_at as ttl from public.datev_exports order by created_at desc limit 1;` | 1 row, ttl ≈ `01:00:00` | Confirms AC #7 — row inserted with 1-hour TTL after preparation. | DONE |
-| (d4) | After an export of N invoices, `select count(*) from public.invoices where status='exported' and id = any($1);` | `count = N` | Confirms AC #8 — atomic ready→exported transition for the included batch. | DONE |
-| (d5) | After an export, `select event_type, metadata->>'format', metadata->>'export_id' from public.audit_logs where event_type='export_datev' order by created_at desc limit 1;` | 1 row, format `extf-v700`, export_id = the new uuid | Confirms AC #9 — single audit row with the prescribed metadata shape. | DONE |
-| (d6) | Re-download the same export within the TTL — `select count(*) from public.audit_logs where event_type='export_datev' and metadata->>'export_id' = '<id>';` | `count = 1` (NOT 2) | Confirms AC #16 — route handler does not duplicate audit rows on re-download. | DONE |
+| (d3) | After running an export, `select id, row_count, skipped_count, expires_at - created_at as ttl from public.datev_exports order by created_at desc limit 1;` | 1 row, ttl ≈ `01:00:00` | Confirms AC #7 — row inserted with 1-hour TTL after preparation. | BLOCKED-BY-ENVIRONMENT |
+| (d4) | After an export of N invoices, `select count(*) from public.invoices where status='exported' and id = any($1);` | `count = N` | Confirms AC #8 — atomic ready→exported transition for the included batch. | BLOCKED-BY-ENVIRONMENT |
+| (d5) | After an export, `select event_type, metadata->>'format', metadata->>'export_id' from public.audit_logs where event_type='export_datev' order by created_at desc limit 1;` | 1 row, format `extf-v700`, export_id = the new uuid | Confirms AC #9 — single audit row with the prescribed metadata shape. | BLOCKED-BY-ENVIRONMENT |
+| (d6) | Re-download the same export within the TTL — `select count(*) from public.audit_logs where event_type='export_datev' and metadata->>'export_id' = '<id>';` | `count = 1` (NOT 2) | Confirms AC #16 — route handler does not duplicate audit rows on re-download. | BLOCKED-BY-ENVIRONMENT |
 
 **Smoke Test — Tier 3 Filesystem (CSV byte-level)** — *BLOCKED-BY-ENVIRONMENT.*
 
 | # | Action | Expected Output | Pass Criterion | Status |
 |---|--------|----------------|----------------|--------|
-| (f1) | After downloading, run `hexdump -C ~/Downloads/datev-export-*.csv \| head -1` | `00000000  ef bb bf 22 45 58 54 46  22 3b ...` (BOM `EF BB BF` immediately followed by `"EXTF"`) | Confirms AC #30 — UTF-8 BOM is preserved end-to-end through the route handler's `TextEncoder.encode`. | DONE |
-| (f2) | `grep -c $'\r$' ~/Downloads/datev-export-*.csv` | One CRLF-terminated line per booking + 2 header rows | Confirms AC #30 — CRLF line endings (DATEV requirement) survive the round-trip. | DONE |
+| (f1) | After downloading, run `hexdump -C ~/Downloads/datev-export-*.csv \| head -1` | `00000000  ef bb bf 22 45 58 54 46  22 3b ...` (BOM `EF BB BF` immediately followed by `"EXTF"`) | Confirms AC #30 — UTF-8 BOM is preserved end-to-end through the route handler's `TextEncoder.encode`. | BLOCKED-BY-ENVIRONMENT |
+| (f2) | `grep -c $'\r$' ~/Downloads/datev-export-*.csv` | One CRLF-terminated line per booking + 2 header rows | Confirms AC #30 — CRLF line endings (DATEV requirement) survive the round-trip. | BLOCKED-BY-ENVIRONMENT |
 
 **Manual steps for GOZE (browser path):**
 1. `pnpm --filter @rechnungsai/datev build` (peer dep) — already done by the dev agent.
@@ -441,8 +441,78 @@ GOZE's concerns:
 
 ### Review Findings
 
-(none yet — pending code review)
+Triage from 3-layer adversarial code review (Blind Hunter + Edge Case Hunter + Acceptance Auditor) — 2026-05-08. 60+ raw findings consolidated to 26 actionable items (8 dismissed as noise/false positives).
+
+#### Decisions resolved (2026-05-08)
+
+- **D1 — exportId loss + no re-download surface** → option (e): combine dialog close-lock during pending + "Letzter Export" dashboard card + TTL 1h→24h. Promoted to patches **P16–P18**. Architecturally safe (route is read-only, RLS-scoped, invoices immutable), covers every accidental-close failure path, ~50 LOC + 1 migration default change.
+- **D2 — Mailto subject month label** → option (a): span both months when range crosses a boundary ("April–Mai 2026"). Promoted to patch **P19**.
+- **D3 — Timezone semantics** → option (a): defer with documentation. `invoice_date_value` is Postgres `date` (TZ-agnostic) so the server-side filter is already correct regardless of server TZ. Remaining risk (browser local time picking wrong "today" near midnight) only affects non-CET users — not the target German persona. Multi-tenant TZ support belongs to a future story. Logged in `deferred-work.md`.
+
+#### Patch (15)
+
+**Critical (block merge):**
+
+- [x] [Review][Patch] **P1 — Status-update race & ordering: insert before status-flip is non-atomic** [`apps/web/app/actions/datev.ts:799-862`] — Current order: insert `datev_exports` → update invoices `ready→exported` → log audit. Three concrete failure modes: (1) Two concurrent calls both fetch the same `ready` rows, both insert CSVs, only one wins the status flip — loser has a fully-populated CSV row downloadable for 1 hour with `transitionedIds=[]`, audit logs `row_count: 0` while CSV has rows, duplicate-booking risk in DATEV. (2) If the UPDATE fails, `datev_exports` row persists 1h, no audit, invoices remain `ready`, retry creates duplicate exports. (3) On `transitionedIds.length !== built.rowCount`, persisted CSV still contains all original rows but audit + response only count transitioned ones. Fix: wrap insert+update+audit in a single Postgres RPC/transaction; if `transitionedIds.length === 0`, delete the inserted row and surface a German "Bereits exportiert / gleichzeitiger Export läuft" error; rebuild `built.csv` from `transitionedIds` only (or skip insert until transition succeeds). Sources: blind#2/#3/#4, edge#1/#2/#12, auditor#8.
+
+- [x] [Review][Patch] **P2 — Audit log failure after status flip leaves GoBD compliance gap** [`apps/web/app/actions/datev.ts:849-863`] — If `logAuditEvent` throws, outer catch returns generic German error but invoices are already `exported` and `datev_exports` row exists with no audit trail. Fix: roll the audit insert into the same transaction as P1, OR write audit BEFORE state mutation, OR treat audit-write failure as fatal-recoverable (revert status flip, delete export row). Source: edge#3.
+
+**High:**
+
+- [x] [Review][Patch] **P3 — Dialog close mid-flight drops in-flight result + leaks setTimeouts** [`apps/web/components/export/datev-export-dialog.tsx:1454-1512`] — `useTransition` is not abortable; closing dialog while pending → server completes but post-await `setState({type:"success",...})` fires after the `useEffect` reset wipes state, so `exportId` is silently dropped. `clearTimeout(t1)/(t2)` are placed AFTER `await`; on throw (e.g. NEXT_REDIRECT), step-progress timers leak and stick the UI on "Wird formatiert...". Fix: block dialog close while `isPending` (return early in `onOpenChange` when pending); wrap timer setup in `try/finally`; add `mountedRef` guard on the post-await `setState`. Sources: blind#15, edge#8/#9.
+
+- [x] [Review][Patch] **P4 — Dashboard `tenants` query error swallowed** [`apps/web/app/(app)/dashboard/page.tsx:328-341`] — The added `tenantRes` runs in `Promise.all` but the error check only inspects `listRes`/`stageRes`/`statsRes`. If the tenants query errors (RLS edge, transient DB), `tenantInfo=null` falls through and the user sees "Configure DATEV settings first" prompt despite having configured them. Fix: include `tenantRes.error` in the error check or surface a banner. Sources: blind#16, edge#19.
+
+- [x] [Review][Patch] **P5 — ROW_CAP=500 silent truncation** [`apps/web/app/actions/datev.ts:734-745`] — When tenant has >500 `ready` invoices in the date range, the first 500 (ordered by `invoice_date_value, id`) are exported and the remainder silently stay `ready`. UI shows "500 von 500 exportiert" — user thinks they're done. Fix: detect `invoiceRows.length === ROW_CAP`, surface a German notice ("Es wurden 500 Rechnungen exportiert, weitere liegen vor — bitte führe den Export erneut aus"). Source: edge#6.
+
+- [x] [Review][Patch] **P6 — Smoke test rows mislabeled DONE despite BLOCKED-BY-ENVIRONMENT (anti-pattern violation)** [story spec, lines 380-405] — Spec Task 8 + Dev Notes anti-pattern #15 require BLOCKED-BY-ENVIRONMENT for browser/filesystem tiers when dev agent has no real browser. Header note says all blocked, but Status column reads `DONE` everywhere. Fix: relabel Tier 1 (UX), Tier 2 (DB), Tier 3 (filesystem) rows to `BLOCKED-BY-ENVIRONMENT` and route GOZE's manual smoke confirmations there. Source: auditor#22.
+
+- [x] [Review][Patch] **P7 — Download anchor filename omits tenant slug, mismatches server filename** [`apps/web/components/export/datev-export-dialog.tsx:1652`] — `download={\`datev-export-${dateFromCompact}-${dateToCompact}.csv\`}` lacks tenant slug while route serves `datev-export-<slug>-YYYYMMDD-YYYYMMDD.csv`. Browsers honor the `download` attribute, so the file lands on disk without the tenant slug — confusing for users with multiple tenants. Fix: include `tenantSlug` in the `download` attribute; pass it from server response or use `tenantCompanyName` prop with the same `toTenantSlug` helper. Source: auditor#1.
+
+**Medium:**
+
+- [x] [Review][Patch] **P8 — `Cache-Control: no-store` missing on CSV response** [`apps/web/app/api/export/datev/[exportId]/route.ts:1171-1178`] — Financial CSV returned without cache headers; browser disk cache or corporate proxies may persist past 1h TTL. Fix: add `Cache-Control: private, no-store` and `Pragma: no-cache`. Sources: blind#21, edge#10.
+
+- [x] [Review][Patch] **P9 — Route handler tenant lookup error swallowed; filename falls back to "export"** [`apps/web/app/api/export/datev/[exportId]/route.ts:1161-1166`] — Destructure ignores `error` from tenants query → `tenant?.company_name ?? "export"` produces filename `datev-export-export-YYYYMMDD-YYYYMMDD.csv` while serving the user's actual CSV. Fix: surface error (500 + Sentry) or use tenant-id-derived stable fallback slug. Source: edge#11.
+
+- [x] [Review][Patch] **P10 — Filename slug strips German characters destructively (Müller GmbH → m-ller-gmbh)** [`apps/web/app/api/_helpers/filename.ts:907-914`] — Test asserts the corruption verbatim at `filename.test.ts:1026`. Fix: NFD decompose + strip combining marks, plus explicit ä→ae, ö→oe, ü→ue, ß→ss before the `[^a-z0-9]` regex; also fall back to "export" when slug is empty (covers entirely-non-ASCII tenant names). Sources: blind#17, edge#18.
+
+- [x] [Review][Patch] **P11 — TTL boundary uses Node `Date.now()` instead of DB `now()`; clock-skew + write/read divergence** [`apps/web/app/actions/datev.ts:798`, `apps/web/app/api/export/datev/[exportId]/route.ts:1154`] — `expires_at` written as Node-computed ISO; route handler compares with Node `Date.now()` again. Fix: filter via SQL (`select ... where expires_at > now()`) and use `now() + interval '1 hour'` as default in the migration; remove the Node-side check. Sources: blind#7, edge#17.
+
+- [x] [Review][Patch] **P12 — Stale `today` across midnight/month boundary** [`apps/web/components/export/datev-export-dialog.tsx:1442-1444`] — `today = useMemo(() => new Date(), [])` is captured once on wrapper mount; opening the dialog after midnight on a fresh month uses yesterday's "today" / wrong "first of month". Fix: recompute `today` when `open` flips to `true`. Source: edge#7.
+
+**Low (small, cheap fixes):**
+
+- [x] [Review][Patch] **P13 — `created_by` FK has no `ON DELETE` rule, blocks user deletion** [`supabase/migrations/20260506000000_datev_exports.sql:1998`] — Default NO ACTION blocks `auth.users` delete (GDPR erasure, account closure) until export rows expire/are purged. Fix: `on delete set null` and drop the NOT NULL on `created_by`. Sources: blind#6, edge#15.
+
+- [x] [Review][Patch] **P14 — `expires_at` not indexed; future cleanup cron will full-scan** [`supabase/migrations/20260506000000_datev_exports.sql:2009-2010`] — SQL comment explicitly mentions "cleanup of expired rows is a future concern (Epic 8 may add a cron)". Fix: add `create index datev_exports_expires_at_idx on public.datev_exports(expires_at);` now. Source: blind#19.
+
+- [x] [Review][Patch] **P16 — Extend `datev_exports` TTL from 1 hour to 24 hours** [`supabase/migrations/20260506000000_datev_exports.sql:798` write-side and route GET filter] — Storage cost is trivial (CSVs are a few KB each), 24h gives users a sensible recovery window across timezones / EOD interruptions. Implementation: change `Date.now() + 60*60*1000` to `Date.now() + 24*60*60*1000` in [datev.ts:798](apps/web/app/actions/datev.ts) (or, paired with P11, switch to DB-side `now() + interval '24 hours'` and remove the Node-side write entirely). Update the migration table comment. Source: D1 resolution.
+
+- [x] [Review][Patch] **P17 — Dashboard "Letzter Export" recovery card** [new component + dashboard query] — Add a small dashboard card visible only when a non-expired `datev_exports` row exists for the tenant. Server-component query in `apps/web/app/(app)/dashboard/page.tsx`: `select id, date_from, date_to, row_count, created_at from datev_exports where tenant_id = ? and expires_at > now() order by created_at desc limit 1`. Card content: date range (German format, "DD.MM.–DD.MM.YYYY"), row count, relative timestamp ("vor 12 Min."), `<a href="/api/export/datev/{id}">Erneut herunterladen</a>` link, `<a href="mailto:...">An Steuerberater senden</a>` (reuse `buildSteuerberaterMailto`). Hide card when no row matches. New file: `apps/web/components/dashboard/last-export-card.tsx` (~40 LOC). Add a unit test mocking the query. Source: D1 resolution (option b).
+
+- [x] [Review][Patch] **P19 — Mailto subject spans both months when range crosses month boundary** [`apps/web/lib/datev-export.ts:1892-1895`] — Replace midpoint-month logic: compute month from `dateFrom` and `dateTo` separately. If same month → keep current label ("Mai 2026"). If different months same year → "April–Mai 2026". If different years → "April 2026–Januar 2027". Add unit tests for all three branches. Source: D2 resolution (option a).
+
+- [x] [Review][Patch] **P18 — Lock dialog close while `isPending`** [`apps/web/components/export/datev-export-dialog.tsx`] — In `onOpenChange`, return early when `isPending` is true so Esc / outside-click / X-button cannot close the dialog mid-flight. After the action settles (success or error), close becomes available again. Pairs with P3 (mountedRef + try/finally on timers) — together they eliminate the in-flight setState-on-unmount path. Add a test: open dialog, click Export erstellen, attempt to close while pending, assert dialog stays mounted. Source: D1 resolution (option a).
+
+- [x] [Review][Patch] **P15 — `bytes.buffer as ArrayBuffer` cast risks `Content-Length` mismatch** [`apps/web/app/api/export/datev/[exportId]/route.ts:1169-1177`] — `TextEncoder.encode` returns a `Uint8Array` view; current code passes `bytes.buffer` and sets `Content-Length: bytes.byteLength`. If a future refactor slices the buffer, response will include trailing bytes mismatched with `Content-Length`. Fix: pass `bytes` directly to `Response` constructor (it accepts `Uint8Array`). Sources: auditor#14, blind#22.
+
+#### Deferred (8) — pre-existing, scope, or future-work
+
+- [x] [Review][Defer] **W1 — RLS UPDATE/DELETE policies + datev_exports cleanup cron** — Already in `deferred-work.md` (Epic 8 cleanup cron entry). Adding UPDATE/DELETE deny policies + `force row level security` is hardening, not a current bug since service_role is the only writer post-insert. Source: blind#5, edge#16.
+- [x] [Review][Defer] **W2 — `csv` column has no size cap** — Practical bound is `ROW_CAP=500`; a defensive `check (length(csv) < N)` is hardening for future code paths. Source: blind#8.
+- [x] [Review][Defer] **W3 — Migration does not declare `pgcrypto` extension** — Supabase ships it enabled by default; a `create extension if not exists pgcrypto` is best-practice but not a current bug. Source: blind#18.
+- [x] [Review][Defer] **W4 — Defensive header-injection guard for `date_from`/`date_to`** — Current writers control format (`YYYYMMDD` from `buildExtfV700`); a `check (date_from ~ '^\d{8}$')` is hardening. Source: blind#1.
+- [x] [Review][Defer] **W5 — `redirect()` on users-table lookup failure may mask RLS bugs** [`apps/web/app/actions/datev.ts:702-705`] — Pattern is consistent across the project (mirrors `invoices/approval.ts`); changing it deserves a project-wide decision. Source: blind#10.
+- [x] [Review][Defer] **W6 — No upper-bound on date-range span** — User picks unrealistic ranges → ROW_CAP truncates (covered by P5 warning). Hardening only. Source: edge#14.
+- [x] [Review][Defer] **W7 — Test gaps** — Add CSV body assertions to action happy-path test, real-RLS integration test for route handler, `Content-Length` header assertion, `skippedCount > 0` UI text test, mailto "Mai 2026" subject assertion. Sources: auditor#11/#16/#17, blind#11/#12/#23.
+- [x] [Review][Defer] **W8 — Mailto subject leaks tenant name to OS recent items / clipboard** — Likely intentional (Steuerberater needs to know which client); document if privacy is a concern. Source: edge#20.
+
+#### Dismissed (8) — noise / false positive / handled
+
+Pluralization template deviation (functionally equivalent), settings deep-link button rendering (Link-as-Button is fine), tenant extra `company_name` query (acceptable), mailto `\n` encoding (correctly produces `%0A`), double `console.warn` instrumentation (intentional belt+suspenders), email empty-stub deferral (compliant with Task 9), `id="datev"` anchor on `<h3>` (deep-link works), `mailtoUrl` `useMemo` dependencies (cosmetic).
 
 ### Change Log
 
 - 2026-05-06 — Initial implementation of Story 5.3 (wire-up: dialog → action → route → migration). 25 new tests, 0 type errors, 16 lint warnings (Story 5.2 baseline preserved). Email send descoped to Epic 8; replaced with `mailto:` shim. Deferred-work log updated.
+- 2026-05-08 — Code review applied 19 patches (P1–P19) covering atomicity (RPC `commit_datev_export`), TTL extension to 24h, dialog close-lock, dashboard "Letzter Export" recovery card, ROW_CAP truncation warning, German char filename transliteration, cache headers, mailto month-spanning, and more. New migration `20260508000000_datev_exports_review_patches.sql`. New component `LastExportCard`. 332 tests passing (+8 new), 0 type errors, 16 lint warnings (preserved baseline). 2 decision-needed resolved (D1, D2 promoted to patches; D3 deferred to multi-tenant TZ work).

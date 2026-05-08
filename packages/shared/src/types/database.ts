@@ -136,7 +136,7 @@ export type Database = {
       datev_exports: {
         Row: {
           created_at: string
-          created_by: string
+          created_by: string | null
           csv: string
           date_from: string
           date_to: string
@@ -148,11 +148,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          created_by: string
+          created_by?: string | null
           csv: string
           date_from: string
           date_to: string
-          expires_at: string
+          expires_at?: string
           id?: string
           row_count: number
           skipped_count?: number
@@ -160,7 +160,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           csv?: string
           date_from?: string
           date_to?: string
@@ -424,6 +424,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      commit_datev_export: {
+        Args: {
+          p_csv: string
+          p_date_from: string
+          p_date_to: string
+          p_invoice_ids: string[]
+          p_row_count: number
+          p_skipped_count: number
+        }
+        Returns: {
+          export_id: string
+          transitioned_count: number
+        }[]
+      }
       complete_first_invoice_step: { Args: never; Returns: undefined }
       complete_onboarding: {
         Args: {
