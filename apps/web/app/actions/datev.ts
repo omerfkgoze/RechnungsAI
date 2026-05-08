@@ -22,7 +22,7 @@ const isoDate = z
     message: "Datum muss im Format JJJJ-MM-TT vorliegen.",
   });
 
-export const prepareDatevExportSchema = z
+const prepareDatevExportSchema = z
   .object({
     dateFrom: isoDate,
     dateTo: isoDate,
@@ -32,9 +32,9 @@ export const prepareDatevExportSchema = z
     path: ["dateFrom"],
   });
 
-export type PrepareDatevExportInput = z.infer<typeof prepareDatevExportSchema>;
+type PrepareDatevExportInput = z.infer<typeof prepareDatevExportSchema>;
 
-export type PrepareDatevExportData =
+type PrepareDatevExportData =
   | {
       missingSettings: true;
       missingFields: string[];

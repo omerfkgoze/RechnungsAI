@@ -253,7 +253,7 @@ export function DatevExportDialog({
               </p>
             </div>
             <DialogFooter>
-              <Button render={<Link href="/einstellungen#datev" />}>
+              <Button nativeButton={false} render={<Link href="/einstellungen#datev" />}>
                 Zu den Einstellungen
               </Button>
             </DialogFooter>
@@ -287,7 +287,7 @@ export function DatevExportDialog({
             </a>
 
             <DialogFooter>
-              <Button variant="outline" render={<a href={mailtoUrl} />}>
+              <Button nativeButton={false} variant="outline" render={<a href={mailtoUrl} />}>
                 Per E-Mail an Steuerberater senden
               </Button>
               <Button type="button" onClick={handleDownloadClick}>
