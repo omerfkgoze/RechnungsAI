@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-08 (story 5.3 done — code review patches applied)"
+last_updated: "2026-05-10 (Epic 5 retrospective → done)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -131,12 +131,27 @@ development_status:
   prep-p1-datev-format-spike: done             # EXTF Buchungsstapel v700 spec; versioned format architecture; UTF-8+BOM (no new deps); output: spike-p1-datev-format-2026-05-04.md
   prep-p2-datev-settings-scope: done           # All 4 DATEV fields already in DB/schema/UI; Story 5.1 adds datev_default_kreditorenkonto + tests; output: prep-p2-datev-settings-scope-2026-05-04.md
 
-  # Epic 5: DATEV Export
-  epic-5: in-progress
+  # Epic 5: DATEV Export — DONE ✓
+  epic-5: done
   5-1-datev-settings-configuration: done
   5-2-datev-buchungsstapel-csv-generation: done
   5-3-datev-export-flow-and-download: done
-  epic-5-retrospective: optional
+  epic-5-retrospective: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 6 PREPARATION SPRINT (must complete before Story 6.1)
+  # Source: epic-5-retro-2026-05-10.md — Action Items + Prep Tasks
+  # ─────────────────────────────────────────────────────────────
+
+  # 🔴 Critical (blocks Epic 6)
+  prep-p1-validation-architecture-spike: backlog       # packages/validation: UBL 2.1 (XRechnung) + CII D16B (ZUGFeRD) parser choice (fast-xml-parser), namespace strategy, rule encoding (declarative vs imperative), file layout, EN 16931 BR-series rule sample test strategy → spike-p1-validation-architecture-YYYY-MM-DD.md
+  prep-p2-zugferd-pdf-extraction-spike: backlog        # ZUGFeRD CII D16B XML extraction from PDF/A-3 attachments — pdf-lib vs pdf-parse vs hand-rolled; dependency cost analysis → spike-p2-zugferd-pdf-extraction-YYYY-MM-DD.md
+  prep-p3-email-decision: done                         # A5 resolution: mailto shim for 6.2, defer real send to Epic 8.3 → prep-p3-email-decision-2026-05-10.md
+  prep-p3-1-steuerberater-email-migration: backlog     # tenants.steuerberater_email column + Zod validator + settings form field; serves 6.2 mailto pre-fill AND 5.3 deferred "direct send" when 8.3 lands; can run in parallel with P1/P2
+  prep-p4-validation-wire-up-spike: backlog            # Story 6.1 choreography spike (A1 rule: ≥4 surfaces — new package + parsers + DB columns + UI): sync-at-upload vs async vs on-demand; error-shape contract parser→UI; validation_status/validation_errors persistence model → spike-p4-validation-wire-up-YYYY-MM-DD.md
+
+  # 🟡 Parallel (during Story 6.1 first sprint, not blocking)
+  prep-p5-audit-logs-event-type-validation: backlog    # audit_logs_event_type_chk: add `validation_failed` and `correction_email_sent` to allow-list (one tiny migration; can land alongside 6.1)
 
   # Epic 6: E-Invoice Validation
   epic-6: backlog
