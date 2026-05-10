@@ -7,6 +7,7 @@ const BASE_VALID = {
   tax_id: null,
   skr_plan: "SKR03" as const,
   steuerberater_name: null,
+  steuerberater_email: null,
   datev_berater_nr: null,
   datev_mandanten_nr: null,
   datev_sachkontenlaenge: 4,
@@ -155,5 +156,36 @@ describe("tenantSettingsSchema", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.datev_default_kreditorenkonto).toBeNull();
+  });
+
+  // (q) steuerberater_email = "Kanzlei@Example.DE" → lowercases and parses
+  it("(q) steuerberater_email = 'Kanzlei@Example.DE' → lowercased and parses", () => {
+    const result = tenantSettingsSchema.safeParse({
+      ...BASE_VALID,
+      steuerberater_email: "  Kanzlei@Example.DE  ",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.steuerberater_email).toBe("kanzlei@example.de");
+  });
+
+  // (r) steuerberater_email invalid format → German error
+  it("(r) steuerberater_email = 'not-an-email' → Ungültige E-Mail-Adresse.", () => {
+    const result = tenantSettingsSchema.safeParse({
+      ...BASE_VALID,
+      steuerberater_email: "not-an-email",
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    const messages = result.error.issues.map((i) => i.message);
+    expect(messages).toContain("Ungültige E-Mail-Adresse.");
+  });
+
+  // (s) steuerberater_email = "" → null
+  it("(s) steuerberater_email = '' → null", () => {
+    const result = tenantSettingsSchema.safeParse({ ...BASE_VALID, steuerberater_email: "" });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.steuerberater_email).toBeNull();
   });
 });

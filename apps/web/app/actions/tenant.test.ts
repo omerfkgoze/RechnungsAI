@@ -58,6 +58,7 @@ const VALID_INPUT = {
   tax_id: null,
   skr_plan: "SKR03" as const,
   steuerberater_name: null,
+  steuerberater_email: "kanzlei@example.de",
   datev_berater_nr: "12345",
   datev_mandanten_nr: "67890",
   datev_sachkontenlaenge: 4,
@@ -99,6 +100,7 @@ describe("updateTenantSettings", () => {
       datev_sachkontenlaenge: 4,
       datev_fiscal_year_start: 1,
       datev_default_kreditorenkonto: "70000",
+      steuerberater_email: "kanzlei@example.de",
     });
   });
 

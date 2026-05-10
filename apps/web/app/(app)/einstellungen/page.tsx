@@ -14,7 +14,7 @@ export default async function EinstellungenPage() {
   const { data: tenant, error } = await supabase
     .from("tenants")
     .select(
-      "company_name, company_address, tax_id, skr_plan, steuerberater_name, datev_berater_nr, datev_mandanten_nr, datev_sachkontenlaenge, datev_fiscal_year_start, datev_default_kreditorenkonto",
+      "company_name, company_address, tax_id, skr_plan, steuerberater_name, steuerberater_email, datev_berater_nr, datev_mandanten_nr, datev_sachkontenlaenge, datev_fiscal_year_start, datev_default_kreditorenkonto",
     )
     .single();
 
@@ -45,6 +45,7 @@ export default async function EinstellungenPage() {
             ? (tenant.skr_plan as SkrPlan)
             : "SKR03",
           steuerberater_name: tenant.steuerberater_name ?? "",
+          steuerberater_email: tenant.steuerberater_email ?? "",
           datev_berater_nr: tenant.datev_berater_nr ?? "",
           datev_mandanten_nr: tenant.datev_mandanten_nr ?? "",
           datev_sachkontenlaenge: tenant.datev_sachkontenlaenge ?? 4,

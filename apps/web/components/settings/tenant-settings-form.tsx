@@ -80,6 +80,7 @@ export function TenantSettingsForm({ defaultValues }: Props) {
           company_address: parsed.data.company_address ?? "",
           tax_id: parsed.data.tax_id ?? "",
           steuerberater_name: parsed.data.steuerberater_name ?? "",
+          steuerberater_email: parsed.data.steuerberater_email ?? "",
           datev_berater_nr: parsed.data.datev_berater_nr ?? "",
           datev_mandanten_nr: parsed.data.datev_mandanten_nr ?? "",
           datev_sachkontenlaenge: parsed.data.datev_sachkontenlaenge,
@@ -221,6 +222,31 @@ export function TenantSettingsForm({ defaultValues }: Props) {
                       maxLength={100}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="steuerberater_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Steuerberater E-Mail (optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      placeholder="kanzlei@example.de"
+                      maxLength={254}
+                    />
+                  </FormControl>
+                  <p className="text-body-sm text-muted-foreground">
+                    Wird als Empfänger beim DATEV-Export und bei Korrekturanfragen vorgeschlagen.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

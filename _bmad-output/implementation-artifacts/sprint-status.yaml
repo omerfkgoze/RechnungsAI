@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-10 (Epic 5 retrospective → done)"
+last_updated: "2026-05-10 (Epic 6 prep P4 validation wire-up spike → done)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -144,14 +144,14 @@ development_status:
   # ─────────────────────────────────────────────────────────────
 
   # 🔴 Critical (blocks Epic 6)
-  prep-p1-validation-architecture-spike: backlog       # packages/validation: UBL 2.1 (XRechnung) + CII D16B (ZUGFeRD) parser choice (fast-xml-parser), namespace strategy, rule encoding (declarative vs imperative), file layout, EN 16931 BR-series rule sample test strategy → spike-p1-validation-architecture-YYYY-MM-DD.md
-  prep-p2-zugferd-pdf-extraction-spike: backlog        # ZUGFeRD CII D16B XML extraction from PDF/A-3 attachments — pdf-lib vs pdf-parse vs hand-rolled; dependency cost analysis → spike-p2-zugferd-pdf-extraction-YYYY-MM-DD.md
+  prep-p1-validation-architecture-spike: done          # packages/validation architecture: fast-xml-parser v5.x (zero-dep, removeNSPrefix+preserveOrder); one normalized Invoice model + UBL/CII parsers (ZUGFeRD reclassified as transport, moved to P2); hybrid rule encoding (TS object + imperative run); file layout parsers/{xml,detect,ubl,cii} + rules/{engine,en16931-core,en16931-calculations,en16931-codelists,en16931-vat,xrechnung-de,codelists/}; 4-tier test pyramid with vendored KoSIT xrechnung-testsuite corpus + rules-coverage assertion; sync-at-upload Node runtime Server Action; output: technical-en-16931-e-invoice-validation-architecture-research-2026-05-10.md
+  prep-p2-zugferd-pdf-extraction-spike: done           # Hand-rolled extraction in packages/pdf using pdf-lib (MIT) low-level name-tree walker; rejected @stackforge-eu/factur-x (EUPL-1.2 SaaS-triggering); pdfjs-dist kept as documented fallback; output: spike-p2-zugferd-pdf-extraction-2026-05-10.md
   prep-p3-email-decision: done                         # A5 resolution: mailto shim for 6.2, defer real send to Epic 8.3 → prep-p3-email-decision-2026-05-10.md
-  prep-p3-1-steuerberater-email-migration: backlog     # tenants.steuerberater_email column + Zod validator + settings form field; serves 6.2 mailto pre-fill AND 5.3 deferred "direct send" when 8.3 lands; can run in parallel with P1/P2
-  prep-p4-validation-wire-up-spike: backlog            # Story 6.1 choreography spike (A1 rule: ≥4 surfaces — new package + parsers + DB columns + UI): sync-at-upload vs async vs on-demand; error-shape contract parser→UI; validation_status/validation_errors persistence model → spike-p4-validation-wire-up-YYYY-MM-DD.md
+  prep-p3-1-steuerberater-email-migration: done        # tenants.steuerberater_email column + Zod validator + settings form field + tests; migration 20260510000000_tenant_steuerberater_email.sql; database.ts patched; 3 schema tests + 1 action assertion green; serves 6.2 mailto pre-fill AND 5.3 deferred "direct send" when 8.3 lands
+  prep-p4-validation-wire-up-spike: done                # Story 6.1 choreography decided: sync inline inside extractInvoice (D1), revalidateInvoice Server Action for re-trigger (D2), Storage as XML SSOT (D3, no original_xml column), ZUGFeRD short-circuits AI when validation passes else AI fallback (D4/D5/D11), 4 new columns on invoices + jsonb errors (D6/D13: pending|valid|warning|invalid|unsupported|skipped), single UPDATE not RPC (D7), audit best-effort (D9), one migration that folds prep-p5 audit allow-list (D14), p95<500ms 200-line budget (D15), 12 failure modes catalogued (F1–F12) for Dev Notes per A2; output: spike-p4-validation-wire-up-2026-05-10.md
 
   # 🟡 Parallel (during Story 6.1 first sprint, not blocking)
-  prep-p5-audit-logs-event-type-validation: backlog    # audit_logs_event_type_chk: add `validation_failed` and `correction_email_sent` to allow-list (one tiny migration; can land alongside 6.1)
+  prep-p5-audit-logs-event-type-validation: done       # FOLDED into P4 D14 — `validation_passed`, `validation_failed`, `revalidation_completed` ship in the same Story 6.1 migration as the validation columns (single rollback unit); no standalone prep migration needed
 
   # Epic 6: E-Invoice Validation
   epic-6: backlog

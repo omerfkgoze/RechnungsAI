@@ -61,6 +61,19 @@ export const tenantSettingsSchema = z.object({
         .nullable(),
     ),
 
+  steuerberater_email: optionalString
+    .transform((v) => {
+      if (v == null) return null;
+      const cleaned = normalizeName(v).toLowerCase();
+      return cleaned.length === 0 ? null : cleaned;
+    })
+    .pipe(
+      z
+        .string()
+        .email({ message: "Ungültige E-Mail-Adresse." })
+        .nullable(),
+    ),
+
   datev_berater_nr: optionalString
     .transform((v) => {
       if (v == null) return null;

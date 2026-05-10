@@ -342,6 +342,7 @@ export type Database = {
           datev_sachkontenlaenge: number
           id: string
           skr_plan: string
+          steuerberater_email: string | null
           steuerberater_name: string | null
           tax_id: string | null
           updated_at: string
@@ -357,6 +358,7 @@ export type Database = {
           datev_sachkontenlaenge?: number
           id?: string
           skr_plan?: string
+          steuerberater_email?: string | null
           steuerberater_name?: string | null
           tax_id?: string | null
           updated_at?: string
@@ -372,6 +374,7 @@ export type Database = {
           datev_sachkontenlaenge?: number
           id?: string
           skr_plan?: string
+          steuerberater_email?: string | null
           steuerberater_name?: string | null
           tax_id?: string | null
           updated_at?: string
