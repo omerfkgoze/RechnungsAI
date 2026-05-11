@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-10 (Epic 6 prep P4 validation wire-up spike → done)"
+last_updated: "2026-05-11 (Story 6.1 created → ready-for-dev; Epic 6 → in-progress)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -154,8 +154,8 @@ development_status:
   prep-p5-audit-logs-event-type-validation: done       # FOLDED into P4 D14 — `validation_passed`, `validation_failed`, `revalidation_completed` ship in the same Story 6.1 migration as the validation columns (single rollback unit); no standalone prep migration needed
 
   # Epic 6: E-Invoice Validation
-  epic-6: backlog
-  6-1-en-16931-invoice-validation-engine: backlog
+  epic-6: in-progress
+  6-1-en-16931-invoice-validation-engine: ready-for-dev
   6-2-validation-results-display-and-correction-email: backlog
   epic-6-retrospective: optional
 
