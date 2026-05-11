@@ -258,6 +258,10 @@ export type Database = {
           supplier_name_value: string | null
           tenant_id: string
           updated_at: string
+          validated_at: string | null
+          validation_errors: Json
+          validation_rule_set_version: string | null
+          validation_status: string
         }
         Insert: {
           approval_method?: string | null
@@ -285,6 +289,10 @@ export type Database = {
           supplier_name_value?: string | null
           tenant_id: string
           updated_at?: string
+          validated_at?: string | null
+          validation_errors?: Json
+          validation_rule_set_version?: string | null
+          validation_status?: string
         }
         Update: {
           approval_method?: string | null
@@ -312,6 +320,10 @@ export type Database = {
           supplier_name_value?: string | null
           tenant_id?: string
           updated_at?: string
+          validated_at?: string | null
+          validation_errors?: Json
+          validation_rule_set_version?: string | null
+          validation_status?: string
         }
         Relationships: [
           {

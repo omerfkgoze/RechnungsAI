@@ -14,6 +14,8 @@ import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@/lib/supabase/server";
 import { firstZodError } from "@/lib/zod-error";
 import { logAuditEvent, invoiceIdSchema } from "./shared";
+import { runStructuredExtraction } from "./validation-helpers";
+import type { ValidationStatus } from "@rechnungsai/validation";
 import { z } from "zod";
 
 const CORRECT_LOG = "[invoices:correct_field]";
@@ -647,5 +649,162 @@ export async function updateInvoiceSKR(input: {
       extra: { invoiceId },
     });
     return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
+  }
+}
+
+const REVALIDATE_LOG = "[invoices:revalidate]";
+
+export type RevalidateValidationStatus =
+  | ValidationStatus
+  | "skipped"
+  | "unsupported";
+
+export async function revalidateInvoice(
+  invoiceId: string,
+): Promise<ActionResult<{ status: RevalidateValidationStatus; violationCount: number }>> {
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(REVALIDATE_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, status, file_path, file_type, validation_rule_set_version")
+      .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
+      .single();
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(REVALIDATE_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "revalidate" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    if (row.status === "processing") {
+      return { success: false, error: "Extraktion läuft. Bitte einen Moment warten." };
+    }
+
+    const fileType = row.file_type;
+    const isXml = fileType === "application/xml" || fileType === "text/xml";
+    const isPdf = fileType === "application/pdf";
+
+    if (!isXml && !isPdf) {
+      const { error: skipErr } = await supabase
+        .from("invoices")
+        .update({
+          validation_status: "skipped",
+          validation_errors: [],
+          validation_rule_set_version: null,
+          validated_at: null,
+        })
+        .eq("id", invoiceId)
+        .eq("tenant_id", tenantId);
+      if (skipErr) {
+        console.error(REVALIDATE_LOG, "skip-save-failed", skipErr);
+        Sentry.captureException(skipErr, { tags: { module: "invoices", action: "revalidate" }, extra: { invoiceId } });
+      }
+      return { success: true, data: { status: "skipped", violationCount: 0 } };
+    }
+
+    const { data: blob, error: dlErr } = await supabase.storage
+      .from("invoices")
+      .download(row.file_path);
+    if (dlErr || !blob) {
+      console.error(REVALIDATE_LOG, "download-failed", dlErr);
+      Sentry.captureException(dlErr ?? new Error("download-failed"), {
+        tags: { module: "invoices", action: "revalidate" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Datei konnte momentan nicht geladen werden — bitte erneut versuchen." };
+    }
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const structured = await runStructuredExtraction(bytes, fileType);
+    const v = structured.validationFields;
+
+    const { error: saveErr } = await supabase
+      .from("invoices")
+      .update({
+        validation_status: v.validation_status,
+        validation_errors: v.validation_errors,
+        validation_rule_set_version: v.validation_rule_set_version,
+        validated_at: v.validated_at,
+      })
+      .eq("id", invoiceId)
+      .eq("tenant_id", tenantId);
+    if (saveErr) {
+      console.error(REVALIDATE_LOG, "save-failed", saveErr);
+      Sentry.captureException(saveErr, { tags: { module: "invoices", action: "revalidate" }, extra: { invoiceId } });
+      return { success: false, error: "Validierung konnte nicht gespeichert werden." };
+    }
+
+    try {
+      await logAuditEvent(supabase, {
+        tenantId,
+        invoiceId,
+        actorUserId: user.id,
+        eventType: "revalidation_completed",
+        metadata: {
+          profile: structured.report?.profile,
+          customizationId: structured.report?.customizationId,
+          violationCount: structured.report?.violations.length ?? 0,
+          ruleSetVersionBefore: row.validation_rule_set_version,
+          ruleSetVersionAfter: v.validation_rule_set_version,
+          durationMs: structured.report?.durationMs,
+        },
+      });
+    } catch (e) {
+      console.error(REVALIDATE_LOG, "audit-failed", e);
+      Sentry.captureException(e, { tags: { module: "invoices", action: "revalidate" }, extra: { invoiceId } });
+    }
+
+    revalidatePath(`/rechnungen/${invoiceId}`);
+
+    return {
+      success: true,
+      data: {
+        status: v.validation_status as RevalidateValidationStatus,
+        violationCount: structured.report?.violations.length ?? 0,
+      },
+    };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(REVALIDATE_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "revalidate" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Validierung fehlgeschlagen. Bitte erneut versuchen." };
   }
 }

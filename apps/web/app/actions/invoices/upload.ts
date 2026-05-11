@@ -16,6 +16,13 @@ import { hashBuffer } from "@rechnungsai/gobd";
 import { createServerClient } from "@/lib/supabase/server";
 import { firstZodError } from "@/lib/zod-error";
 import { logAuditEvent, invoiceIdSchema } from "./shared";
+import {
+  composeUpdatePayload,
+  runStructuredExtraction,
+  SKIPPED_VALIDATION,
+  type StructuredExtractionResult,
+  type ValidationDbFields,
+} from "./validation-helpers";
 
 const LOG_PREFIX = "[invoices:upload]";
 const EXTRACT_LOG = "[invoices:extract]";
@@ -331,6 +338,220 @@ export async function extractInvoice(
       return { success: false, error: msg };
     }
 
+    const fileType = row.file_type;
+    const isXml = fileType === "application/xml" || fileType === "text/xml";
+    const isPdf = fileType === "application/pdf";
+
+    // ─── Structured-extraction path: download bytes for XML / PDF ──────────
+    let structured: StructuredExtractionResult | null = null;
+    if (isXml || isPdf) {
+      const { data: blob, error: dlErr } = await supabase.storage
+        .from("invoices")
+        .download(row.file_path);
+      if (dlErr || !blob) {
+        console.error(EXTRACT_LOG, "download-failed", dlErr);
+        Sentry.captureException(dlErr ?? new Error("download-failed"), {
+          tags: { module: "invoices", action: "extract" },
+          extra: { invoiceId },
+        });
+        const msg = "Datei konnte momentan nicht geladen werden — bitte erneut versuchen.";
+        const { error: dlRevertErr } = await supabase
+          .from("invoices")
+          .update({ status: "captured", extraction_error: msg })
+          .eq("id", invoiceId);
+        if (dlRevertErr) {
+          console.error(EXTRACT_LOG, "dl-revert-failed", dlRevertErr);
+          Sentry.captureException(dlRevertErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+        }
+        flippedToProcessing = false;
+        return { success: false, error: msg };
+      }
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      structured = await runStructuredExtraction(bytes, fileType);
+    }
+
+    // ─── XML branch — never calls AI (D10) ────────────────────────────────
+    if (isXml) {
+      if (!structured) {
+        // Defensive: structured must be set in the XML branch.
+        flippedToProcessing = false;
+        return { success: false, error: "Interner Fehler bei der Verarbeitung." };
+      }
+      const v = structured.validationFields;
+      if (v.validation_status === "unsupported") {
+        const msg = "E-Rechnungsformat erkannt, aber nicht unterstützt. Validierung übersprungen.";
+        const payload = composeUpdatePayload(
+          {
+            status: "review",
+            invoice_data: null,
+            extracted_at: new Date().toISOString(),
+            extraction_error: msg,
+          },
+          v,
+        );
+        const { error: saveErr } = await supabase
+          .from("invoices")
+          .update(payload)
+          .eq("id", invoiceId);
+        if (saveErr) {
+          console.error(EXTRACT_LOG, "save-failed", saveErr);
+          Sentry.captureException(saveErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+          flippedToProcessing = false;
+          return { success: false, error: "Extraktion konnte nicht gespeichert werden." };
+        }
+        flippedToProcessing = false;
+        // Audit (best-effort) — F5 in spike §6.
+        try {
+          await logAuditEvent(supabase, {
+            tenantId,
+            invoiceId,
+            actorUserId: user.id,
+            eventType: "validation_failed",
+            metadata: { profile: "unknown", reason: "unsupported", ruleSetVersion: v.validation_rule_set_version },
+          });
+        } catch (e) {
+          console.error(EXTRACT_LOG, "audit-failed", e);
+          Sentry.captureException(e, { tags: { module: "invoices", action: "validate" }, extra: { invoiceId } });
+        }
+        revalidatePath("/dashboard");
+        revalidatePath(`/rechnungen/${invoiceId}`);
+        return { success: true, data: { status: "review", overall: 0 } };
+      }
+
+      if (v.validation_status === "invalid" || !structured.invoiceData) {
+        // F1: XML couldn't be projected to InvoiceData → rollback path.
+        const msg = "XML konnte nicht gelesen werden — bitte Lieferant kontaktieren.";
+        const { error: invErr } = await supabase
+          .from("invoices")
+          .update({ status: "captured", extraction_error: msg, ...v })
+          .eq("id", invoiceId);
+        if (invErr) {
+          console.error(EXTRACT_LOG, "xml-invalid-save-failed", invErr);
+          Sentry.captureException(invErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+        }
+        flippedToProcessing = false;
+        try {
+          await logAuditEvent(supabase, {
+            tenantId,
+            invoiceId,
+            actorUserId: user.id,
+            eventType: "validation_failed",
+            metadata: {
+              profile: structured.report?.profile,
+              customizationId: structured.report?.customizationId,
+              violationCount: structured.report?.violations.length ?? 0,
+              ruleSetVersion: v.validation_rule_set_version,
+              durationMs: structured.report?.durationMs,
+              usedSource: structured.usedSource,
+            },
+          });
+        } catch (e) {
+          console.error(EXTRACT_LOG, "audit-failed", e);
+          Sentry.captureException(e, { tags: { module: "invoices", action: "validate" }, extra: { invoiceId } });
+        }
+        return { success: false, error: msg };
+      }
+
+      // Valid or warning — XML projection populates invoice_data, status='ready'.
+      const payload = composeUpdatePayload(
+        {
+          status: "ready",
+          invoice_data: structured.invoiceData,
+          extracted_at: new Date().toISOString(),
+          extraction_error: null,
+        },
+        v,
+      );
+      const { error: saveErr } = await supabase
+        .from("invoices")
+        .update(payload)
+        .eq("id", invoiceId);
+      if (saveErr) {
+        console.error(EXTRACT_LOG, "save-failed", saveErr);
+        Sentry.captureException(saveErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+        const msg = "Extraktion konnte nicht gespeichert werden.";
+        await supabase.from("invoices").update({ status: "captured", extraction_error: msg }).eq("id", invoiceId);
+        flippedToProcessing = false;
+        return { success: false, error: msg };
+      }
+      flippedToProcessing = false;
+      try {
+        await logAuditEvent(supabase, {
+          tenantId,
+          invoiceId,
+          actorUserId: user.id,
+          eventType: v.validation_status === "valid" ? "validation_passed" : "validation_failed",
+          metadata: {
+            profile: structured.report?.profile,
+            customizationId: structured.report?.customizationId,
+            violationCount: structured.report?.violations.length ?? 0,
+            ruleSetVersion: v.validation_rule_set_version,
+            durationMs: structured.report?.durationMs,
+            usedSource: structured.usedSource,
+          },
+        });
+      } catch (e) {
+        console.error(EXTRACT_LOG, "audit-failed", e);
+        Sentry.captureException(e, { tags: { module: "invoices", action: "validate" }, extra: { invoiceId } });
+      }
+      revalidatePath("/dashboard");
+      revalidatePath(`/rechnungen/${invoiceId}`);
+      return { success: true, data: { status: "ready", overall: 1 } };
+    }
+
+    // ─── PDF branch — may short-circuit AI on valid ZUGFeRD ───────────────
+    if (isPdf && structured && structured.usedSource === "xml" && structured.invoiceData) {
+      // valid|warning ZUGFeRD — skip AI (D5).
+      const v = structured.validationFields;
+      const payload = composeUpdatePayload(
+        {
+          status: "ready",
+          invoice_data: structured.invoiceData,
+          extracted_at: new Date().toISOString(),
+          extraction_error: null,
+        },
+        v,
+      );
+      const { error: saveErr } = await supabase
+        .from("invoices")
+        .update(payload)
+        .eq("id", invoiceId);
+      if (saveErr) {
+        console.error(EXTRACT_LOG, "save-failed", saveErr);
+        Sentry.captureException(saveErr, { tags: { module: "invoices", action: "extract" }, extra: { invoiceId } });
+        const msg = "Extraktion konnte nicht gespeichert werden.";
+        await supabase.from("invoices").update({ status: "captured", extraction_error: msg }).eq("id", invoiceId);
+        flippedToProcessing = false;
+        return { success: false, error: msg };
+      }
+      flippedToProcessing = false;
+      try {
+        await logAuditEvent(supabase, {
+          tenantId,
+          invoiceId,
+          actorUserId: user.id,
+          eventType: v.validation_status === "valid" ? "validation_passed" : "validation_failed",
+          metadata: {
+            profile: structured.report?.profile,
+            customizationId: structured.report?.customizationId,
+            violationCount: structured.report?.violations.length ?? 0,
+            ruleSetVersion: v.validation_rule_set_version,
+            durationMs: structured.report?.durationMs,
+            usedSource: "xml",
+          },
+        });
+      } catch (e) {
+        console.error(EXTRACT_LOG, "audit-failed", e);
+        Sentry.captureException(e, { tags: { module: "invoices", action: "validate" }, extra: { invoiceId } });
+      }
+      revalidatePath("/dashboard");
+      revalidatePath(`/rechnungen/${invoiceId}`);
+      return { success: true, data: { status: "ready", overall: 1 } };
+    }
+
+    // ─── AI path (image, PDF without zugferd, PDF with invalid zugferd) ────
+    const validationFieldsForAi: ValidationDbFields = structured?.validationFields ?? SKIPPED_VALIDATION;
+
     const { data: signed, error: signErr } = await supabase.storage
       .from("invoices")
       .createSignedUrl(row.file_path, 60);
@@ -379,14 +600,18 @@ export async function extractInvoice(
     const overall = overallConfidence(result.data);
     const next = statusFromOverallConfidence(overall);
 
-    const { error: saveErr } = await supabase
-      .from("invoices")
-      .update({
-        invoice_data: result.data,
+    const payload = composeUpdatePayload(
+      {
         status: next,
+        invoice_data: result.data,
         extracted_at: new Date().toISOString(),
         extraction_error: null,
-      })
+      },
+      validationFieldsForAi,
+    );
+    const { error: saveErr } = await supabase
+      .from("invoices")
+      .update(payload)
       .eq("id", invoiceId);
     if (saveErr) {
       console.error(EXTRACT_LOG, "save-failed", saveErr);
@@ -407,6 +632,38 @@ export async function extractInvoice(
       return { success: false, error: msg };
     }
     flippedToProcessing = false;
+
+    // Validation audit — only emit when we actually validated (PDF with
+    // invalid ZUGFeRD; AI fallback for the structured data shape). Image and
+    // non-zugferd PDF paths have validation_status='skipped' and no audit.
+    if (
+      structured &&
+      structured.report &&
+      validationFieldsForAi.validation_status !== "skipped"
+    ) {
+      try {
+        await logAuditEvent(supabase, {
+          tenantId,
+          invoiceId,
+          actorUserId: user.id,
+          eventType:
+            validationFieldsForAi.validation_status === "valid"
+              ? "validation_passed"
+              : "validation_failed",
+          metadata: {
+            profile: structured.report.profile,
+            customizationId: structured.report.customizationId,
+            violationCount: structured.report.violations.length,
+            ruleSetVersion: validationFieldsForAi.validation_rule_set_version,
+            durationMs: structured.report.durationMs,
+            usedSource: "ai",
+          },
+        });
+      } catch (e) {
+        console.error(EXTRACT_LOG, "audit-failed", e);
+        Sentry.captureException(e, { tags: { module: "invoices", action: "validate" }, extra: { invoiceId } });
+      }
+    }
 
     revalidatePath("/dashboard");
     revalidatePath(`/rechnungen/${invoiceId}`);

@@ -14,7 +14,10 @@ export type AuditEventType =
   | "undo_flag"
   | "export_datev"
   | "export_audit"
-  | "hash_verify_mismatch";
+  | "hash_verify_mismatch"
+  | "validation_passed"
+  | "validation_failed"
+  | "revalidation_completed";
 
 export async function logAuditEvent(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
