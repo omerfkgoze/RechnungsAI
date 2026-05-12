@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-12 (Story 6.1 Session 3 done — 87 more real rules; still in-progress, Session 4 pickup plan in story file)"
+last_updated: "2026-05-12 (Story 6.1 Session 4 done — 37 more real rules, only 3 codelist-data stubs left; still in-progress, Session 5 pickup plan in story file)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system

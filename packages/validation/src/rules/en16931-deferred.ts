@@ -8,6 +8,14 @@
 //
 // When you implement a rule: remove its entry here and add the real Rule object to
 // the appropriate en16931-*.ts / xrechnung-de.ts file with PASS+FAIL unit tests.
+//
+// Remaining stubs (as of Story 6.1 Session 4): these three require codelist data
+// that is not yet vendored into the package —
+//   - BR-CL-11: registration scheme identifier ⊂ ISO 6523 ICD list
+//   - BR-CL-22: tax-exemption-reason scheme identifier ⊂ CEF VATEX list
+//   - BR-CL-26: delivery-location scheme identifier ⊂ ISO 6523 ICD list
+// Implement once the ISO 6523 ICD + CEF VATEX code sets are added under
+// rules/codelists/ (same recipe as iso4217-currency.ts).
 
 import type { Rule } from "./engine.js";
 
@@ -21,46 +29,7 @@ const stub = (id: string, category: Rule["category"]): Rule => ({
 });
 
 export const deferredRules: readonly Rule[] = [
-  stub("BR-33", "BR"),
-  stub("BR-38", "BR"),
-  stub("BR-41", "BR"),
-  stub("BR-42", "BR"),
-  stub("BR-43", "BR"),
-  stub("BR-44", "BR"),
-  stub("BR-49", "BR"),
-  stub("BR-51", "BR"),
-  stub("BR-53", "BR"),
-  stub("BR-54", "BR"),
-  stub("BR-55", "BR"),
-  // BR-AE-02..08 — implemented in en16931-vat.ts
-  stub("BR-AF-01", "BR"),
-  stub("BR-AF-02", "BR"),
-  stub("BR-AF-03", "BR"),
-  stub("BR-AF-04", "BR"),
-  stub("BR-AF-05", "BR"),
-  stub("BR-AF-06", "BR"),
-  stub("BR-AF-07", "BR"),
-  stub("BR-AF-08", "BR"),
-  stub("BR-AF-09", "BR"),
-  stub("BR-AF-10", "BR"),
-  stub("BR-AG-01", "BR"),
-  stub("BR-AG-02", "BR"),
-  stub("BR-AG-03", "BR"),
-  stub("BR-AG-04", "BR"),
-  stub("BR-AG-05", "BR"),
-  stub("BR-AG-06", "BR"),
-  stub("BR-AG-07", "BR"),
-  stub("BR-AG-08", "BR"),
-  stub("BR-AG-09", "BR"),
-  stub("BR-AG-10", "BR"),
-  stub("BR-B-01", "BR"),
-  stub("BR-B-02", "BR"),
-  stub("BR-CL-05", "BR-CL"),
   stub("BR-CL-11", "BR-CL"),
-  stub("BR-CL-18", "BR-CL"),
   stub("BR-CL-22", "BR-CL"),
   stub("BR-CL-26", "BR-CL"),
-  // BR-CO-03 / BR-CO-05..08 — implemented in en16931-calculations.ts
-  // BR-DEC-* — implemented in en16931-dec.ts
-  // BR-S/Z/E/AE/G/IC/O-* VAT-category families — implemented in en16931-vat.ts
 ];
