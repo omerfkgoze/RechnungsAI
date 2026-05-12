@@ -16,6 +16,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
+  addBreadcrumb: vi.fn(),
 }));
 
 const aiExtractMock = vi.fn();
@@ -157,6 +158,9 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import { approveInvoice, categorizeInvoice, correctInvoiceField, extractInvoice, flagInvoice, getInvoiceSignedUrl, searchArchivedInvoices, undoInvoiceAction, updateInvoiceSKR, uploadInvoice, verifyInvoiceArchive } from "./invoices";
+import * as Sentry from "@sentry/nextjs";
+import { detectProfile, projectToInvoiceData, validateEN16931 } from "@rechnungsai/validation";
+import { extractZugferdXml, isLikelyEInvoicePdf } from "@rechnungsai/pdf";
 
 function makeFile(
   name: string,
@@ -1462,5 +1466,159 @@ describe("searchArchivedInvoices", () => {
       expect.anything(),
       expect.objectContaining({ tags: { module: "gobd", action: "archive_search" } }),
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AC #31 — extractInvoice validation wire-up (mock-chain integration tests).
+// The pure helper layer is covered in app/actions/invoices/validation-helpers.test.ts;
+// these re-check the Server Action choreography (final UPDATE shape, audit
+// validation_passed/validation_failed events with usedSource metadata, AI-not-
+// called assertions on the short-circuit paths).
+// ─────────────────────────────────────────────────────────────────────────────
+describe("extractInvoice — validation wire-up (AC #31)", () => {
+  const report = (overrides: Record<string, unknown> = {}) => ({
+    status: "valid",
+    profile: "ubl",
+    customizationId: "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0",
+    ruleSetVersion: "kosit-2.5.0",
+    durationMs: 7,
+    violations: [],
+    invoice: { invoiceNumber: "X" },
+    ...overrides,
+  });
+  const invoiceData = { invoice_number: { value: "X", confidence: 1, reason: null } };
+
+  function rowWith(fileType: string) {
+    return {
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-1",
+        status: "captured",
+        file_path: "tenant-1/inv",
+        file_type: fileType,
+        original_filename: "inv",
+        extraction_attempts: 0,
+      },
+      error: null,
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authGetUserMock.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    userSingleMock.mockResolvedValue({ data: { tenant_id: "tenant-1" }, error: null });
+    invoiceSelectSingleMock.mockResolvedValue(rowWith("application/xml"));
+    invoiceUpdateEqMock.mockResolvedValue({ data: { id: VALID_UUID }, error: null });
+    createSignedUrlMock.mockResolvedValue({ data: { signedUrl: "https://signed.example/inv" }, error: null });
+    downloadMock.mockResolvedValue({ data: new Blob(["<x/>"]), error: null });
+    auditInsertMock.mockResolvedValue({ error: null });
+    aiExtractMock.mockResolvedValue({ success: true, data: mockInvoiceData() });
+    vi.mocked(detectProfile).mockReturnValue("ubl");
+    vi.mocked(validateEN16931).mockReturnValue(report() as never);
+    vi.mocked(projectToInvoiceData).mockReturnValue(invoiceData as never);
+    vi.mocked(isLikelyEInvoicePdf).mockResolvedValue(false);
+    vi.mocked(extractZugferdXml).mockResolvedValue({ kind: "not-zugferd", reason: "no-embedded-files" } as never);
+  });
+
+  const lastFinalPatch = () => {
+    const patches = invoiceUpdateEqMock.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    return patches.find((p) => "validation_status" in p);
+  };
+  const auditCalls = () => auditInsertMock.mock.calls.map((c) => c[0] as Record<string, unknown>);
+
+  it("(a) XML happy — valid report: status='ready', validation_status='valid', validation_passed audit, no AI", async () => {
+    const r = await extractInvoice(VALID_UUID);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.status).toBe("ready");
+    expect(aiExtractMock).not.toHaveBeenCalled();
+    const patch = lastFinalPatch();
+    expect(patch).toMatchObject({ status: "ready", validation_status: "valid", invoice_data: invoiceData });
+    expect(auditCalls().some((a) => a.event_type === "validation_passed")).toBe(true);
+  });
+
+  it("(b) XML invalid — rollback to 'captured' with German extraction_error, validation_failed audit", async () => {
+    vi.mocked(validateEN16931).mockReturnValue(report({ status: "invalid", violations: [{ ruleId: "BR-02", severity: "fatal" }], invoice: null }) as never);
+    vi.mocked(projectToInvoiceData).mockReturnValue(null);
+    const r = await extractInvoice(VALID_UUID);
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toContain("XML konnte nicht gelesen werden");
+    const patches = invoiceUpdateEqMock.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    expect(patches.some((p) => p.status === "captured" && typeof p.extraction_error === "string")).toBe(true);
+    expect(auditCalls().some((a) => a.event_type === "validation_failed")).toBe(true);
+  });
+
+  it("(c) XML unsupported — status='review', validation_status='unsupported', no AI", async () => {
+    vi.mocked(detectProfile).mockReturnValue("unknown");
+    const r = await extractInvoice(VALID_UUID);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.status).toBe("review");
+    expect(aiExtractMock).not.toHaveBeenCalled();
+    expect(validateEN16931).not.toHaveBeenCalled();
+    expect(lastFinalPatch()).toMatchObject({ status: "review", validation_status: "unsupported" });
+  });
+
+  it("(d) PDF not-an-e-invoice — AI path runs, validation_status='skipped', validation_errors=[]", async () => {
+    invoiceSelectSingleMock.mockResolvedValue(rowWith("application/pdf"));
+    vi.mocked(isLikelyEInvoicePdf).mockResolvedValue(false);
+    const r = await extractInvoice(VALID_UUID);
+    expect(r.success).toBe(true);
+    expect(aiExtractMock).toHaveBeenCalledOnce();
+    expect(validateEN16931).not.toHaveBeenCalled();
+    expect(lastFinalPatch()).toMatchObject({ validation_status: "skipped", validation_errors: [] });
+  });
+
+  it("(e) PDF valid ZUGFeRD — AI NOT called, invoice_data from XML projection, validation_passed usedSource='xml'", async () => {
+    invoiceSelectSingleMock.mockResolvedValue(rowWith("application/pdf"));
+    vi.mocked(isLikelyEInvoicePdf).mockResolvedValue(true);
+    vi.mocked(extractZugferdXml).mockResolvedValue({ kind: "found", xml: "<x/>" } as never);
+    const r = await extractInvoice(VALID_UUID);
+    expect(r.success).toBe(true);
+    expect(aiExtractMock).not.toHaveBeenCalled();
+    expect(lastFinalPatch()).toMatchObject({ status: "ready", validation_status: "valid", invoice_data: invoiceData });
+    const audit = auditCalls().find((a) => a.event_type === "validation_passed");
+    expect(audit).toBeDefined();
+    expect((audit?.metadata as Record<string, unknown>)?.usedSource).toBe("xml");
+  });
+
+  it("(f) PDF invalid ZUGFeRD — AI fallback runs, validation_status='invalid', validation_failed usedSource='ai'", async () => {
+    invoiceSelectSingleMock.mockResolvedValue(rowWith("application/pdf"));
+    vi.mocked(isLikelyEInvoicePdf).mockResolvedValue(true);
+    vi.mocked(extractZugferdXml).mockResolvedValue({ kind: "found", xml: "<x/>" } as never);
+    vi.mocked(validateEN16931).mockReturnValue(report({ status: "invalid", violations: [{ ruleId: "BR-CO-15", severity: "fatal" }], invoice: null }) as never);
+    const r = await extractInvoice(VALID_UUID);
+    expect(r.success).toBe(true);
+    expect(aiExtractMock).toHaveBeenCalledOnce();
+    expect(lastFinalPatch()).toMatchObject({ validation_status: "invalid" });
+    const audit = auditCalls().find((a) => a.event_type === "validation_failed");
+    expect(audit).toBeDefined();
+    expect((audit?.metadata as Record<string, unknown>)?.usedSource).toBe("ai");
+  });
+
+  it("(g) PDF extract-error — Sentry breadcrumb, AI fallback runs, validation_status='skipped'", async () => {
+    invoiceSelectSingleMock.mockResolvedValue(rowWith("application/pdf"));
+    vi.mocked(isLikelyEInvoicePdf).mockResolvedValue(true);
+    vi.mocked(extractZugferdXml).mockResolvedValue({ kind: "error", reason: "parse-failed", detail: "boom" } as never);
+    const r = await extractInvoice(VALID_UUID);
+    expect(r.success).toBe(true);
+    expect(vi.mocked(Sentry.addBreadcrumb)).toHaveBeenCalled();
+    expect(aiExtractMock).toHaveBeenCalledOnce();
+    expect(lastFinalPatch()).toMatchObject({ validation_status: "skipped" });
+  });
+
+  it("(h) Image branch — validation_status='skipped', validation_errors=[], no packages/validation call", async () => {
+    invoiceSelectSingleMock.mockResolvedValue(rowWith("image/jpeg"));
+    const r = await extractInvoice(VALID_UUID);
+    expect(r.success).toBe(true);
+    expect(validateEN16931).not.toHaveBeenCalled();
+    expect(isLikelyEInvoicePdf).not.toHaveBeenCalled();
+    expect(lastFinalPatch()).toMatchObject({ validation_status: "skipped", validation_errors: [] });
+  });
+
+  it("(i) audit failure is swallowed — action still succeeds, Sentry captures", async () => {
+    auditInsertMock.mockRejectedValueOnce(new Error("audit insert blew up"));
+    const r = await extractInvoice(VALID_UUID);
+    expect(r.success).toBe(true);
+    expect(vi.mocked(Sentry.captureException)).toHaveBeenCalled();
   });
 });

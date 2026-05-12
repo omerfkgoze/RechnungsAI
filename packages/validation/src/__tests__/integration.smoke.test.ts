@@ -31,6 +31,11 @@ const VALID_UBL = `<?xml version="1.0" encoding="UTF-8"?>
       <cbc:CompanyID>DE123456789</cbc:CompanyID>
       <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
     </cac:PartyTaxScheme>
+    <cac:Contact>
+      <cbc:Name>Vertrieb</cbc:Name>
+      <cbc:Telephone>+49 30 1234567</cbc:Telephone>
+      <cbc:ElectronicMail>info@acme.example</cbc:ElectronicMail>
+    </cac:Contact>
   </cac:Party></cac:AccountingSupplierParty>
   <cac:AccountingCustomerParty><cac:Party>
     <cac:PartyName><cbc:Name>Bob KG</cbc:Name></cac:PartyName>
@@ -40,6 +45,13 @@ const VALID_UBL = `<?xml version="1.0" encoding="UTF-8"?>
       <cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country>
     </cac:PostalAddress>
   </cac:Party></cac:AccountingCustomerParty>
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode>58</cbc:PaymentMeansCode>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>DE89370400440532013000</cbc:ID>
+      <cbc:Name>Acme GmbH</cbc:Name>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
   <cac:LegalMonetaryTotal>
     <cbc:LineExtensionAmount currencyID="EUR">100.00</cbc:LineExtensionAmount>
     <cbc:TaxExclusiveAmount currencyID="EUR">100.00</cbc:TaxExclusiveAmount>

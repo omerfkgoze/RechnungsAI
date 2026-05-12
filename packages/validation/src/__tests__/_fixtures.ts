@@ -22,6 +22,11 @@ const baseParty = (overrides: Partial<Party> = {}): Party => ({
     postCode: "10115",
     countryCode: "DE",
   },
+  contact: {
+    name: "Vertrieb",
+    phone: "+49 30 1234567",
+    email: "rechnung@acme.example",
+  },
   ...overrides,
 });
 
@@ -103,7 +108,10 @@ export function buildValidInvoice(opts: InvoiceBuilderOptions = {}): Invoice {
     invoiceLines: opts.invoiceLines ?? [baseLine()],
     dueDate: "dueDate" in opts ? opts.dueDate : "2026-06-10",
     paymentTerms: opts.paymentTerms,
-    paymentInstructions: opts.paymentInstructions,
+    paymentInstructions:
+      "paymentInstructions" in opts
+        ? opts.paymentInstructions
+        : { meansCode: "58", iban: "DE89370400440532013000", accountName: "Acme GmbH" },
   };
 }
 

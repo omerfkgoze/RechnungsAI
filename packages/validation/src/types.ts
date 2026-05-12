@@ -20,6 +20,8 @@ export type ViolationCategory =
   | "BR-IP"
   | "BR-O"
   | "BR-DEC"
+  | "BR-DE"
+  | "BR-DEX"
   | "de-BR"
   | "STRUCT";
 
