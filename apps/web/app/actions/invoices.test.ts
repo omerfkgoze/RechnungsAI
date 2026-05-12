@@ -25,6 +25,19 @@ vi.mock("@rechnungsai/ai", () => ({
   categorizeInvoice: (...args: unknown[]) => aiCategorizeMock(...args),
 }));
 
+// Minimal stubs so existing PDF-AI-path tests pass. Full AC #31 mock-chain
+// tests (Session 2) extend these with per-branch overrides.
+vi.mock("@rechnungsai/pdf", () => ({
+  isLikelyEInvoicePdf: vi.fn().mockResolvedValue(false),
+  extractZugferdXml: vi.fn().mockResolvedValue({ kind: "not-zugferd", reason: "no-embedded-files" }),
+}));
+vi.mock("@rechnungsai/validation", () => ({
+  validateEN16931: vi.fn(),
+  detectProfile: vi.fn().mockReturnValue("unknown"),
+  projectToInvoiceData: vi.fn().mockReturnValue(null),
+  RULE_SET_VERSION: "kosit-2.5.0",
+}));
+
 const uploadMock = vi.fn();
 const removeMock = vi.fn();
 const downloadMock = vi.fn();
@@ -339,6 +352,7 @@ describe("extractInvoice", () => {
       data: { signedUrl: "https://signed.example/abc.pdf" },
       error: null,
     });
+    downloadMock.mockResolvedValue({ data: new Blob(["dummy"]), error: null });
     aiExtractMock.mockResolvedValue({ success: true, data: mockInvoiceData() });
   });
 

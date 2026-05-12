@@ -570,9 +570,48 @@ claude-opus-4-7 (Opus 4.7) — Claude Code session, 2026-05-11.
 **Open follow-up items GOZE should track:**
 
 - Run `supabase db reset` locally before merge. The manual `database.ts` patch needs to match what the generator produces; verify field shape (text vs literal union for the status column).
-- Run `pnpm install` to fetch `fast-xml-parser@^5` and `pdf-lib@^1.17.1`. Then `pnpm --filter @rechnungsai/validation test` and `pnpm --filter @rechnungsai/pdf test` to confirm green locally.
-- Confirm the synthetic PDF/A-3 path produced by `pdf-lib`'s `attach()` API actually exposes `/AF` on the catalog (this is what `isLikelyEInvoicePdf` checks). Most pdf-lib 1.17.x versions do; verify via the smoke test.
+- ~~Run `pnpm install` + test green~~ — **RESOLVED in post-session-1 bug fix (2026-05-12).** All tests green; `pnpm build` clean. See "Post-Session-1 Bug Fixes" below.
+- ~~Confirm synthetic PDF/A-3 exposes `/AF`~~ — **RESOLVED.** `extract-zugferd-xml` tests pass against pdf-lib fixtures; `/AF` path confirmed working.
 - Story stays at `in-progress`. Multi-session disciplined plan: this session = 6.1a scope. Next session(s) = rule-coverage push (D3..D5) + full action integration tests (D6) + KoSIT corpus (D1) + real PDF fixtures (D2). When complete coverage lands, transition to `review`.
+
+### Post-Session-1 Bug Fixes (2026-05-12)
+
+Between Session 1 and Session 2, `pnpm build` and several test suites were failing. Fixed in commit `ea4ab81`. Session 2 should start from a **fully green** state: 114 validation tests ✓ · 9 pdf tests ✓ · 344 web tests ✓ · `pnpm build` ✓.
+
+**Bug 1 — Circular dependency (`engine.ts` ↔ `en16931-calculations.ts` / `en16931-vat.ts`)**
+
+- Root cause: `engine.ts` imported rule arrays from `calculations` and `vat`; both rule files imported math helpers (`num`, `round2`, `eq2`, `sum`) back from `engine.ts`. At module-init time the circular reference left the rule arrays `undefined` → `TypeError: en16931CalculationsRules is not iterable`.
+- Fix: extracted math helpers to **`packages/validation/src/rules/math.ts`** (new file). Rule files now import from `./math.js`; `engine.ts` re-exports from `./math.js` for backward compat. **Session 2 note:** when adding new rule files that need math helpers, import from `./math.js`, NOT `./engine.js`.
+
+**Bug 2 — `buildValidInvoice` test fixture: `??` operator silently swallowed `undefined` overrides**
+
+- Root cause: `buildValidInvoice({ invoiceNumber: undefined })` resolved via `opts.invoiceNumber ?? "INV-2026-001"` → fallback fired → invoice always had a value → BR-02..05, de-BR-01, BR-CO-25 FAIL-path tests reported `null` violation.
+- Fix: changed all top-level primitive fields to `"key" in opts ? opts.key : "default"`. **Session 2 note:** if adding new fields to `InvoiceBuilderOptions`, use the same `"key" in opts` pattern — never `??` for fields that tests need to set to `undefined`.
+
+**Bug 3 — `extract-attachments.ts`: typed `lookup(key, Type)` throws on missing keys**
+
+- Root cause: `doc.catalog.lookup(PDFName.of("Names"), PDFDict)` throws `UnexpectedObjectTypeError` when the `/Names` key doesn't exist (plain PDFs). Same issue in `collectFromNameTree` for `/Kids` and `/Names`.
+- Fix: replaced all typed lookups with untyped `lookup(key)` + `instanceof` guard. **Session 2 note:** never use pdf-lib's typed `lookup(key, Type)` form unless you've already confirmed the key exists; use `obj instanceof Type` after an untyped lookup.
+
+**Bug 4 — `extract-attachments.ts`: accessing private `PDFName.encodedName` + wrong logic**
+
+- Root cause: `(v as PDFName).encodedName.replace(/^\//, "")` — `encodedName` is private → TypeScript build error. Logic was also wrong: the check tested for `decodeText` (PDFString method) but then accessed `encodedName` (PDFName property) — so the branch was never entered correctly.
+- Fix: replaced with `if (v instanceof PDFName) return v.toString().replace(/^\//, "")`. pdf-lib's `PDFName.toString()` returns the name with a leading slash (e.g. `/Alternative`); stripping it gives `"Alternative"` which matches `ACCEPTED_RELATIONSHIPS`.
+
+**Bug 5 — `extract-attachments.ts`: pdf-lib compresses embedded file streams (FlateDecode)**
+
+- Root cause: pdf-lib's `doc.attach()` internally calls `context.flateCompress()` → embedded file stream gets `/Filter /FlateDecode`. `PDFRawStream.asUint8Array()` returns the *compressed* bytes → `r.xml.startsWith("<?xml")` was `false`.
+- Fix: added `import { inflateSync } from "node:zlib"` and a FlateDecode check in `readStreamBytes`. **Session 2 note:** this is load-bearing for real-world ZUGFeRD PDFs from suppliers (they will also have compressed streams). Do not remove the inflate step.
+
+**Bug 6 — `composeUpdatePayload` return type `Record<string, unknown>` failed Supabase's `RejectExcessProperties` check**
+
+- Root cause: Supabase's `.update()` generic rejects `Record<string, unknown>` because the excess-properties constraint can't be verified. TypeScript build in `@rechnungsai/web` failed at the `.update(payload)` callsites.
+- Fix: changed return type to `Database["public"]["Tables"]["invoices"]["Update"]` (imported from `@rechnungsai/shared`). Also typed `base.status` as `Database["public"]["Enums"]["invoice_status"]` and `base.invoice_data` as `Json | null`. **Session 2 note:** `composeUpdatePayload` signature is now fully typed; call sites in `upload.ts` and `review.ts` must pass the correct enum value for `status`, not a bare `string`.
+
+**Bug 7 — Existing `invoices.test.ts` broke after Session 1 added a download step before AI extraction**
+
+- Root cause: the new `if (isXml || isPdf)` block in `upload.ts` downloads file bytes before any AI call. The pre-existing `extractInvoice` happy-path tests had `file_type: "application/pdf"` but no `downloadMock` setup, and `@rechnungsai/pdf` / `@rechnungsai/validation` were unmocked — so the download returned `undefined` → action returned `{ success: false }`.
+- Fix: added `vi.mock('@rechnungsai/pdf', ...)` and `vi.mock('@rechnungsai/validation', ...)` stubs at the top of `apps/web/app/actions/invoices.test.ts` (with `isLikelyEInvoicePdf` returning `false` so PDFs fall through to AI), and added `downloadMock.mockResolvedValue({ data: new Blob(["dummy"]), error: null })` to the `extractInvoice` `beforeEach`. **Session 2 note:** when implementing AC #31 full mock-chain cases, these top-level `vi.mock` stubs are the foundation — override per-mock in individual `it` blocks using `mockResolvedValueOnce`, exactly as AC #31 prescribes. Do NOT remove the top-level stubs or the `beforeEach` `downloadMock` setup.
 
 ### Browser Smoke Test
 
@@ -601,7 +640,7 @@ claude-opus-4-7 (Opus 4.7) — Claude Code session, 2026-05-11.
 | (d4) | `grep -n validation_status packages/shared/src/types/database.ts` | At least one match in the `invoices` Row/Insert/Update blocks | AC #20 — types reflect the new columns (manual patch this session; verify against `gen types` output before merge) | BLOCKED-BY-ENVIRONMENT — GOZE re-runs the `gen types` step locally |
 | (d5) | `psql ... -c "select indexname from pg_indexes where tablename='invoices' and indexname='invoices_validation_rule_set_idx';"` | One row | AC #16 — partial index present | BLOCKED-BY-ENVIRONMENT — GOZE runs locally |
 | (d6) | `psql ... -c "select has_column_privilege('authenticated', 'public.invoices', 'validation_status', 'UPDATE');"` | `t` (true) | AC #19 — fine-grained UPDATE grant extended to validation columns | BLOCKED-BY-ENVIRONMENT — GOZE runs locally |
-| (d7) | `pnpm --filter @rechnungsai/validation test` and `pnpm --filter @rechnungsai/pdf test` | Both green; ~60+ test cases across the validation package | All shipped rules' PASS + FAIL paths covered; parser projections work | BLOCKED-BY-ENVIRONMENT — GOZE runs locally after `pnpm install` |
+| (d7) | `pnpm --filter @rechnungsai/validation test` and `pnpm --filter @rechnungsai/pdf test` | Both green; ~60+ test cases across the validation package | All shipped rules' PASS + FAIL paths covered; parser projections work | DONE — 114 validation + 9 pdf + 344 web tests pass; `pnpm build` clean as of 2026-05-12 post-session-1 bug fix |
 
 ### File List
 
@@ -613,6 +652,7 @@ claude-opus-4-7 (Opus 4.7) — Claude Code session, 2026-05-11.
 - `packages/validation/src/parsers/ubl.ts`
 - `packages/validation/src/parsers/cii.ts`
 - `packages/validation/src/parsers/util.ts`
+- `packages/validation/src/rules/math.ts` _(new — added post-session-1 bug fix; extracted from engine.ts to break circular dep)_
 - `packages/validation/src/rules/engine.ts`
 - `packages/validation/src/rules/en16931-core.ts`
 - `packages/validation/src/rules/en16931-calculations.ts`
@@ -667,3 +707,4 @@ claude-opus-4-7 (Opus 4.7) — Claude Code session, 2026-05-11.
 | Date | Change | Notes |
 |---|---|---|
 | 2026-05-11 | Story 6.1 implementation Session 1 — Multi-session disciplined plan | Package skeletons + parsers + engine + ~75 rules (full BR-CO + full BR-CL critical-path + representative core/VAT/de-BR) + migration + extractInvoice/revalidateInvoice wire-up + helper-level action tests + smoke section. Story stays `in-progress`. Remaining ~75 rules + KoSIT corpus + integration tests + full action mock-chain tests = follow-up session(s). |
+| 2026-05-12 | Post-Session-1 bug fixes (commit `ea4ab81`) — all green before Session 2 | 7 bugs fixed: circular dep engine↔calculations/vat (new `math.ts`), `buildValidInvoice` `??`→`"key" in opts`, pdf-lib typed lookup throws, private `encodedName` access, FlateDecode decompress with `node:zlib`, `composeUpdatePayload` return type `→ InvoiceUpdate`, broken `invoices.test.ts` pre-existing tests due to new download step. `pnpm build` ✓ · 114+9+344 tests ✓. |

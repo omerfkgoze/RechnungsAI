@@ -9,7 +9,7 @@
 // schematron `xrechnung-business-rules.sch`.
 
 import type { Rule } from "./engine.js";
-import { eq2, num, round2, sum } from "./engine.js";
+import { eq2, num, round2, sum } from "./math.js";
 
 export const en16931CalculationsRules: readonly Rule[] = [
   {

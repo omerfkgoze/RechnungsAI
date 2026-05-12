@@ -79,16 +79,15 @@ export type InvoiceBuilderOptions = {
 
 export function buildValidInvoice(opts: InvoiceBuilderOptions = {}): Invoice {
   return {
-    invoiceNumber: opts.invoiceNumber ?? "INV-2026-001",
-    issueDate: opts.issueDate ?? "2026-05-11",
-    typeCode: opts.typeCode ?? "380",
-    currencyCode: opts.currencyCode ?? "EUR",
-    buyerReference:
-      opts.buyerReference ??
-      "991-12345-ABC", // Leitweg-ID-shaped placeholder for de-BR-01
+    invoiceNumber: "invoiceNumber" in opts ? opts.invoiceNumber : "INV-2026-001",
+    issueDate: "issueDate" in opts ? opts.issueDate : "2026-05-11",
+    typeCode: "typeCode" in opts ? opts.typeCode : "380",
+    currencyCode: "currencyCode" in opts ? opts.currencyCode : "EUR",
+    buyerReference: "buyerReference" in opts ? opts.buyerReference : "991-12345-ABC",
     customizationId:
-      opts.customizationId ??
-      "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0",
+      "customizationId" in opts
+        ? (opts.customizationId as string)
+        : "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0",
     notes: [],
     seller: baseParty(opts.seller),
     buyer: baseParty(opts.buyer),
@@ -100,7 +99,7 @@ export function buildValidInvoice(opts: InvoiceBuilderOptions = {}): Invoice {
     vatBreakdown:
       opts.vatBreakdown ?? [baseVat()],
     invoiceLines: opts.invoiceLines ?? [baseLine()],
-    dueDate: opts.dueDate ?? "2026-06-10",
+    dueDate: "dueDate" in opts ? opts.dueDate : "2026-06-10",
     paymentTerms: opts.paymentTerms,
     paymentInstructions: opts.paymentInstructions,
   };

@@ -7,7 +7,7 @@
 // (~50 rules) is deferred to the follow-up session.
 
 import type { Rule } from "./engine.js";
-import { num } from "./engine.js";
+import { num } from "./math.js";
 
 const present = (s: string | undefined | null): boolean =>
   typeof s === "string" && s.trim().length > 0;

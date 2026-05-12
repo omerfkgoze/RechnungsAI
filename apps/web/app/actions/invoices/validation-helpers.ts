@@ -19,6 +19,9 @@ import {
   extractZugferdXml,
   isLikelyEInvoicePdf,
 } from "@rechnungsai/pdf";
+import { type Database, type Json } from "@rechnungsai/shared";
+
+type InvoiceUpdate = Database["public"]["Tables"]["invoices"]["Update"];
 
 export type CallerValidationStatus =
   | ValidationStatus
@@ -58,15 +61,17 @@ export function reportToDbFields(report: ValidationReport): ValidationDbFields {
   };
 }
 
+type InvoiceStatus = Database["public"]["Enums"]["invoice_status"];
+
 export function composeUpdatePayload(
   base: {
-    status: string;
-    invoice_data: unknown;
+    status: InvoiceStatus;
+    invoice_data: Json | null;
     extracted_at: string;
     extraction_error: string | null;
   },
   v: ValidationDbFields,
-): Record<string, unknown> {
+): InvoiceUpdate {
   return {
     status: base.status,
     invoice_data: base.invoice_data,
