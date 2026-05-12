@@ -461,4 +461,199 @@ export const en16931CoreRules: readonly Rule[] = [
       };
     },
   },
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Session 2 — additional core rules (conditional structural mandates).
+  // ───────────────────────────────────────────────────────────────────────────
+  {
+    id: "BR-18",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-18",
+    summary:
+      "The Seller tax representative name (BT-62) shall be present if the Invoice contains a Seller tax representative party (BG-11).",
+    run: (inv) =>
+      inv.taxRepresentative && !present(inv.taxRepresentative.name)
+        ? { location: { bt: "BT-62", bg: "BG-11" }, message: "Pflichtfeld BT-62 (Name des Steuervertreters) fehlt." }
+        : null,
+  },
+  {
+    id: "BR-19",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-19",
+    summary:
+      "The Seller tax representative postal address (BG-12) shall be present if the Invoice contains a Seller tax representative party (BG-11).",
+    run: (inv) =>
+      inv.taxRepresentative && !inv.taxRepresentative.address
+        ? { location: { bg: "BG-12" }, message: "Pflichtfeld BG-12 (Anschrift des Steuervertreters) fehlt." }
+        : null,
+  },
+  {
+    id: "BR-20",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-20",
+    summary:
+      "The Seller tax representative postal address (BG-12) shall contain a Tax representative country code (BT-69) if the Seller tax representative party (BG-11) is provided.",
+    run: (inv) =>
+      inv.taxRepresentative && !present(inv.taxRepresentative.address?.countryCode)
+        ? { location: { bt: "BT-69", bg: "BG-12" }, message: "Pflichtfeld BT-69 (Ländercode des Steuervertreters) fehlt." }
+        : null,
+  },
+  {
+    id: "BR-56",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-56",
+    summary:
+      "Each Seller tax representative party (BG-11) shall have a Seller tax representative VAT identifier (BT-63).",
+    run: (inv) =>
+      inv.taxRepresentative && !present(inv.taxRepresentative.vatId)
+        ? { location: { bt: "BT-63", bg: "BG-11" }, message: "Pflichtfeld BT-63 (USt-IdNr. des Steuervertreters) fehlt." }
+        : null,
+  },
+  {
+    id: "BR-57",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-57",
+    summary: "Each Deliver to address (BG-15) shall contain a Deliver to country code (BT-80).",
+    run: (inv) =>
+      inv.delivery?.location && !present(inv.delivery.location.countryCode)
+        ? { location: { bt: "BT-80", bg: "BG-15" }, message: "Pflichtfeld BT-80 (Ländercode der Lieferanschrift) fehlt." }
+        : null,
+  },
+  {
+    id: "BR-29",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-29",
+    summary:
+      "If both Invoicing period start date (BT-73) and end date (BT-74) are given, the end date shall be later than or equal to the start date.",
+    run: (inv) => {
+      const s = inv.invoicePeriodStart;
+      const e = inv.invoicePeriodEnd;
+      if (!present(s) || !present(e)) return null;
+      return (e as string) >= (s as string)
+        ? null
+        : { location: { bt: "BT-74", bg: "BG-14" }, message: "BT-74 (Ende des Rechnungszeitraums) darf nicht vor BT-73 (Beginn) liegen." };
+    },
+  },
+  {
+    id: "BR-30",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-30",
+    summary:
+      "If both Invoice line period start date (BT-134) and end date (BT-135) are given, the end date shall be later than or equal to the start date.",
+    run: (inv) => {
+      for (let i = 0; i < inv.invoiceLines.length; i++) {
+        const ln = inv.invoiceLines[i];
+        if (ln && present(ln.periodStart) && present(ln.periodEnd) && (ln.periodEnd as string) < (ln.periodStart as string)) {
+          return {
+            location: { bt: "BT-135", bg: "BG-26", lineIndex: i },
+            message: `BT-135 (Ende des Positionszeitraums) darf in Position #${i + 1} nicht vor BT-134 (Beginn) liegen.`,
+          };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "BR-32",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-32",
+    summary:
+      "Each Document level allowance (BG-20) shall have a Document level allowance reason (BT-97) or a Document level allowance reason code (BT-98).",
+    run: (inv) => {
+      for (let i = 0; i < inv.documentLevelAllowances.length; i++) {
+        const a = inv.documentLevelAllowances[i];
+        if (a && !present(a.reason) && !present(a.reasonCode)) {
+          return { location: { bt: "BT-97", bg: "BG-20" }, message: `Nachlass #${i + 1} auf Dokumentebene benötigt BT-97 (Grund) oder BT-98 (Grundcode).` };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "BR-37",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-37",
+    summary:
+      "Each Document level charge (BG-21) shall have a Document level charge reason (BT-104) or a Document level charge reason code (BT-105).",
+    run: (inv) => {
+      for (let i = 0; i < inv.documentLevelCharges.length; i++) {
+        const c = inv.documentLevelCharges[i];
+        if (c && !present(c.reason) && !present(c.reasonCode)) {
+          return { location: { bt: "BT-104", bg: "BG-21" }, message: `Zuschlag #${i + 1} auf Dokumentebene benötigt BT-104 (Grund) oder BT-105 (Grundcode).` };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "BR-62",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-62",
+    summary: "The Seller electronic address (BT-34) shall have a Scheme identifier.",
+    run: (inv) => {
+      const ea = inv.seller.electronicAddress;
+      if (!ea || !present(ea.value)) return null;
+      return present(ea.schemeId)
+        ? null
+        : { location: { bt: "BT-34" }, message: "BT-34 (Elektronische Adresse des Verkäufers) benötigt eine Schema-Kennung." };
+    },
+  },
+  {
+    id: "BR-63",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-63",
+    summary: "The Buyer electronic address (BT-49) shall have a Scheme identifier.",
+    run: (inv) => {
+      const ea = inv.buyer.electronicAddress;
+      if (!ea || !present(ea.value)) return null;
+      return present(ea.schemeId)
+        ? null
+        : { location: { bt: "BT-49" }, message: "BT-49 (Elektronische Adresse des Käufers) benötigt eine Schema-Kennung." };
+    },
+  },
+  {
+    id: "BR-64",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-64",
+    summary: "The Item standard identifier (BT-157) shall have a Scheme identifier.",
+    run: (inv) => {
+      for (let i = 0; i < inv.invoiceLines.length; i++) {
+        const sid = inv.invoiceLines[i]?.itemStandardId;
+        if (sid && present(sid.value) && !present(sid.schemeId)) {
+          return { location: { bt: "BT-157", bg: "BG-31", lineIndex: i }, message: `BT-157 (Artikelkennung) in Position #${i + 1} benötigt eine Schema-Kennung.` };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "BR-65",
+    category: "BR",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-65",
+    summary: "The Item classification identifier (BT-158) shall have a Scheme identifier.",
+    run: (inv) => {
+      for (let i = 0; i < inv.invoiceLines.length; i++) {
+        const cls = inv.invoiceLines[i]?.classifications ?? [];
+        for (const c of cls) {
+          if (present(c.value) && !present(c.schemeId)) {
+            return { location: { bt: "BT-158", bg: "BG-31", lineIndex: i }, message: `BT-158 (Artikelklassifizierung) in Position #${i + 1} benötigt eine Schema-Kennung.` };
+          }
+        }
+      }
+      return null;
+    },
+  },
 ];

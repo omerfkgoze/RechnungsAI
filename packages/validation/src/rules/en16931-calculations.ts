@@ -380,4 +380,21 @@ export const en16931CalculationsRules: readonly Rule[] = [
       };
     },
   },
+  {
+    id: "BR-CO-26",
+    category: "BR-CO",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-CO-26",
+    summary:
+      "In order for the Buyer to automatically identify a supplier, the Seller VAT identifier (BT-31), the Seller tax registration identifier (BT-32) or the Seller legal registration identifier (BT-30) shall be present.",
+    run: (inv) => {
+      const has = (s: string | undefined | null) => typeof s === "string" && s.trim().length > 0;
+      if (has(inv.seller.vatId) || has(inv.seller.taxRegId) || has(inv.seller.legalRegId)) return null;
+      return {
+        location: { bt: "BT-31", bg: "BG-4" },
+        message:
+          "Mindestens eine Verkäufer-Kennung ist erforderlich: BT-31 (USt-IdNr.), BT-32 (Steuernummer) oder BT-30 (Handelsregisternummer).",
+      };
+    },
+  },
 ];

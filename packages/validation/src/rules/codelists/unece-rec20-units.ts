@@ -11,6 +11,7 @@
 export const UNECE_REC20_UNITS: ReadonlySet<string> = new Set([
   // Counts / pieces
   "PCE", "EA", "C62", "NIU", "ZZ", "H87", "XPP", "LOT", "PR", "SET",
+  "NAR", "NPR", "NPT", "NPL", "NMP", "NCL", "NBB",
   // Length
   "MTR", "CMT", "MMT", "KMT", "INH", "FOT", "YRD", "MIL", "HMT", "DMT",
   // Area
