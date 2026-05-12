@@ -75,6 +75,7 @@ export type InvoiceBuilderOptions = {
   paymentInstructions?: Invoice["paymentInstructions"];
   taxRepresentative?: Party;
   payee?: Party;
+  delivery?: Invoice["delivery"];
 };
 
 export function buildValidInvoice(opts: InvoiceBuilderOptions = {}): Invoice {
@@ -93,6 +94,7 @@ export function buildValidInvoice(opts: InvoiceBuilderOptions = {}): Invoice {
     buyer: baseParty(opts.buyer),
     payee: opts.payee,
     taxRepresentative: opts.taxRepresentative,
+    delivery: opts.delivery,
     documentLevelAllowances: opts.documentLevelAllowances ?? [],
     documentLevelCharges: opts.documentLevelCharges ?? [],
     documentTotals: baseTotals(opts.totals),

@@ -17,6 +17,7 @@ import { en16931CodelistsRules } from "./en16931-codelists.js";
 import { en16931VatRules } from "./en16931-vat.js";
 import { en16931DecRules } from "./en16931-dec.js";
 import { en16931Session4Rules } from "./en16931-session4.js";
+import { en16931CodelistsExtraRules } from "./en16931-codelists-extra.js";
 import { deferredRules } from "./en16931-deferred.js";
 import { xrechnungDeRules } from "./xrechnung-de.js";
 
@@ -46,6 +47,7 @@ const CORE_RULES: readonly Rule[] = [
   ...en16931VatRules,
   ...en16931DecRules,
   ...en16931Session4Rules,
+  ...en16931CodelistsExtraRules,
   ...deferredRules,
 ];
 

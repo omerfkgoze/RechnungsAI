@@ -277,7 +277,10 @@ function projectCiiParty(partyEl: RawObj | undefined): Party {
     if (id && scheme === "VA") vatId = id;
     else if (id) taxRegId = id;
   }
-  const legalRegId = pathText(partyEl, "ram:SpecifiedLegalOrganization", "ram:ID");
+  const legalOrgEl = firstChild(partyEl, "ram:SpecifiedLegalOrganization");
+  const legalOrgIdEl = legalOrgEl ? child(legalOrgEl, "ram:ID") : undefined;
+  const legalRegId = text(legalOrgIdEl);
+  const legalRegSchemeId = attr(legalOrgIdEl, "schemeID");
   const address = projectCiiAddress(firstChild(partyEl, "ram:PostalTradeAddress"));
   const contactEl = firstChild(partyEl, "ram:DefinedTradeContact");
   const contact = contactEl
@@ -300,6 +303,7 @@ function projectCiiParty(partyEl: RawObj | undefined): Party {
     vatId,
     taxRegId,
     legalRegId,
+    legalRegSchemeId,
     address,
     contact,
     electronicAddress,

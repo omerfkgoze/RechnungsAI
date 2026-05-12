@@ -63,6 +63,7 @@ export type Party = {
   vatId?: string; // BT-31 / BT-48
   taxRegId?: string; // BT-32 / BT-49 (local tax registration, e.g. Steuernummer)
   legalRegId?: string; // BT-30 / BT-47 (company registration)
+  legalRegSchemeId?: string; // BT-30-1 / BT-47-1 (scheme id of the company registration — ISO/IEC 6523 ICD)
   address?: PostalAddress; // BG-5 / BG-8
   contact?: Contact; // BG-6 / BG-9
   electronicAddress?: { value: string; schemeId?: string }; // BT-34 / BT-49

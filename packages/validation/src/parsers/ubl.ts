@@ -218,7 +218,10 @@ function projectPartyDirect(partyEl: RawObj): Party {
     }
     return undefined;
   })();
-  const legalRegId = pathText(partyEl, "cac:PartyLegalEntity", "cbc:CompanyID");
+  const legalEntityEl = firstChild(partyEl, "cac:PartyLegalEntity");
+  const legalCompanyIdEl = legalEntityEl ? child(legalEntityEl, "cbc:CompanyID") : undefined;
+  const legalRegId = text(legalCompanyIdEl);
+  const legalRegSchemeId = attr(legalCompanyIdEl, "schemeID");
   const address = projectAddress(firstChild(partyEl, "cac:PostalAddress"));
   const contact = projectContact(firstChild(partyEl, "cac:Contact"));
   const electronicAddressEl = child(partyEl, "cbc:EndpointID");
@@ -234,6 +237,7 @@ function projectPartyDirect(partyEl: RawObj): Party {
     vatId,
     taxRegId,
     legalRegId,
+    legalRegSchemeId,
     address,
     contact,
     electronicAddress,

@@ -1,24 +1,24 @@
 // Deferred EN 16931 rules — typed no-op stubs.
 //
-// These rule IDs belong to the KoSIT 2.5.0 rule set (see
-// __tests__/fixtures/kosit-corpus/manifest.json) but their predicate logic is not
-// yet implemented. They ship as no-op stubs (run: () => null) so the coverage
-// assertion (rules.coverage.test.ts) holds and so that giving each one a real body
-// later is a localized change with no engine wiring churn.
+// A rule ID lands here only while its predicate logic is genuinely
+// un-implementable against the current normalized model (e.g. it needs a code
+// set we haven't vendored, or a model/parser extension). Shipping it as a no-op
+// stub keeps the coverage assertion (rules.coverage.test.ts) green and makes
+// "give it a real body later" a localized change with no engine wiring churn.
 //
-// When you implement a rule: remove its entry here and add the real Rule object to
-// the appropriate en16931-*.ts / xrechnung-de.ts file with PASS+FAIL unit tests.
+// As of Story 6.1 Session 5 this list is EMPTY — every manifest ID has a real
+// rule body. The last three (BR-CL-11 / BR-CL-22 / BR-CL-26) were converted in
+// Session 5 once the ISO/IEC 6523 ICD + CEF VATEX code sets were vendored under
+// rules/codelists/; see en16931-codelists-extra.ts. Party.legalRegSchemeId
+// (BT-30-1 / BT-47-1) was added to the model + both parsers for BR-CL-11.
 //
-// Remaining stubs (as of Story 6.1 Session 4): these three require codelist data
-// that is not yet vendored into the package —
-//   - BR-CL-11: registration scheme identifier ⊂ ISO 6523 ICD list
-//   - BR-CL-22: tax-exemption-reason scheme identifier ⊂ CEF VATEX list
-//   - BR-CL-26: delivery-location scheme identifier ⊂ ISO 6523 ICD list
-// Implement once the ISO 6523 ICD + CEF VATEX code sets are added under
-// rules/codelists/ (same recipe as iso4217-currency.ts).
+// To re-add a stub: `stub("BR-XX-YY", "BR-XX")` and document why it can't be a
+// real rule yet.
 
 import type { Rule } from "./engine.js";
 
+// Retained for the next time a rule genuinely can't be implemented yet.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const stub = (id: string, category: Rule["category"]): Rule => ({
   id,
   category,
@@ -28,8 +28,4 @@ const stub = (id: string, category: Rule["category"]): Rule => ({
   run: () => null,
 });
 
-export const deferredRules: readonly Rule[] = [
-  stub("BR-CL-11", "BR-CL"),
-  stub("BR-CL-22", "BR-CL"),
-  stub("BR-CL-26", "BR-CL"),
-];
+export const deferredRules: readonly Rule[] = [];
