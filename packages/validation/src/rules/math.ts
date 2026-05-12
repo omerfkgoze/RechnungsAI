@@ -24,6 +24,23 @@ export function eq2(a: number, b: number): boolean {
   return Math.abs(round2(a) - round2(b)) <= 0.01;
 }
 
+/**
+ * Number of fractional digits in a textual decimal value, mirroring the
+ * Schematron `string-length(substring-after(.,'.'))` check. Comma is treated as
+ * a decimal separator (some CII producers emit `1,50`). Returns 0 when there is
+ * no fractional part and -1 when the value is absent/empty (caller treats -1 as
+ * "nothing to check").
+ */
+export function decimalCount(v: string | undefined | null): number {
+  if (v === undefined || v === null) return -1;
+  const s = String(v).trim();
+  if (s === "") return -1;
+  const normalized = s.replace(/,/g, ".");
+  const dot = normalized.indexOf(".");
+  if (dot === -1) return 0;
+  return normalized.length - dot - 1;
+}
+
 export function sum(values: (string | undefined)[]): number {
   let acc = 0;
   for (const v of values) {

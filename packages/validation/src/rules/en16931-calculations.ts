@@ -397,4 +397,61 @@ export const en16931CalculationsRules: readonly Rule[] = [
       };
     },
   },
+  {
+    id: "BR-CO-03",
+    category: "BR-CO",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-CO-03",
+    summary:
+      "Value added tax point date (BT-7) and Value added tax point date code (BT-8) are mutually exclusive.",
+    run: (inv) => {
+      const has = (s: string | undefined | null) => typeof s === "string" && s.trim().length > 0;
+      if (!(has(inv.vatPointDate) && has(inv.vatPointDateCode))) return null;
+      return {
+        location: { bt: "BT-7", bg: "BG-22" },
+        message: "BT-7 (USt-Stichtag) und BT-8 (USt-Stichtag-Code) schließen sich gegenseitig aus.",
+      };
+    },
+  },
+  // BR-CO-05..08 — "reason code and reason shall indicate the same type of allowance/charge".
+  // The canonical EN 16931 syntax binding evaluates these to `true()` (the mapping
+  // between UNTDID 5189/7161 codes and free-text reasons is not machine-checkable),
+  // so a faithful implementation is a documented always-pass. Present as real rules
+  // so they surface in the rule set and coverage manifest.
+  {
+    id: "BR-CO-05",
+    category: "BR-CO",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-CO-05 (binding: true())",
+    summary:
+      "Document level allowance reason code (BT-98) and reason (BT-97) shall indicate the same type — not machine-checkable; canonical binding is true().",
+    run: () => null,
+  },
+  {
+    id: "BR-CO-06",
+    category: "BR-CO",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-CO-06 (binding: true())",
+    summary:
+      "Document level charge reason code (BT-105) and reason (BT-104) shall indicate the same type — not machine-checkable; canonical binding is true().",
+    run: () => null,
+  },
+  {
+    id: "BR-CO-07",
+    category: "BR-CO",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-CO-07 (binding: true())",
+    summary:
+      "Invoice line allowance reason code (BT-140) and reason (BT-139) shall indicate the same type — not machine-checkable; canonical binding is true().",
+    run: () => null,
+  },
+  {
+    id: "BR-CO-08",
+    category: "BR-CO",
+    severity: "fatal",
+    citation: "EN 16931:2017 §6.6 BR-CO-08 (binding: true())",
+    summary:
+      "Invoice line charge reason code (BT-145) and reason (BT-144) shall indicate the same type — not machine-checkable; canonical binding is true().",
+    run: () => null,
+  },
 ];
