@@ -1,5 +1,17 @@
 # Deferred Work
 
+## Deferred from: code review of 6-1-en-16931-invoice-validation-engine (2026-05-15)
+
+- [ ] **6-1 DN-2: `revalidateInvoice` never re-projects `invoice_data`** — if original extraction used AI (ZUGFeRD was skipped) and a rule-set bump later finds valid ZUGFeRD XML, `validation_status='valid'` but `invoice_data` still reflects the old AI extraction. Re-projection belongs to a future "re-extract on demand" story or the 6.2 spike. [`apps/web/app/actions/invoices/review.ts`]
+- [ ] **6-1 D-1: No rate limiting on `revalidateInvoice` AI path** — authenticated users can repeatedly trigger AI fallback on invalid ZUGFeRD PDFs; pre-existing architectural gap (no per-action throttle in any Server Action); belongs to a future security hardening story. [`apps/web/app/actions/invoices/review.ts`]
+- [ ] **6-1 D-2: `readStreamBytes` silent empty bytes for non-PDFRawStream stream types** — `getContents` fallback returns `new Uint8Array()` for unknown stream subtypes; no known concrete failure path in pdf-lib's embedded file handling. [`packages/pdf/src/extract-attachments.ts`]
+- [ ] **6-1 D-3: NEXT_REDIRECT digest string check tied to Next.js internals** — `digest.startsWith("NEXT_REDIRECT")` pattern used project-wide; project-wide concern if Next.js changes the digest format in a future version. [`apps/web/app/actions/invoices/review.ts`]
+- [ ] **6-1 D-4: Fine-grained GRANT column list requires manual update for future `invoices` columns** — established codebase pattern; mitigation is the existing migration review process. [`supabase/migrations/20260511000000_invoice_validation.sql`]
+- [ ] **6-1 D-5: `validated_at` set in app code not via DB `now()`** — `new Date().toISOString()` in `validation-helpers.ts`; theoretical clock skew under retry is negligible in practice. [`packages/validation/src/index.ts` / `apps/web/app/actions/invoices/validation-helpers.ts`]
+- [ ] **6-1 D-6: `unsupported` path sets non-null `validated_at` while `SKIPPED_VALIDATION` uses null** — minor semantic inconsistency; no index/query impact since `unsupported` not in the partial index filter. [`apps/web/app/actions/invoices/validation-helpers.ts`]
+- [ ] **6-1 D-7: `MAX_XML_BYTES` guard uses string `.length` (UTF-16 code units) not byte count** — ASCII-dominant invoice XML means negligible divergence; edge case only for CJK-heavy XML. [`packages/validation/src/index.ts:63`]
+- [ ] **6-1 D-8: Migration audit allow-list — `exception when duplicate_object` branch unreachable due to `DROP IF EXISTS` before `ADD`** — functionally idempotent and arguably more correct for updating constraint values; AC #17 specifies the literal pattern but outcomes are equivalent. [`supabase/migrations/20260511000000_invoice_validation.sql`]
+
 ## Deferred from: code review of 5-3-datev-export-flow-and-download (2026-05-08)
 
 - [ ] **Datev exports — RLS UPDATE/DELETE policies + cleanup cron** — Add explicit deny policies for UPDATE/DELETE and `force row level security` on `public.datev_exports`; pair with pg_cron sweep `delete from datev_exports where expires_at < now() - interval '24 hours'`. Currently service_role-only writer post-insert, but hardening + storage growth control belong with Epic 8 cleanup work. [`supabase/migrations/20260506000000_datev_exports.sql`]

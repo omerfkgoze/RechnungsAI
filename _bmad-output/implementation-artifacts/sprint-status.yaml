@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-12 (Story 6.1 Session 6 done — D3a XRechnung 3.0.2 CIUS rules (46 IDs: 25 real + 21 stubs; manifest 224→270) + D6 action mock-chain tests (AC #31/#32; web 344→361 tests); validation 395 tests; pnpm -r test + build + lint all green → Status review. Remaining: D2 optional PDF fixtures, D7 GOZE-local supabase db reset + gen types)"
+last_updated: "2026-05-15 (Story 6.1 code review — 4 patch action items (P-1..P-4) + 1 deferred (DN-2 invoice_data re-projection) → Status in-progress)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -155,7 +155,7 @@ development_status:
 
   # Epic 6: E-Invoice Validation
   epic-6: in-progress
-  6-1-en-16931-invoice-validation-engine: review
+  6-1-en-16931-invoice-validation-engine: in-progress
   6-2-validation-results-display-and-correction-email: backlog
   epic-6-retrospective: optional
 
