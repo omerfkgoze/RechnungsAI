@@ -60,6 +60,7 @@ export function projectToInvoiceData(report: ValidationReport): InvoiceData | nu
     supplier_name: stringField(inv.seller.name),
     supplier_address: stringField(supplierAddress),
     supplier_tax_id: stringField(inv.seller.vatId ?? inv.seller.taxRegId),
+    supplier_email: stringField(inv.seller.contact?.email),
     recipient_name: stringField(inv.buyer.name),
     recipient_address: stringField(recipientAddress),
     line_items: lineItems,

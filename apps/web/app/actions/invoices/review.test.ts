@@ -86,7 +86,7 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-import { revalidateInvoice } from "./review";
+import { requestCorrection, revalidateInvoice } from "./review";
 
 const VALID_UUID = "11111111-1111-1111-1111-111111111111";
 
@@ -203,5 +203,107 @@ describe("revalidateInvoice", () => {
   it("rejects invalid UUID", async () => {
     const r = await revalidateInvoice("nope");
     expect(r.success).toBe(false);
+  });
+});
+
+describe("requestCorrection", () => {
+  beforeEach(() => {
+    invoiceSelectSingleMock.mockResolvedValue({
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-1",
+        status: "ready",
+        validation_status: "invalid",
+        correction_requested_at: null,
+      },
+      error: null,
+    });
+  });
+
+  it("(a) happy path: success, single UPDATE, audit emitted with violationCount", async () => {
+    const r = await requestCorrection(VALID_UUID, { violationCount: 3 });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(typeof r.data.correctionRequestedAt).toBe("string");
+    }
+    expect(updatePatches).toHaveLength(1);
+    expect(updatePatches[0]).toHaveProperty("correction_requested_at");
+    expect(logAuditMock).toHaveBeenCalledOnce();
+    expect(logAuditMock.mock.calls[0]?.[1]).toMatchObject({
+      eventType: "correction_requested",
+      metadata: expect.objectContaining({
+        validationStatus: "invalid",
+        violationCount: 3,
+      }),
+    });
+  });
+
+  it("(b) tenant-isolation guard — invoice belongs to another tenant → failure, no UPDATE", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-2",
+        status: "ready",
+        validation_status: "invalid",
+        correction_requested_at: null,
+      },
+      error: null,
+    });
+    const r = await requestCorrection(VALID_UUID);
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toBe("Rechnung nicht gefunden.");
+    expect(updatePatches).toHaveLength(0);
+  });
+
+  it("(c) validation_status='valid' → rejected, no UPDATE", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-1",
+        status: "ready",
+        validation_status: "valid",
+        correction_requested_at: null,
+      },
+      error: null,
+    });
+    const r = await requestCorrection(VALID_UUID);
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toContain("Korrekturanfrage nur bei Validierungsfehlern");
+    expect(updatePatches).toHaveLength(0);
+  });
+
+  it("(d) validation_status='skipped' → rejected", async () => {
+    invoiceSelectSingleMock.mockResolvedValueOnce({
+      data: {
+        id: VALID_UUID,
+        tenant_id: "tenant-1",
+        status: "ready",
+        validation_status: "skipped",
+        correction_requested_at: null,
+      },
+      error: null,
+    });
+    const r = await requestCorrection(VALID_UUID);
+    expect(r.success).toBe(false);
+    expect(updatePatches).toHaveLength(0);
+  });
+
+  it("(e) auth failure → redirect thrown", async () => {
+    authGetUserMock.mockResolvedValueOnce({ data: { user: null }, error: { message: "no session" } });
+    await expect(requestCorrection(VALID_UUID)).rejects.toThrow(/NEXT_REDIRECT/);
+  });
+
+  it("(f) audit failure is swallowed — action still succeeds, Sentry captures", async () => {
+    const Sentry = await import("@sentry/nextjs");
+    logAuditMock.mockRejectedValueOnce(new Error("audit insert blew up"));
+    const r = await requestCorrection(VALID_UUID, { violationCount: 1 });
+    expect(r.success).toBe(true);
+    expect(vi.mocked(Sentry.captureException)).toHaveBeenCalled();
+  });
+
+  it("(g) rejects invalid UUID", async () => {
+    const r = await requestCorrection("not-a-uuid");
+    expect(r.success).toBe(false);
+    expect(updatePatches).toHaveLength(0);
   });
 });

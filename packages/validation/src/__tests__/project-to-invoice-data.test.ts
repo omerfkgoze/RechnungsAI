@@ -5,6 +5,7 @@ import { RULE_SET_VERSION } from "../index.js";
 import type { ValidationReport } from "../types.js";
 
 import { baseLine, buildValidInvoice } from "./_fixtures.js";
+import type { Party } from "../types.js";
 
 function fakeReport(
   status: ValidationReport["status"],
@@ -58,6 +59,38 @@ describe("projectToInvoiceData", () => {
     expect(out?.line_items[0]?.quantity.confidence).toBe(1.0);
     expect(out?.line_items[0]?.net_amount.value).toBe(200);
     expect(out?.line_items[0]?.vat_rate.value).toBe(19);
+  });
+
+  it("projects supplier_email from seller.contact.email", () => {
+    const out = projectToInvoiceData(
+      fakeReport("valid", {
+        invoice: buildValidInvoice({
+          seller: {
+            name: "Lieferant GmbH",
+            address: { line1: "Hauptstr. 1", city: "Berlin", postCode: "10115", countryCode: "DE" },
+            contact: { email: "lieferant@beispiel.de" },
+          } as Party,
+        }),
+      }),
+    );
+    expect(out?.supplier_email.value).toBe("lieferant@beispiel.de");
+    expect(out?.supplier_email.confidence).toBe(1.0);
+  });
+
+  it("projects supplier_email as null when seller.contact is missing", () => {
+    const out = projectToInvoiceData(
+      fakeReport("valid", {
+        invoice: buildValidInvoice({
+          seller: {
+            name: "Lieferant GmbH",
+            address: { line1: "Hauptstr. 1", city: "Berlin", postCode: "10115", countryCode: "DE" },
+            contact: undefined,
+          } as Party,
+        }),
+      }),
+    );
+    expect(out?.supplier_email.value).toBeNull();
+    expect(out?.supplier_email.confidence).toBe(1.0);
   });
 
   it("works on a warning report", () => {

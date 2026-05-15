@@ -45,12 +45,23 @@ export const lineItemSchema = z.object({
 
 export type LineItem = z.infer<typeof lineItemSchema>;
 
+// Default envelope applied to optional fields (e.g. supplier_email) that the
+// AI extraction may omit on legacy rows. `z.preprocess` upgrades a missing key
+// to a zero-confidence null field so consumers never crash on
+// `invoice.<field>.value`.
+const defaultNullStringField = z.preprocess(
+  (val) =>
+    val === undefined ? { value: null, confidence: 0, reason: null } : val,
+  makeField(z.string().nullable()),
+);
+
 export const invoiceSchema = z.object({
   invoice_number: makeField(z.string().nullable()),
   invoice_date: isoDateField,
   supplier_name: makeField(z.string().nullable()),
   supplier_address: makeField(z.string().nullable()),
   supplier_tax_id: makeField(z.string().nullable()),
+  supplier_email: defaultNullStringField,
   recipient_name: makeField(z.string().nullable()),
   recipient_address: makeField(z.string().nullable()),
   line_items: z.array(lineItemSchema),
@@ -69,6 +80,7 @@ export const CORRECTABLE_FIELD_PATHS: readonly string[] = [
   "supplier_name",
   "supplier_address",
   "supplier_tax_id",
+  "supplier_email",
   "recipient_name",
   "recipient_address",
   "net_total",

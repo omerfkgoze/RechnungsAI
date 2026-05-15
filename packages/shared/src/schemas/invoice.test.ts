@@ -19,6 +19,7 @@ function baseInvoice(overrides: Partial<Invoice> = {}): Invoice {
     supplier_name: field("ACME GmbH", 0.99),
     supplier_address: field("Musterweg 1, 10115 Berlin", 0.9),
     supplier_tax_id: field("DE123456789", 0.96),
+    supplier_email: field("kontakt@acme.de", 0.95),
     recipient_name: field("Muster AG", 0.98),
     recipient_address: field("Beispielstr. 2, 20095 Hamburg", 0.92),
     line_items: [],
@@ -60,6 +61,7 @@ describe("invoiceSchema", () => {
       supplier_name: field(null, 0),
       supplier_address: field(null, 0),
       supplier_tax_id: field(null, 0),
+      supplier_email: field(null, 0),
       recipient_name: field(null, 0),
       recipient_address: field(null, 0),
       net_total: field(null, 0),
@@ -84,6 +86,28 @@ describe("invoiceSchema", () => {
     const inv = baseInvoice({ invoice_date: field("2026-04-17", 0.9) });
     const parsed = invoiceSchema.parse(inv);
     expect(parsed.invoice_date.value).toBe("2026-04-17");
+  });
+
+  it("defaults missing supplier_email to a zero-confidence null field", () => {
+    const inv = baseInvoice();
+    // Strip supplier_email to simulate a legacy row predating the schema bump.
+    const { supplier_email: _unused, ...rest } = inv;
+    void _unused;
+    const parsed = invoiceSchema.parse(rest);
+    expect(parsed.supplier_email).toEqual({
+      value: null,
+      confidence: 0,
+      reason: null,
+    });
+  });
+
+  it("preserves an explicit supplier_email value", () => {
+    const inv = baseInvoice({
+      supplier_email: field("k@example.de", 1.0),
+    });
+    const parsed = invoiceSchema.parse(inv);
+    expect(parsed.supplier_email.value).toBe("k@example.de");
+    expect(parsed.supplier_email.confidence).toBe(1.0);
   });
 
   it("accepts line items with per-subfield confidence", () => {

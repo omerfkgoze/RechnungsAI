@@ -12,6 +12,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), replace: vi.fn() }),
 }));
 
+vi.mock("@/app/actions/invoices/review", () => ({
+  revalidateInvoice: vi.fn().mockResolvedValue({ success: true, data: { status: "valid", violationCount: 0 } }),
+  requestCorrection: vi.fn().mockResolvedValue({ success: true, data: { correctionRequestedAt: "2026-05-15T10:00:00.000Z" } }),
+}));
+
 vi.mock("@/app/actions/invoices", () => ({
   extractInvoice: vi.fn().mockResolvedValue({ success: true, data: { status: "ready", overall: 0.99 } }),
   categorizeInvoice: vi.fn().mockResolvedValue({ success: true, data: { skrCode: "4230", confidence: 0.88, buSchluessel: null } }),
@@ -34,6 +39,7 @@ function makeInvoice(confidence = 0.99): Invoice {
     supplier_name: field("ACME GmbH", confidence),
     supplier_address: field("Musterstraße 1", confidence),
     supplier_tax_id: field("DE123456789", confidence),
+    supplier_email: field(null, 0),
     recipient_name: field("Muster AG", confidence),
     recipient_address: field("Hauptstraße 5", confidence),
     line_items: [],

@@ -35,6 +35,7 @@ function makeInvoice(confidence = 0.99): Invoice {
     supplier_name: field("ACME GmbH", confidence),
     supplier_address: field(null, confidence),
     supplier_tax_id: field(null, confidence),
+    supplier_email: field(null, 0),
     recipient_name: field(null, confidence),
     recipient_address: field(null, confidence),
     line_items: [],

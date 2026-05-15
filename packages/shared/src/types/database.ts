@@ -239,6 +239,7 @@ export type Database = {
           bu_schluessel: number | null
           categorization_confidence: number | null
           confidence_sort_key: number | null
+          correction_requested_at: string | null
           created_at: string
           extracted_at: string | null
           extraction_attempts: number
@@ -270,6 +271,7 @@ export type Database = {
           bu_schluessel?: number | null
           categorization_confidence?: number | null
           confidence_sort_key?: number | null
+          correction_requested_at?: string | null
           created_at?: string
           extracted_at?: string | null
           extraction_attempts?: number
@@ -301,6 +303,7 @@ export type Database = {
           bu_schluessel?: number | null
           categorization_confidence?: number | null
           confidence_sort_key?: number | null
+          correction_requested_at?: string | null
           created_at?: string
           extracted_at?: string | null
           extraction_attempts?: number

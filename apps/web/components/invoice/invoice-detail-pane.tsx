@@ -1,4 +1,5 @@
 import { BU_SCHLUESSEL_LABELS, confidenceLevel, overallConfidence, runComplianceChecks, type Invoice, type InvoiceStatus } from "@rechnungsai/shared";
+import type { ValidationViolation } from "@rechnungsai/validation";
 import { cn } from "@/lib/utils";
 import { LABELS, FIELD_ORDER } from "@/lib/invoice-fields";
 import { formatValue, formatEur } from "@/lib/format";
@@ -10,6 +11,7 @@ import { CategoryBootstrap } from "./category-bootstrap";
 import { SkrCategorySelect } from "./skr-category-select";
 import { InvoiceActionsHeader } from "./invoice-actions-header";
 import { ComplianceWarningsBanner } from "./compliance-warnings-banner";
+import { ValidationResultsCard, type ValidationCardStatus } from "./validation-results-card";
 
 type Props = {
   invoiceId: string;
@@ -26,6 +28,12 @@ type Props = {
   approvedAt?: string | null;
   approvedBy?: string | null;
   approvalMethod?: string | null;
+  validationStatus?: string | null;
+  validationErrors?: ValidationViolation[];
+  validationRuleSetVersion?: string | null;
+  validatedAt?: string | null;
+  correctionRequestedAt?: string | null;
+  tenantCompanyName?: string;
 };
 
 const BORDER_COLOR: Record<string, string> = {
@@ -63,6 +71,12 @@ export function InvoiceDetailPane({
   approvedAt = null,
   approvedBy = null,
   approvalMethod = null,
+  validationStatus = null,
+  validationErrors = [],
+  validationRuleSetVersion = null,
+  validatedAt = null,
+  correctionRequestedAt = null,
+  tenantCompanyName = "[Firmenname]",
 }: Props) {
   const overall = invoice ? overallConfidence(invoice) : 0;
   const level = confidenceLevel(overall);
@@ -107,6 +121,22 @@ export function InvoiceDetailPane({
           approvalMethod={approvalMethod}
         />
       </div>
+
+      {invoice && !isExported && validationStatus ? (
+        <ValidationResultsCard
+          invoiceId={invoiceId}
+          status={validationStatus as ValidationCardStatus}
+          errors={validationErrors}
+          ruleSetVersion={validationRuleSetVersion}
+          validatedAt={validatedAt}
+          correctionRequestedAt={correctionRequestedAt}
+          supplierEmail={invoice.supplier_email?.value ?? null}
+          supplierName={invoice.supplier_name?.value ?? null}
+          invoiceNumber={invoice.invoice_number?.value ?? null}
+          invoiceDateIso={invoice.invoice_date?.value ?? null}
+          tenantCompanyName={tenantCompanyName}
+        />
+      ) : null}
 
       {invoice && !isExported && (
         <ComplianceWarningsBanner warnings={runComplianceChecks(invoice)} />

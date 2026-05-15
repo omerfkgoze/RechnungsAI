@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-15 (Story 6.2 context created → ready-for-dev)"
+last_updated: "2026-05-15 (Story 6.2 review)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -156,7 +156,7 @@ development_status:
   # Epic 6: E-Invoice Validation
   epic-6: in-progress
   6-1-en-16931-invoice-validation-engine: done
-  6-2-validation-results-display-and-correction-email: ready-for-dev
+  6-2-validation-results-display-and-correction-email: review
   epic-6-retrospective: optional
 
   # Epic 7: Verfahrensdokumentation

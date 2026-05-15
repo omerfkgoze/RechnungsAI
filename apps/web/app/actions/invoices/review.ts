@@ -653,6 +653,7 @@ export async function updateInvoiceSKR(input: {
 }
 
 const REVALIDATE_LOG = "[invoices:revalidate]";
+const REQUEST_CORRECTION_LOG = "[invoices:request_correction]";
 
 export type RevalidateValidationStatus =
   | ValidationStatus
@@ -819,5 +820,127 @@ export async function revalidateInvoice(
       extra: { invoiceId },
     });
     return { success: false, error: "Validierung fehlgeschlagen. Bitte erneut versuchen." };
+  }
+}
+
+const violationCountSchema = z.number().int().min(0).max(10_000);
+
+export async function requestCorrection(
+  invoiceId: string,
+  opts?: { violationCount?: number },
+): Promise<ActionResult<{ correctionRequestedAt: string }>> {
+  const idParse = invoiceIdSchema.safeParse(invoiceId);
+  if (!idParse.success) {
+    return { success: false, error: firstZodError(idParse.error) };
+  }
+
+  // Clamp the client-supplied violation count defensively. NEVER trust the
+  // raw integer; the server only uses it for audit metadata, not for any
+  // policy decision.
+  const violationCountParse = violationCountSchema.safeParse(opts?.violationCount ?? 0);
+  const violationCount = violationCountParse.success ? violationCountParse.data : 0;
+
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRow) {
+      console.error(REQUEST_CORRECTION_LOG, "user-lookup-failed", userError);
+      redirect(`/login?returnTo=/rechnungen/${invoiceId}`);
+    }
+    const tenantId = userRow.tenant_id;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, status, validation_status, correction_requested_at")
+      .eq("id", invoiceId)
+      .eq("tenant_id", tenantId)
+      .single();
+
+    if (rowErr && rowErr.code !== "PGRST116") {
+      console.error(REQUEST_CORRECTION_LOG, "select-failed", rowErr);
+      Sentry.captureException(rowErr, {
+        tags: { module: "invoices", action: "request-correction" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Rechnung kann momentan nicht geladen werden." };
+    }
+    if (!row || row.tenant_id !== tenantId) {
+      return { success: false, error: "Rechnung nicht gefunden." };
+    }
+
+    // Server-side guard: only states where the UI offers the button (AC #10.d).
+    const allowedStates = new Set(["warning", "invalid", "unsupported"]);
+    if (!allowedStates.has(row.validation_status)) {
+      return {
+        success: false,
+        error: "Korrekturanfrage nur bei Validierungsfehlern möglich.",
+      };
+    }
+
+    const now = new Date().toISOString();
+    const { error: updateErr } = await supabase
+      .from("invoices")
+      .update({ correction_requested_at: now })
+      .eq("id", invoiceId)
+      .eq("tenant_id", tenantId);
+    if (updateErr) {
+      console.error(REQUEST_CORRECTION_LOG, "update-failed", updateErr);
+      Sentry.captureException(updateErr, {
+        tags: { module: "invoices", action: "request-correction" },
+        extra: { invoiceId },
+      });
+      return { success: false, error: "Korrekturanfrage konnte nicht gespeichert werden." };
+    }
+
+    // Audit emission is best-effort (Story 6.1 D9): Sentry on failure, never
+    // fail the user-visible op.
+    try {
+      await logAuditEvent(supabase, {
+        tenantId,
+        invoiceId,
+        actorUserId: user.id,
+        eventType: "correction_requested",
+        metadata: {
+          validationStatus: row.validation_status,
+          violationCount,
+          previousCorrectionRequestedAt: row.correction_requested_at,
+        },
+      });
+    } catch (e) {
+      console.error(REQUEST_CORRECTION_LOG, "audit-failed", e);
+      Sentry.captureException(e, {
+        tags: { module: "invoices", action: "request-correction" },
+        extra: { invoiceId },
+      });
+    }
+
+    revalidatePath(`/rechnungen/${invoiceId}`);
+    return { success: true, data: { correctionRequestedAt: now } };
+  } catch (err) {
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? (err as { digest?: unknown }).digest
+        : undefined;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    console.error(REQUEST_CORRECTION_LOG, err);
+    Sentry.captureException(err, {
+      tags: { module: "invoices", action: "request-correction" },
+      extra: { invoiceId },
+    });
+    return { success: false, error: "Unerwarteter Fehler. Bitte erneut versuchen." };
   }
 }

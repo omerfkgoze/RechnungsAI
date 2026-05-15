@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import type { Invoice } from "@rechnungsai/shared";
+import type { ValidationViolation } from "@rechnungsai/validation";
 import { createServerClient } from "@/lib/supabase/server";
 import { AiDisclaimer } from "@/components/ai/ai-disclaimer";
 import { InvoiceDetailPane } from "@/components/invoice/invoice-detail-pane";
@@ -36,7 +37,7 @@ export default async function Page({
   const { data: invoice } = await supabase
     .from("invoices")
     .select(
-      "id, status, file_path, file_type, original_filename, invoice_data, extraction_error, extracted_at, created_at, updated_at, skr_code, bu_schluessel, categorization_confidence, approved_at, approved_by, approval_method",
+      "id, status, file_path, file_type, original_filename, invoice_data, extraction_error, extracted_at, created_at, updated_at, skr_code, bu_schluessel, categorization_confidence, approved_at, approved_by, approval_method, validation_status, validation_errors, validation_rule_set_version, validated_at, correction_requested_at",
     )
     .eq("id", id)
     .eq("tenant_id", tenantId)
@@ -50,7 +51,7 @@ export default async function Page({
   const supplierName = invoiceData?.supplier_name?.value ?? null;
 
   const [tenantResult, recentCodesResult] = await Promise.all([
-    supabase.from("tenants").select("skr_plan").eq("id", tenantId).single(),
+    supabase.from("tenants").select("skr_plan, company_name").eq("id", tenantId).single(),
     supplierName
       ? supabase
           .from("categorization_corrections")
@@ -63,6 +64,9 @@ export default async function Page({
   ]);
 
   const skrPlan = tenantResult.data?.skr_plan ?? "skr03";
+  const tenantCompanyName = tenantResult.data?.company_name ?? "[Firmenname]";
+
+  const validationErrors = (invoice.validation_errors ?? []) as ValidationViolation[];
 
   const seenCodes = new Set<string>();
   const recentSkrCodes: string[] = [];
@@ -93,6 +97,12 @@ export default async function Page({
         approvedAt={invoice.approved_at ?? null}
         approvedBy={invoice.approved_by ?? null}
         approvalMethod={invoice.approval_method ?? null}
+        validationStatus={invoice.validation_status}
+        validationErrors={validationErrors}
+        validationRuleSetVersion={invoice.validation_rule_set_version ?? null}
+        validatedAt={invoice.validated_at ?? null}
+        correctionRequestedAt={invoice.correction_requested_at ?? null}
+        tenantCompanyName={tenantCompanyName}
       />
     </main>
   );

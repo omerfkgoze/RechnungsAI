@@ -11,6 +11,7 @@ function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
     supplier_name: { value: "Test GmbH", confidence: 1, reason: null },
     supplier_address: { value: "Teststraße 1, 10115 Berlin", confidence: 1, reason: null },
     supplier_tax_id: { value: "DE123456789", confidence: 1, reason: null },
+    supplier_email: { value: null, confidence: 0, reason: null },
     recipient_name: { value: "Empfänger GmbH", confidence: 1, reason: null },
     recipient_address: { value: "Empfängerstraße 2, 20095 Hamburg", confidence: 1, reason: null },
     line_items: [],
