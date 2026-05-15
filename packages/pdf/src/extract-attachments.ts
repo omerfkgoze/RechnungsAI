@@ -130,8 +130,14 @@ function readStreamBytes(stream: PDFStream): Uint8Array {
     if (isFlate) {
       try {
         return new Uint8Array(inflateSync(raw));
-      } catch {
-        return raw;
+      } catch (err) {
+        // FlateDecode failure means the stream is corrupted; returning the
+        // still-compressed bytes would let downstream bytesToUtf8 decode them
+        // as garbled "valid" XML and stamp a false STRUCT violation on the
+        // invoice. Throw so extractZugferdXml's catch reports `pdf-parse-failed`.
+        throw new Error(
+          `FlateDecode inflate failed for embedded file stream: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
     return raw;

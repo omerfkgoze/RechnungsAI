@@ -26,14 +26,14 @@ export const en16931CodelistsExtraRules: readonly Rule[] = [
       if (sellerScheme && !isIso6523Icd(sellerScheme)) {
         return {
           location: { bt: "BT-30-1", bg: "BG-4" },
-          message: `BT-30-1 (Schema-Kennung der Verkäufer-Registernummer) "${sellerScheme}" ist kein gültiger ISO/IEC-6523-ICD-Code.`,
+          message: "BT-30-1 (Schema-Kennung der Verkäufer-Registernummer) ist kein gültiger ISO/IEC-6523-ICD-Code.",
         };
       }
       const buyerScheme = inv.buyer.legalRegSchemeId;
       if (buyerScheme && !isIso6523Icd(buyerScheme)) {
         return {
           location: { bt: "BT-47-1", bg: "BG-7" },
-          message: `BT-47-1 (Schema-Kennung der Käufer-Registernummer) "${buyerScheme}" ist kein gültiger ISO/IEC-6523-ICD-Code.`,
+          message: "BT-47-1 (Schema-Kennung der Käufer-Registernummer) ist kein gültiger ISO/IEC-6523-ICD-Code.",
         };
       }
       return null;
@@ -69,7 +69,7 @@ export const en16931CodelistsExtraRules: readonly Rule[] = [
       if (!scheme || isIso6523Icd(scheme)) return null;
       return {
         location: { bt: "BT-71-1", bg: "BG-13" },
-        message: `BT-71-1 (Schema-Kennung der Lieferort-Kennung) "${scheme}" ist kein gültiger ISO/IEC-6523-ICD-Code.`,
+        message: "BT-71-1 (Schema-Kennung der Lieferort-Kennung) ist kein gültiger ISO/IEC-6523-ICD-Code.",
       };
     },
   },

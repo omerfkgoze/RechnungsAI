@@ -747,14 +747,27 @@ export async function revalidateInvoice(
     const structured = await runStructuredExtraction(bytes, fileType);
     const v = structured.validationFields;
 
+    // On successful validation, clear any stale `extraction_error` left by a
+    // prior failed extraction — otherwise the dashboard renders a German error
+    // string alongside `validation_status='valid'`.
+    const updatePayload: {
+      validation_status: typeof v.validation_status;
+      validation_errors: typeof v.validation_errors;
+      validation_rule_set_version: typeof v.validation_rule_set_version;
+      validated_at: typeof v.validated_at;
+      extraction_error?: null;
+    } = {
+      validation_status: v.validation_status,
+      validation_errors: v.validation_errors,
+      validation_rule_set_version: v.validation_rule_set_version,
+      validated_at: v.validated_at,
+    };
+    if (v.validation_status === "valid") {
+      updatePayload.extraction_error = null;
+    }
     const { error: saveErr } = await supabase
       .from("invoices")
-      .update({
-        validation_status: v.validation_status,
-        validation_errors: v.validation_errors,
-        validation_rule_set_version: v.validation_rule_set_version,
-        validated_at: v.validated_at,
-      })
+      .update(updatePayload)
       .eq("id", invoiceId)
       .eq("tenant_id", tenantId);
     if (saveErr) {
