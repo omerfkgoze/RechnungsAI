@@ -122,7 +122,12 @@ export function InvoiceDetailPane({
         />
       </div>
 
-      {invoice && !isExported && validationStatus ? (
+      {!isExported && validationStatus ? (
+        // Render even when `invoice` is null: validation runs before extraction
+        // projects, and an XML can validate to `invalid` while
+        // `projectToInvoiceData` returns null (forcing AI fallback that may
+        // also fail). The card is the user's primary signal of *what's wrong*,
+        // so it must surface independently of extraction success.
         <ValidationResultsCard
           invoiceId={invoiceId}
           status={validationStatus as ValidationCardStatus}
@@ -130,10 +135,10 @@ export function InvoiceDetailPane({
           ruleSetVersion={validationRuleSetVersion}
           validatedAt={validatedAt}
           correctionRequestedAt={correctionRequestedAt}
-          supplierEmail={invoice.supplier_email?.value ?? null}
-          supplierName={invoice.supplier_name?.value ?? null}
-          invoiceNumber={invoice.invoice_number?.value ?? null}
-          invoiceDateIso={invoice.invoice_date?.value ?? null}
+          supplierEmail={invoice?.supplier_email?.value ?? null}
+          supplierName={invoice?.supplier_name?.value ?? null}
+          invoiceNumber={invoice?.invoice_number?.value ?? null}
+          invoiceDateIso={invoice?.invoice_date?.value ?? null}
           tenantCompanyName={tenantCompanyName}
         />
       ) : null}
@@ -170,11 +175,15 @@ export function InvoiceDetailPane({
         <section>
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_1fr_auto]">
             {FIELD_ORDER.map((key, i) => {
-              const field = invoice[key] as {
+              // Legacy rows whose jsonb predates a schema field (e.g. supplier_email
+              // before Story 6.2) lack the key entirely. Fall back to a zero-
+              // confidence null envelope so the read path mirrors the schema's
+              // makeField default without re-parsing every row.
+              const field = (invoice[key] as {
                 value: unknown;
                 confidence: number;
                 reason: string | null;
-              };
+              } | undefined) ?? { value: null, confidence: 0, reason: null };
               const isAmberOrRed = confidenceLevel(field.confidence) !== "high";
 
               return (
