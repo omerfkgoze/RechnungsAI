@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-16 (Story 7-1 created → ready-for-dev; epic-7 → in-progress)"
+last_updated: "2026-05-16 (Story 7-1 → review)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -174,7 +174,7 @@ development_status:
 
   # Epic 7: Verfahrensdokumentation
   epic-7: in-progress
-  7-1-verfahrensdokumentation-pdf-generation: ready-for-dev
+  7-1-verfahrensdokumentation-pdf-generation: in-progress
   7-2-verfahrensdokumentation-status-and-auto-update: backlog
   epic-7-retrospective: optional
 

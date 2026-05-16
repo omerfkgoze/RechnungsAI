@@ -3,6 +3,8 @@ import { SKR_PLANS, type SkrPlan } from "@rechnungsai/shared";
 import { createServerClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/layout/empty-state";
 import { TenantSettingsForm } from "@/components/settings/tenant-settings-form";
+import { VerdokSection } from "@/components/settings/verdok-section";
+import { toTenantSlug } from "@/app/api/_helpers/filename";
 
 export const metadata: Metadata = {
   title: "Einstellungen – RechnungsAI",
@@ -28,6 +30,21 @@ export default async function EinstellungenPage() {
     );
   }
 
+  // AC7 mandatory fields — render the document only when all are present.
+  const hasRequiredSettings = Boolean(
+    tenant.company_name?.trim() &&
+      tenant.company_address?.trim() &&
+      tenant.tax_id?.trim() &&
+      tenant.datev_berater_nr?.trim() &&
+      tenant.datev_mandanten_nr?.trim(),
+  );
+  const companySlug = toTenantSlug(tenant.company_name ?? "") || "unternehmen";
+
+  const { data: verdokRow } = await supabase
+    .from("verfahrensdokumentation")
+    .select("id, generated_at")
+    .maybeSingle();
+
   return (
     <div className="mx-auto max-w-2xl">
       <header className="mb-6">
@@ -52,6 +69,15 @@ export default async function EinstellungenPage() {
           datev_fiscal_year_start: tenant.datev_fiscal_year_start ?? 1,
           datev_default_kreditorenkonto: tenant.datev_default_kreditorenkonto ?? "",
         }}
+      />
+      <VerdokSection
+        hasRequiredSettings={hasRequiredSettings}
+        companySlug={companySlug}
+        existing={
+          verdokRow
+            ? { id: verdokRow.id, generatedAt: verdokRow.generated_at }
+            : null
+        }
       />
     </div>
   );

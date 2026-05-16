@@ -19,7 +19,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@rechnungsai/shared": "workspace:*"
+    "@rechnungsai/shared": "workspace:*",
+    "json-stringify-deterministic": "^1.0.13"
   },
   "devDependencies": {
     "@rechnungsai/eslint-config": "workspace:*",

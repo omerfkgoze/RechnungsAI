@@ -3,6 +3,10 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // @react-pdf/renderer must stay an external (non-bundled) server package:
+  // bundling it through the App Router triggers a multi-React-reconciler
+  // crash (spike P1, GitHub #3285). Node.js runtime only — never Edge.
+  serverExternalPackages: ["@react-pdf/renderer"],
 };
 
 export default withSentryConfig(nextConfig, {

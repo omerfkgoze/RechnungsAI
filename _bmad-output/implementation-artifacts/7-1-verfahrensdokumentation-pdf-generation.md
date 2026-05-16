@@ -1,6 +1,6 @@
 # Story 7.1: Verfahrensdokumentation PDF Generation
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -65,41 +65,41 @@ Then no PDF is generated and a conversational German message is shown: "Für die
 - [x] **Task 1 — Storage bucket prerequisite (D-2)** ✅ DONE (2026-05-16, ayrı session) (AC: 4)
   - [x] Dashboard YERİNE migration ile kuruldu (reproducible, `supabase db reset`+Cloud'da kalıcı; `invoices` bucket precedent'i): `supabase/migrations/20260516010000_storage_verfahrensdokumentation_bucket.sql`
   - [x] private bucket, `application/pdf` only, 5MB limit; RLS `(storage.foldername(name))[1] = public.my_tenant_id()::text` (INSERT + SELECT; UPDATE/DELETE yok — path `{tenant_id}/verdok-{iso}.pdf` versiyonlu, üzerine yazma yok)
-  - [ ] **Dev başlangıç doğrulaması:** `supabase db reset` → `select id from storage.buckets where id='verfahrensdokumentation';` 1 satır dönmeli; cross-tenant signed URL erişememeli
-- [ ] **Task 2 — `packages/gobd` config hash** (AC: 2)
-  - [ ] `pnpm --filter @rechnungsai/gobd add json-stringify-deterministic@^1.0.1`
-  - [ ] `packages/gobd/src/verdok-hash.ts` — spike P2 Decision 2 SQL/TS'yi birebir uygula (`VerdokHashInput` tipi + `computeVerdokConfigHash`)
-  - [ ] `packages/gobd/src/index.ts` — `computeVerdokConfigHash` + `VerdokHashInput` export et
-  - [ ] `packages/gobd/src/verdok-hash.test.ts` — spike P2'deki 6 case + linchpin testi (10 alan sayımı)
-- [ ] **Task 3 — `packages/gobd` content assembly** (AC: 1)
-  - [ ] `packages/gobd/src/verfahrensdokumentation.ts` — `VerdokData` tipi + `assembleVerdokData(tenant): VerdokData` (saf fonksiyon, DB/network yok)
-  - [ ] Statik metin blokları (workflow, archiving, access controls, data protection) Almanca sabit prose; tenant alanları enjekte edilir
-  - [ ] RechnungsAI sürümü: `apps/web` `package.json` version'ı ya da paylaşılan sabit; AI provider/model: `packages/ai` `getExtractionModel()` mantığını yansıtan sabit string (import zinciri yaratma — gobd `packages/ai`'ye bağlı olmamalı; string parametre ya da sabit geç)
-  - [ ] `packages/gobd/src/index.ts` — `assembleVerdokData` + `VerdokData` export
-  - [ ] `packages/gobd/src/verfahrensdokumentation.test.ts` — well-formed VerdokData, eksik alan davranışı
-- [ ] **Task 4 — `@react-pdf/renderer` kurulum** (AC: 3)
-  - [ ] `pnpm --filter @rechnungsai/web add @react-pdf/renderer@^4.5.1`
-  - [ ] `apps/web/next.config.ts` → `serverExternalPackages: ["@react-pdf/renderer"]` ekle (mevcut `output: "standalone"` KORUNUR)
-  - [x] `apps/web/public/fonts/NotoSans-Regular.ttf` + `NotoSans-Bold.ttf` ✅ DONE (2026-05-16, ayrı session — Google noto-fonts hinted/ttf, SIL OFL 1.1, ~570KB each)
-  - [ ] `apps/web/lib/pdf/fonts.ts` — `registerFonts()` (spike P1 §4)
-- [ ] **Task 5 — PDF template** (AC: 1, 3)
-  - [ ] `apps/web/lib/pdf/verdok-template.tsx` — `VerdokTemplate({ data }: { data: VerdokData })`; A4, çok bölümlü; spike P1 skeleton'u tüm GoBD bölümleriyle doldur
-  - [ ] Umlaut smoke satırı template'te kalsın (font gömme doğrulaması)
-- [ ] **Task 6 — Generate Server Action** (AC: 1, 2, 4, 6, 7)
-  - [ ] `apps/web/app/actions/verdok.ts` (yeni) → `generateVerdok()`: auth → user.tenant_id → tenants row fetch → AC7 eksik-ayar guard → `assembleVerdokData` → `renderToBuffer(<VerdokTemplate/>)` → Storage upload → `computeVerdokConfigHash` → `verfahrensdokumentation` UPSERT (**`generated_at: new Date().toISOString()` payload'da — D-1**) → `logAuditEvent("verdok_generated", metadata:{config_hash})` → `revalidatePath("/einstellungen")`
-  - [ ] `logAuditEvent` / `AuditEventType` union'ına `"verdok_generated"` ekle (`apps/web/app/actions/invoices/shared.ts`)
-- [ ] **Task 7 — Download Route Handler** (AC: 5, 6)
-  - [ ] `apps/web/app/api/verdok/[id]/pdf/route.ts` — `runtime = "nodejs"`, `dynamic = "force-dynamic"`; `datev/[exportId]/route.ts` auth+tenant-isolation desenini birebir izle
-  - [ ] `verfahrensdokumentation` row fetch (tenant-scoped) → Storage'dan PDF indir → binary attachment, `Content-Disposition` filename `Verfahrensdokumentation_[CompanyName]_[YYYY-MM-DD].pdf` (`toTenantSlug` helper'ı kullan)
-  - [ ] Best-effort `verdok_generated` audit (download); hata response'u bloklamaz
-- [ ] **Task 8 — Einstellungen UI** (AC: 5, 7)
-  - [ ] `einstellungen/page.tsx`'e "Verfahrensdokumentation" bölümü: ayarlar tamamsa generate + download; eksikse AC7 mesajı + `/einstellungen` (kendi sayfası — vurgulu CTA) link
-  - [ ] Boş durum: UX empty-state deseni (UX-DR19; üzücü ton yok)
-- [ ] **Task 9 — Tests + smoke**
-  - [ ] `apps/web/__tests__/verdok-pdf.smoke.test.tsx` — `%PDF-` prefix + umlaut buffer kontrolü (spike P1 §Test Strategy)
-  - [ ] Server Action testi: AC7 guard, UPSERT payload `generated_at` içeriyor
-  - [ ] Route handler testi: cross-tenant 404, auth 401
-  - [ ] `pnpm -r test` yeşil; manuel: gerçek tarayıcıda PDF aç, `ä ö ü ß` doğru render
+  - [x] **Dev başlangıç doğrulaması:** çalışan yerel Supabase DB'ye (`supabase_db_RechnungsAI`, Docker) karşı doğrulandı — `select id from storage.buckets where id='verfahrensdokumentation'` 1 satır; `public.verfahrensdokumentation` tablosu mevcut; 3 RLS policy (insert/select/update) + 2 storage.objects policy (verdok_insert/select_own_tenant) mevcut; `audit_logs_event_type_chk` `verdok_generated` içeriyor. Migration dosyaları repo'da → `supabase db reset` ile reproducible. Cross-tenant izolasyon DB RLS + route tenant-scoped query + route test (cross-tenant 404) ile kapsanıyor. (CLI yok; psql docker exec ile doğrulandı)
+- [x] **Task 2 — `packages/gobd` config hash** (AC: 2)
+  - [x] `pnpm --filter @rechnungsai/gobd add json-stringify-deterministic@^1.0.1`
+  - [x] `packages/gobd/src/verdok-hash.ts` — spike P2 Decision 2 TS'si birebir (`VerdokHashInput` + `computeVerdokConfigHash`, `?? null` invariantı)
+  - [x] `packages/gobd/src/index.ts` — `computeVerdokConfigHash` + `VerdokHashInput` export
+  - [x] `packages/gobd/src/verdok-hash.test.ts` — 6 case + undefined↔null + linchpin (10 alan) = 8 test
+- [x] **Task 3 — `packages/gobd` content assembly** (AC: 1)
+  - [x] `packages/gobd/src/verfahrensdokumentation.ts` — `VerdokData` + `assembleVerdokData(tenant, software, generatedAtIso)` saf fonksiyon (DB/network yok)
+  - [x] 7 GoBD bölümü Almanca sabit prose; tenant alanları enjekte
+  - [x] RechnungsAI sürümü + AI provider/model Server Action'dan `VerdokSoftwareInfo` parametresi olarak geçer (gobd `packages/ai`'ye bağlı DEĞİL)
+  - [x] `packages/gobd/src/index.ts` — `assembleVerdokData` + tipler export
+  - [x] `packages/gobd/src/verfahrensdokumentation.test.ts` — 7 test (well-formed, enjeksiyon, fallback, SKR04, ay adı, umlaut)
+- [x] **Task 4 — `@react-pdf/renderer` kurulum** (AC: 3)
+  - [x] `pnpm --filter @rechnungsai/web add @react-pdf/renderer@^4.5.1`
+  - [x] `apps/web/next.config.ts` → `serverExternalPackages: ["@react-pdf/renderer"]` (mevcut `output: "standalone"` KORUNDU)
+  - [x] `apps/web/public/fonts/NotoSans-Regular.ttf` + `NotoSans-Bold.ttf` ✅ (2026-05-16, ayrı session)
+  - [x] `apps/web/lib/pdf/fonts.ts` — `registerFonts()` idempotent, module-level çağrı için
+- [x] **Task 5 — PDF template** (AC: 1, 3)
+  - [x] `apps/web/lib/pdf/verdok-template.tsx` — A4, 7 bölüm + footer (sayfa no), `wrap={false}` bölüm bütünlüğü
+  - [x] Umlaut smoke satırı (`data.umlautSmoke`) template'te
+- [x] **Task 6 — Generate Server Action** (AC: 1, 2, 4, 6, 7)
+  - [x] `apps/web/app/actions/verdok.ts` → `generateVerdok()`: auth → tenant_id → tenants fetch → AC7 guard → assemble → renderToBuffer → Storage upload (upload başarısızsa erken return, DB yazılmaz — F-5) → hash → UPSERT (**`generated_at` payload'da — D-1**) → audit → revalidate
+  - [x] `AuditEventType` union'ına `"verdok_generated"` eklendi (`invoices/shared.ts`)
+- [x] **Task 7 — Download Route Handler** (AC: 5, 6)
+  - [x] `apps/web/app/api/verdok/[id]/pdf/route.ts` — `runtime="nodejs"`, `dynamic="force-dynamic"`; datev route auth+tenant deseni birebir
+  - [x] tenant-scoped fetch (`.eq("id").eq("tenant_id")`) → Storage download → binary attachment, filename `Verfahrensdokumentation_[slug]_[YYYY-MM-DD].pdf`, `private, no-store`
+  - [x] Best-effort download audit (try/catch sarmalı, response bloklanmaz — F-10)
+- [x] **Task 8 — Einstellungen UI** (AC: 5, 7)
+  - [x] `verdok-section.tsx` client component + `einstellungen/page.tsx` entegrasyonu: ayarlar tamamsa generate + download (mevcut satır varsa "Zuletzt erstellt am"), eksikse AC7 mesajı + vurgulu CTA
+  - [x] Empty-state nötr ton (UX-DR19; üzücü ton yok)
+- [x] **Task 9 — Tests + smoke**
+  - [x] `apps/web/__tests__/verdok-pdf.smoke.test.tsx` — `%PDF-` prefix + font subset (FontFile + notosans) kontrolü, node env
+  - [x] `apps/web/app/actions/verdok.test.ts` — AC7 guard (×2), UPSERT `generated_at` ISO + path lockstep, F-5
+  - [x] `apps/web/app/api/verdok/[id]/pdf/route.test.ts` — 401, 400, cross-tenant 404, 200+headers, F-10
+  - [x] `pnpm -r test` yeşil (web 399, gobd 37). ⚠️ Manuel tarayıcı umlaut doğrulaması: BLOCKED-BY-ENVIRONMENT (Epic 6 A3) — headless ortam; smoke testi font-subset gömülmesini (FontFile + NotoSans referansı) programatik doğruluyor
 
 ## Dev Notes
 
@@ -179,8 +179,63 @@ Bu story **yeni migration eklemiyor** (P3'te landed). Mevcut migration'ın GDPR 
 
 ### Agent Model Used
 
+claude-opus-4-7 (bmad-dev-story workflow)
+
 ### Debug Log References
+
+- `pnpm --filter @rechnungsai/gobd test` → 37 passed; `check-types` clean; `lint` clean
+- `pnpm --filter @rechnungsai/web check-types` → clean (after rebuilding `@rechnungsai/gobd` + `@rechnungsai/shared` dist so the new exports/`verfahrensdokumentation` table type resolve)
+- `pnpm -r test` → web 399 passed (45 files, incl. 11 new), all packages green
+- `pnpm --filter @rechnungsai/web lint` → 0 errors (only pre-existing unrelated warnings)
+- Schema verified against running local Supabase DB (`supabase_db_RechnungsAI`) via `docker exec psql`: bucket, table, 3 table RLS policies, 2 storage RLS policies, audit constraint all present
 
 ### Completion Notes List
 
+- **Architecture:** `packages/gobd` stays pure (no React/PDF dep) — confirmed `packages/gobd/package.json` has no `@react-pdf/renderer` (F-1). `@react-pdf/renderer` is `apps/web`-only + `serverExternalPackages` (F-1/F-11; `output: "standalone"` preserved).
+- **D-1:** UPSERT payload sets `generated_at: generatedAtIso` explicitly; storage path reuses the same ISO stamp so file name and row stay in lockstep — asserted in `verdok.test.ts`.
+- **F-5:** Storage upload runs before the DB UPSERT; an upload error returns early so `pdf_storage_path` can never point at a missing object — covered by a test.
+- **F-3:** `registerFonts()` is idempotent and called at module level in the Server Action (not in the request path).
+- **F-8:** Route Handler filters by both `id` and the caller's `tenant_id`; foreign id → 404 (no existence leak) — covered by cross-tenant test.
+- **F-9 / AC7:** Mandatory-field guard runs before assembly/render; whitespace-only values treated as missing.
+- **F-10:** Download audit wrapped in try/catch; a thrown audit error still serves the PDF — covered by a test.
+- **Hash:** spike P2 `verdok-hash.ts` implemented verbatim incl. the `?? null` invariant; an extra test asserts `undefined` coerces identically to explicit `null`; linchpin guards the 10-field set at compile time.
+- **`crypto.subtle`** used per spike (async); consistent with spike P2 Decision 2.
+- **Env note:** manual browser umlaut verification is BLOCKED-BY-ENVIRONMENT (Epic 6 A3, headless). The node smoke test compensates by asserting the embedded NotoSans font subset (`FontFile` + `notosans`) is present in the rendered PDF — ASCII-only Helvetica fallback would omit it.
+- **Type-resolution gotcha:** the Supabase `.select()` argument must be a single string literal (not concatenated) or the row type degrades to `GenericStringError`; fixed in `verdok.ts`.
+
 ### File List
+
+**NEW**
+
+- `packages/gobd/src/verdok-hash.ts`
+- `packages/gobd/src/verdok-hash.test.ts`
+- `packages/gobd/src/verfahrensdokumentation.ts`
+- `packages/gobd/src/verfahrensdokumentation.test.ts`
+- `apps/web/lib/pdf/fonts.ts`
+- `apps/web/lib/pdf/verdok-template.tsx`
+- `apps/web/app/actions/verdok.ts`
+- `apps/web/app/actions/verdok.test.ts`
+- `apps/web/app/api/verdok/[id]/pdf/route.ts`
+- `apps/web/app/api/verdok/[id]/pdf/route.test.ts`
+- `apps/web/components/settings/verdok-section.tsx`
+- `apps/web/__tests__/verdok-pdf.smoke.test.tsx`
+
+**UPDATE**
+
+- `packages/gobd/src/index.ts` (new exports)
+- `packages/gobd/package.json` (`json-stringify-deterministic` dep)
+- `apps/web/package.json` (`@react-pdf/renderer` dep)
+- `apps/web/next.config.ts` (`serverExternalPackages`)
+- `apps/web/app/actions/invoices/shared.ts` (`AuditEventType` += `verdok_generated`)
+- `apps/web/app/(app)/einstellungen/page.tsx` (Verfahrensdokumentation section wiring)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (status tracking)
+
+**PRE-LANDED (prep, not modified)**
+
+- `supabase/migrations/20260516000000_verfahrensdokumentation.sql`
+- `supabase/migrations/20260516010000_storage_verfahrensdokumentation_bucket.sql`
+- `apps/web/public/fonts/NotoSans-Regular.ttf`, `NotoSans-Bold.ttf`
+
+## Change Log
+
+- 2026-05-16 — Story 7.1 implemented: pure `packages/gobd` config-hash + content assembly, `@react-pdf/renderer` Node-runtime PDF pipeline (fonts + template), `generateVerdok` Server Action (AC7 guard, D-1 `generated_at`, F-5 upload-before-DB), tenant-isolated download Route Handler, Einstellungen UI section, `verdok_generated` audit event. 26 new tests; full suite green. Status → review.

@@ -18,7 +18,8 @@ export type AuditEventType =
   | "validation_passed"
   | "validation_failed"
   | "revalidation_completed"
-  | "correction_requested";
+  | "correction_requested"
+  | "verdok_generated";
 
 export async function logAuditEvent(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
