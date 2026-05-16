@@ -180,6 +180,54 @@ export type Database = {
           },
         ]
       }
+      verfahrensdokumentation: {
+        Row: {
+          config_hash: string
+          created_at: string
+          generated_at: string
+          generated_by: string | null
+          id: string
+          pdf_storage_path: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          config_hash: string
+          created_at?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          pdf_storage_path: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          config_hash?: string
+          created_at?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          pdf_storage_path?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verfahrensdokumentation_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verfahrensdokumentation_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_field_corrections: {
         Row: {
           corrected_to_ai: boolean

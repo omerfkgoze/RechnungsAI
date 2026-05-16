@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: code review of prep-p3-verfahrensdokumentation-migration (2026-05-16)
+
+- [ ] **P3 D-1: `generated_at` stays stale after UPSERT regeneration** — `generated_at` defaults to `now()` at insert and has no trigger to refresh it. The UPSERT `do update` clause in the Story 7.1 application code must explicitly include `generated_at = now()` (or `excluded.generated_at` if the caller passes a timestamp). Without it, `getVerdokStatus` returns the original creation time as `generatedAt` after every regeneration. [`supabase/migrations/20260516000000_verfahrensdokumentation.sql` — Story 7.1 UPSERT implementation]
+- [ ] **P3 D-2: Storage bucket for `verfahrensdokumentation` not created** — `pdf_storage_path` references a storage bucket that does not yet exist. The bucket must be created (private, folder-isolated by tenant_id) before Story 7.1 can upload PDFs. Out of P3 scope per spec; must be addressed before Story 7.1 smoke test. [Supabase Dashboard or separate storage migration — Story 7.1 prep]
+
 ## Deferred from: code review of 6-1-en-16931-invoice-validation-engine (2026-05-15)
 
 - [ ] **6-1 DN-2: `revalidateInvoice` never re-projects `invoice_data`** — if original extraction used AI (ZUGFeRD was skipped) and a rule-set bump later finds valid ZUGFeRD XML, `validation_status='valid'` but `invoice_data` still reflects the old AI extraction. Re-projection belongs to a future "re-extract on demand" story or the 6.2 spike. [`apps/web/app/actions/invoices/review.ts`]
