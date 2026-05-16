@@ -13,6 +13,19 @@ import { InvoiceActionsHeader } from "./invoice-actions-header";
 import { ComplianceWarningsBanner } from "./compliance-warnings-banner";
 import { ValidationResultsCard, type ValidationCardStatus } from "./validation-results-card";
 
+// `validation_status` is typed `string | null` from the regenerated DB types.
+// Guard the cast so a value outside the union (schema drift / a future status
+// added server-side) does NOT fall through into the warning/invalid render and
+// silently mislabel the invoice — the card is suppressed instead.
+const KNOWN_VALIDATION_STATUSES = new Set<string>([
+  "pending",
+  "valid",
+  "warning",
+  "invalid",
+  "unsupported",
+  "skipped",
+]);
+
 type Props = {
   invoiceId: string;
   status: InvoiceStatus;
@@ -122,7 +135,9 @@ export function InvoiceDetailPane({
         />
       </div>
 
-      {!isExported && validationStatus ? (
+      {!isExported &&
+      validationStatus &&
+      KNOWN_VALIDATION_STATUSES.has(validationStatus) ? (
         // Render even when `invoice` is null: validation runs before extraction
         // projects, and an XML can validate to `invalid` while
         // `projectToInvoiceData` returns null (forcing AI fallback that may

@@ -1,6 +1,6 @@
 # Story 6.2: Validation Results Display and Correction Email
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -283,6 +283,19 @@ Story 6.1 wrote `validation_status`, `validation_errors`, `validation_rule_set_v
   - [x] Update File List + Change Log
   - [x] Flip Status `ready-for-dev → in-progress → review` per dev-story flow
 
+### Review Findings
+
+_Code review 2026-05-16 — 3 adversarial layers (Blind Hunter, Edge Case Hunter, Acceptance Auditor). D=1, P=2, W=5, R=13 dismissed._
+
+- [x] [Review][Decision] Smoke UX/DB rows marked `DONE` instead of `BLOCKED-BY-ENVIRONMENT` — RESOLVED 2026-05-16: GOZE confirmed UX rows (a)–(g) were run in a real manual browser session → kept `DONE`. DB Verification rows (d1)–(d6) were NOT verified (migration not applied in agent env) → reverted to `BLOCKED-BY-ENVIRONMENT` pending local `supabase db reset`. Now AC #26 compliant.
+- [x] [Review][Patch] FIXED 2026-05-16 — Supplier-facing date garbled for non-`YYYY-MM-DD` inputs [apps/web/lib/correction-email.ts:28] — `isoToGermanDay` only `split("-")` length-3 checks. `page.tsx:50` casts `invoice_data as Invoice` with NO schema parse, so `invoiceDateIso` is the raw AI value. A datetime (`2026-05-16T00:00:00Z` → `16T00:00:00Z.05.2026`), a German-format string, or garbage (`2026-99-99` → `99.99.2026`) is emitted into the subject/body sent to the supplier. Fix: extract leading `\d{4}-\d{2}-\d{2}` with range validation; fall back to AC #15(d) `[Datum unbekannt]` when unparseable. (blind+edge)
+- [x] [Review][Patch] FIXED 2026-05-16 — Unchecked `validation_status` → `ValidationCardStatus` cast [apps/web/components/invoice/invoice-detail-pane.tsx:133] — DB value outside the 6-member union (schema drift / future status) falls through all branches into the warning/invalid render, silently mislabeling the invoice. Add a known-set guard that returns `null` for unknown values. (blind+edge)
+- [x] [Review][Defer] `requestCorrection` has no server-side exported/lifecycle guard [apps/web/app/actions/invoices/review.ts:866] — selects `status` but never checks it; only the client `isExported` gate protects this audited write. Spec AC #10 did not mandate a status guard. — deferred, beyond spec scope
+- [x] [Review][Defer] `validatedAt` prop threaded through 3 files then `void`-discarded [apps/web/components/invoice/validation-results-card.tsx] — dead plumbing; no AC requires rendering it. — deferred, cosmetic
+- [x] [Review][Defer] mailto body only count-capped (top-15), not byte-bounded [apps/web/lib/correction-email.ts] — long real EN 16931 messages can still exceed ~2000 chars; completion notes refit the test fixture to ~50-char messages. — deferred, P3 "Known Limitations Accepted"
+- [x] [Review][Defer] `countBySeverity` maps any unknown severity to `error` [apps/web/components/invoice/validation-results-card.tsx:746] — inflates the displayed "N Fehler" count if a non-fatal/warning severity ever appears. — deferred, package only emits fatal/error/warning
+- [x] [Review][Defer] `unsupported` card adds a bold header line not in AC #16 mandated copy [apps/web/components/invoice/validation-results-card.tsx] — minor copy deviation; mandated string still present as the body paragraph. — deferred, cosmetic
+
 ## Dev Notes
 
 ### Pattern Citations (Epic 5 retro A2 — "Pattern first")
@@ -541,4 +554,5 @@ psql 'host=localhost port=54322 dbname=postgres user=postgres password=postgres'
 | 2026-05-15 | Story 6.2 created | Ultimate context engine analysis completed — comprehensive developer guide created. |
 | 2026-05-15 | Story 6.2 implemented | All 10 tasks complete. 388 web tests + 397 validation tests + 80 shared tests green. Types clean. Mailto shim only; real email deferred to Epic 8.3. Manual `database.ts` patch — GOZE re-runs `gen types` pre-merge. Inline `role="status"` notifications instead of `useActionToast` (action-specific context not a fit). |
 | 2026-05-15 | Post-smoke fix #1 | `invoice-detail-pane.tsx` FIELD_ORDER loop crashed when legacy jsonb rows lacked the newly-added `supplier_email` key (raw cast, no Zod parse at read). Defensive zero-confidence-null fallback added at the render site. |
+| 2026-05-16 | Code review | 3 adversarial layers. 1 decision (smoke DB rows reverted to BLOCKED-BY-ENVIRONMENT), 2 patches fixed (date parse hardening in `correction-email.ts`; `validation_status` cast guard in `invoice-detail-pane.tsx`), 5 deferred, 13 dismissed. Tests/types green. Status → done. |
 | 2026-05-15 | Post-smoke fix #2 | `ValidationResultsCard` now renders even when `invoice_data` is null. Required for `validation_status='invalid'` rows whose `projectToInvoiceData` returned null and whose AI extraction fallback failed (e.g. XML missing BT-1). Card surfaces violations + correction button independent of extraction success. |

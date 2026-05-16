@@ -26,11 +26,33 @@ const SEVERITY_RANK: Record<string, number> = {
 // in their mail client.
 const EMAIL_SHAPE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
-function isoToGermanDay(iso: string): string {
-  const parts = iso.split("-");
-  if (parts.length !== 3) return iso;
-  const [y, m, d] = parts;
-  return `${d}.${m}.${y}`;
+function isValidYmd(y: number, m: number, d: number): boolean {
+  return y >= 1900 && y <= 9999 && m >= 1 && m <= 12 && d >= 1 && d <= 31;
+}
+
+// Returns a German `TT.MM.JJJJ` date or `null` when the input cannot be
+// parsed. The detail page passes `invoice_data.invoice_date.value` raw (no
+// Zod parse on the read path — see page.tsx), so the value may be a bare ISO
+// date, a full ISO datetime (`2026-05-16T00:00:00Z`), an already-German
+// `TT.MM.JJJJ` string, or AI garbage. Never reformat unparseable input into a
+// plausible-looking date that gets emailed to the supplier.
+function isoToGermanDay(iso: string): string | null {
+  const trimmed = iso.trim();
+  const de = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(trimmed);
+  if (de) {
+    const d = de[1]!;
+    const m = de[2]!;
+    const y = de[3]!;
+    return isValidYmd(+y, +m, +d) ? `${d}.${m}.${y}` : null;
+  }
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})(?:[T ]|$)/.exec(trimmed);
+  if (isoMatch) {
+    const y = isoMatch[1]!;
+    const m = isoMatch[2]!;
+    const d = isoMatch[3]!;
+    return isValidYmd(+y, +m, +d) ? `${d}.${m}.${y}` : null;
+  }
+  return null;
 }
 
 function sanitizeRecipient(email: string | null): string {
@@ -66,13 +88,12 @@ export function buildCorrectionMailto(args: {
   } = args;
 
   const invoiceNumberLabel = invoiceNumber ?? "[Rechnungsnummer unbekannt]";
-  const invoiceDateLabel = invoiceDateIso
-    ? isoToGermanDay(invoiceDateIso)
-    : "[Datum unbekannt]";
+  const formattedDate = invoiceDateIso ? isoToGermanDay(invoiceDateIso) : null;
+  const invoiceDateLabel = formattedDate ?? "[Datum unbekannt]";
 
   const subjectSegments = ["Korrekturanfrage Rechnung"];
   if (invoiceNumber) subjectSegments.push(invoiceNumber);
-  if (invoiceDateIso) subjectSegments.push(`vom ${isoToGermanDay(invoiceDateIso)}`);
+  if (formattedDate) subjectSegments.push(`vom ${formattedDate}`);
   const subject = subjectSegments.join(" ");
 
   const sorted = sortViolations(violations);
