@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-16 (Story 6.2 code review → done)"
+last_updated: "2026-05-16 (Epic 6 retrospective → done)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -154,10 +154,23 @@ development_status:
   prep-p5-audit-logs-event-type-validation: done       # FOLDED into P4 D14 — `validation_passed`, `validation_failed`, `revalidation_completed` ship in the same Story 6.1 migration as the validation columns (single rollback unit); no standalone prep migration needed
 
   # Epic 6: E-Invoice Validation
-  epic-6: in-progress
+  epic-6: done
   6-1-en-16931-invoice-validation-engine: done
   6-2-validation-results-display-and-correction-email: done
-  epic-6-retrospective: optional
+  epic-6-retrospective: done
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 7 PREPARATION SPRINT (must complete before Story 7.1)
+  # Source: epic-6-retro-2026-05-16.md — Action Items + Prep Tasks
+  # ─────────────────────────────────────────────────────────────
+
+  # 🔴 Critical (blocks Epic 7)
+  prep-p1-react-pdf-renderer-spike: backlog    # @react-pdf/renderer Node runtime compat, Vercel serverless behavior, bundle size, template package placement (packages/gobd preferred over packages/pdf), JSX/React import strategy; output: spike-p1-react-pdf-renderer-YYYY-MM-DD.md
+  prep-p2-verdok-hash-strategy-spike: backlog  # config_hash SHA-256 strategy: which tenant fields enter hash, auto-detection mechanism (hash compare in Server Action vs. DB trigger), full verfahrensdokumentation table schema + RLS + grant pattern; output: spike-p2-verdok-hash-strategy-YYYY-MM-DD.md
+  prep-p3-verfahrensdokumentation-migration: backlog  # New verfahrensdokumentation table; RLS scoped to tenant; grant pattern mirroring datev_exports; database.ts patch
+
+  # 🟡 Parallel (during Story 7.1 first sprint, not blocking)
+  prep-p4-dashboard-widget-route-investigation: backlog  # 7.2 dependency; cannot finalize before 7.1 ships the table
 
   # Epic 7: Verfahrensdokumentation
   epic-7: backlog
