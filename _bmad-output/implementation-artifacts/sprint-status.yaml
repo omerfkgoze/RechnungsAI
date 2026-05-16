@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-16 (Epic 6 retrospective → done)"
+last_updated: "2026-05-16 (Epic 7 prep P1+P2+P3 done — verfahrensdokumentation migration landed)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -165,9 +165,9 @@ development_status:
   # ─────────────────────────────────────────────────────────────
 
   # 🔴 Critical (blocks Epic 7)
-  prep-p1-react-pdf-renderer-spike: backlog    # @react-pdf/renderer Node runtime compat, Vercel serverless behavior, bundle size, template package placement (packages/gobd preferred over packages/pdf), JSX/React import strategy; output: spike-p1-react-pdf-renderer-YYYY-MM-DD.md
-  prep-p2-verdok-hash-strategy-spike: backlog  # config_hash SHA-256 strategy: which tenant fields enter hash, auto-detection mechanism (hash compare in Server Action vs. DB trigger), full verfahrensdokumentation table schema + RLS + grant pattern; output: spike-p2-verdok-hash-strategy-YYYY-MM-DD.md
-  prep-p3-verfahrensdokumentation-migration: backlog  # New verfahrensdokumentation table; RLS scoped to tenant; grant pattern mirroring datev_exports; database.ts patch
+  prep-p1-react-pdf-renderer-spike: done    # @react-pdf/renderer Node runtime compat, Vercel serverless behavior, bundle size, template package placement (packages/gobd preferred over packages/pdf), JSX/React import strategy; output: spike-p1-react-pdf-renderer-2026-05-16.md
+  prep-p2-verdok-hash-strategy-spike: done  # config_hash SHA-256 strategy: which tenant fields enter hash, auto-detection mechanism (hash compare in Server Action vs. DB trigger), full verfahrensdokumentation table schema + RLS + grant pattern; output: spike-p2-verdok-hash-strategy-2026-05-16.md
+  prep-p3-verfahrensdokumentation-migration: done  # New verfahrensdokumentation table; RLS scoped to tenant; grant pattern mirroring datev_exports; database.ts patch
 
   # 🟡 Parallel (during Story 7.1 first sprint, not blocking)
   prep-p4-dashboard-widget-route-investigation: backlog  # 7.2 dependency; cannot finalize before 7.1 ships the table
