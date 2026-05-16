@@ -45,7 +45,9 @@ export function VerdokSection({ hasRequiredSettings, companySlug, existing }: Pr
       setState({
         type: "ready",
         id: result.data.id,
-        generatedAt: new Date().toISOString(),
+        // Server-authoritative timestamp — never the client clock, so the
+        // displayed date and download filename match the stored row.
+        generatedAt: result.data.generatedAt,
       });
     });
   }

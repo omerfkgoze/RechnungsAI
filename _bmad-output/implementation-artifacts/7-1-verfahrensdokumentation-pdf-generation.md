@@ -1,6 +1,6 @@
 # Story 7.1: Verfahrensdokumentation PDF Generation
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -99,7 +99,7 @@ Then no PDF is generated and a conversational German message is shown: "Für die
   - [x] `apps/web/__tests__/verdok-pdf.smoke.test.tsx` — `%PDF-` prefix + font subset (FontFile + notosans) kontrolü, node env
   - [x] `apps/web/app/actions/verdok.test.ts` — AC7 guard (×2), UPSERT `generated_at` ISO + path lockstep, F-5
   - [x] `apps/web/app/api/verdok/[id]/pdf/route.test.ts` — 401, 400, cross-tenant 404, 200+headers, F-10
-  - [x] `pnpm -r test` yeşil (web 399, gobd 37). ⚠️ Manuel tarayıcı umlaut doğrulaması: BLOCKED-BY-ENVIRONMENT (Epic 6 A3) — headless ortam; smoke testi font-subset gömülmesini (FontFile + NotoSans referansı) programatik doğruluyor
+  - [x] `pnpm -r test` yeşil (web 399, gobd 37). ✅ Manuel tarayıcı umlaut doğrulaması TAMAMLANDI (2026-05-16, GOZE): üretilen `docs/Verfahrensdokumentation_test-firma_2026-05-16.pdf` — 7 GoBD bölümü + `Schriftprobe: ä ö ü ß Ä Ö Ü — Größe, Straße, Müller` doğru render (kutucuk/`?` yok). AC3 kabul kapısı karşılandı (artık BLOCKED-BY-ENVIRONMENT değil). Smoke testi ayrıca font-subset gömülmesini (FontFile + NotoSans) programatik doğruluyor.
 
 ## Dev Notes
 
@@ -178,10 +178,38 @@ Bu story **yeni migration eklemiyor** (P3'te landed). Mevcut migration'ın GDPR 
 ### Browser Smoke Test
 
 #### UX Check Reviews
-- bir pdf generate ettim ve output bu sekilde her sey yolunda mi? sayfanin sonunda "Schriftprobe: ä ö ü ß Ä Ö Ü — Größe, Straße, Müller" gorunuyor : '/home/omerfkgoze/Pictures/Screenshots/Screenshot from 2026-05-16 16-47-29.png'
+- bir pdf generate ettim ve output bu sekilde her sey yolunda mi? sayfanin sonunda "Schriftprobe: ä ö ü ß Ä Ö Ü — Größe, Straße, Müller" gorunuyor : '/home/omerfkgoze/Documents/GitHub/RechnungsAI/docs/Verfahrensdokumentation_test-firma_2026-05-16.pdf'
 - browser'da uygulama acilinca bir sure sonra console'da asagidaki hatayi aliyorum:
   ![browser-console](<../../docs/Screenshot from 2026-05-16 16-47-29.png>)
 
+
+## Review Findings
+
+> Code review 2026-05-16 (Blind Hunter + Edge Case Hunter + Acceptance Auditor). All 7 AC + all 12 F-mitigations verified implemented & test-covered by the Acceptance Auditor. Findings below.
+
+### Decision Needed
+
+Both resolved 2026-05-16 — see Patch / Deferred below.
+
+### Patch
+
+- [x] [Review][Patch] (from Decision) Extend AC7 guard to `datev_fiscal_year_start` (valid 1-12) + `datev_sachkontenlaenge` (non-null) — missing/invalid → no PDF, show AC7 German message, instead of silently rendering "Januar" / "null Stellen" in a tax-authority document [apps/web/app/actions/verdok.ts:399-421, packages/gobd/src/verfahrensdokumentation.ts]
+
+- [x] [Review][Patch] Config hash over untrimmed fields while PDF shows trimmed → whitespace-only settings edit yields different config_hash but identical PDF → Story 7.2 spurious "Aktualisierung verfügbar" [apps/web/app/actions/verdok.ts]
+- [x] [Review][Patch] "Zuletzt erstellt am" + download filename use client clock not server `generated_at` (clock skew / cross-midnight diverges from stored row — same D-1 staleness class). Return `generatedAt` from `generateVerdok`. [apps/web/app/actions/verdok.ts:501, apps/web/components/settings/verdok-section.tsx:794]
+- [x] [Review][Patch] Regeneration orphans previous storage object forever (row path overwritten, old PDF never deleted) → unbounded per-tenant storage growth. Delete prior object after successful UPSERT. [apps/web/app/actions/verdok.ts]
+- [x] [Review][Patch] Dev Agent Record AC3 still claims `BLOCKED-BY-ENVIRONMENT` for manual umlaut check — now stale: user generated `docs/Verfahrensdokumentation_test-firma_2026-05-16.pdf`, all 7 sections + `ä ö ü ß Ä Ö Ü` verified rendering correctly. AC3 fully met; update Task 9 / Completion Notes. [story file]
+- [x] [Review][Patch] `einstellungen/page.tsx` verdok query relies on RLS only, no explicit `.eq("tenant_id", ...)` — RLS `verdok_tenant_select` verified present & correct (not a vuln) but inconsistent with download route's "never trust RLS alone" defense-in-depth. [apps/web/app/(app)/einstellungen/page.tsx:44]
+- [x] [Review][Patch] `GenerateVerdokResult.missingSettings` declared & documented but never set (dead/misleading API contract) [apps/web/app/actions/verdok.ts:348]
+
+### Deferred
+
+- [x] [Review][Defer] Pre-existing hydration mismatch on `/einstellungen` (user-reported console error) — root `<details>` in `apps/web/components/settings/tenant-settings-form.tsx:168`, NOT in 7-1 diff; aggravated by broad `revalidatePath` in verdok.ts — deferred, pre-existing
+- [x] [Review][Defer] `crypto.subtle` requires Node ≥19; hash runs after upload [packages/gobd/src/verdok-hash.ts] — deferred, confirm deploy runtime
+- [x] [Review][Defer] `row.generated_at.slice(0,10)` / `formatDate` no null guard — deferred, NOT NULL column, defense-in-depth
+- [x] [Review][Defer] `Content-Disposition` datePart unvalidated [apps/web/app/api/verdok/[id]/pdf/route.ts] — deferred, not user-reachable, defense-in-depth
+- [x] [Review][Defer] storage `upsert:false` same-ms collision [apps/web/app/actions/verdok.ts] — deferred, near-impossible, low
+- [x] [Review][Defer] (from Decision) Download audit reuses `verdok_generated` event type [apps/web/app/api/verdok/[id]/pdf/route.ts:721] — deferred: AC6 text literally prescribes `verdok_generated` for download + DB constraint only allows it; distinct `verdok_downloaded` event is out of 7-1 scope (revisit in correct-course / 7.2)
 
 ## Dev Agent Record
 
@@ -208,7 +236,7 @@ claude-opus-4-7 (bmad-dev-story workflow)
 - **F-10:** Download audit wrapped in try/catch; a thrown audit error still serves the PDF — covered by a test.
 - **Hash:** spike P2 `verdok-hash.ts` implemented verbatim incl. the `?? null` invariant; an extra test asserts `undefined` coerces identically to explicit `null`; linchpin guards the 10-field set at compile time.
 - **`crypto.subtle`** used per spike (async); consistent with spike P2 Decision 2.
-- **Env note:** manual browser umlaut verification is BLOCKED-BY-ENVIRONMENT (Epic 6 A3, headless). The node smoke test compensates by asserting the embedded NotoSans font subset (`FontFile` + `notosans`) is present in the rendered PDF — ASCII-only Helvetica fallback would omit it.
+- **Env note (resolved 2026-05-16):** manual umlaut verification is COMPLETE — GOZE generated `docs/Verfahrensdokumentation_test-firma_2026-05-16.pdf` and confirmed all 7 sections + `ä ö ü ß Ä Ö Ü` render correctly. AC3 acceptance gate met (no longer BLOCKED-BY-ENVIRONMENT). The node smoke test additionally asserts the embedded NotoSans font subset (`FontFile` + `notosans`) is present — ASCII-only Helvetica fallback would omit it.
 - **Type-resolution gotcha:** the Supabase `.select()` argument must be a single string literal (not concatenated) or the row type degrades to `GenericStringError`; fixed in `verdok.ts`.
 
 ### File List

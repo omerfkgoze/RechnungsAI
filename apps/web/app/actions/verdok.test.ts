@@ -27,9 +27,11 @@ vi.mock("@/app/actions/invoices/shared", () => ({
 const authGetUserMock = vi.fn();
 const userSingleMock = vi.fn();
 const tenantSingleMock = vi.fn();
+const existingVerdokMaybeSingleMock = vi.fn();
 const uploadMock = vi.fn();
 const upsertSingleMock = vi.fn();
 const upsertSpy = vi.fn();
+const storageRemoveMock = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerClient: vi.fn(async () => ({
@@ -43,6 +45,10 @@ vi.mock("@/lib/supabase/server", () => ({
       }
       if (table === "verfahrensdokumentation") {
         return {
+          // Pre-UPSERT lookup of the row this regeneration replaces.
+          select: () => ({
+            eq: () => ({ maybeSingle: existingVerdokMaybeSingleMock }),
+          }),
           upsert: (payload: unknown, opts: unknown) => {
             upsertSpy(payload, opts);
             return { select: () => ({ single: upsertSingleMock }) };
@@ -52,7 +58,7 @@ vi.mock("@/lib/supabase/server", () => ({
       return {};
     },
     storage: {
-      from: () => ({ upload: uploadMock }),
+      from: () => ({ upload: uploadMock, remove: storageRemoveMock }),
     },
   })),
 }));
@@ -79,9 +85,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   authGetUserMock.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null });
   userSingleMock.mockResolvedValue({ data: { tenant_id: TENANT_ID }, error: null });
-  tenantSingleMock.mockResolvedValue({ data: COMPLETE_TENANT, error: null });
+  tenantSingleMock.mockResolvedValue({
+    data: { id: TENANT_ID, ...COMPLETE_TENANT },
+    error: null,
+  });
+  // Default: first generation — no prior row/object to clean up.
+  existingVerdokMaybeSingleMock.mockResolvedValue({ data: null, error: null });
   uploadMock.mockResolvedValue({ error: null });
   upsertSingleMock.mockResolvedValue({ data: { id: "verdok-row-id" }, error: null });
+  storageRemoveMock.mockResolvedValue({ error: null });
 });
 
 describe("generateVerdok — AC7 incomplete-settings guard", () => {
@@ -109,6 +121,61 @@ describe("generateVerdok — AC7 incomplete-settings guard", () => {
     const result = await generateVerdok();
     expect(result.success).toBe(false);
     expect(upsertSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects an out-of-range datev_fiscal_year_start (would render wrong month)", async () => {
+    tenantSingleMock.mockResolvedValue({
+      data: { id: TENANT_ID, ...COMPLETE_TENANT, datev_fiscal_year_start: 13 },
+      error: null,
+    });
+    const result = await generateVerdok();
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Firmendaten und DATEV-Einstellungen");
+    }
+    expect(upsertSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects a null datev_sachkontenlaenge (would render 'null Stellen')", async () => {
+    tenantSingleMock.mockResolvedValue({
+      data: { id: TENANT_ID, ...COMPLETE_TENANT, datev_sachkontenlaenge: null },
+      error: null,
+    });
+    const result = await generateVerdok();
+    expect(result.success).toBe(false);
+    expect(upsertSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("generateVerdok — config hash normalization", () => {
+  it("trailing/leading whitespace yields the SAME config_hash (no spurious 7.2 update)", async () => {
+    tenantSingleMock.mockResolvedValue({
+      data: { id: TENANT_ID, ...COMPLETE_TENANT },
+      error: null,
+    });
+    await generateVerdok();
+    const cleanHash = upsertSpy.mock.calls[0]![0].config_hash;
+
+    vi.clearAllMocks();
+    authGetUserMock.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null });
+    userSingleMock.mockResolvedValue({ data: { tenant_id: TENANT_ID }, error: null });
+    existingVerdokMaybeSingleMock.mockResolvedValue({ data: null, error: null });
+    uploadMock.mockResolvedValue({ error: null });
+    upsertSingleMock.mockResolvedValue({ data: { id: "verdok-row-id" }, error: null });
+    storageRemoveMock.mockResolvedValue({ error: null });
+    tenantSingleMock.mockResolvedValue({
+      data: {
+        id: TENANT_ID,
+        ...COMPLETE_TENANT,
+        company_name: `  ${COMPLETE_TENANT.company_name}  `,
+        steuerberater_name: `${COMPLETE_TENANT.steuerberater_name}\t`,
+      },
+      error: null,
+    });
+    await generateVerdok();
+    const paddedHash = upsertSpy.mock.calls[0]![0].config_hash;
+
+    expect(paddedHash).toBe(cleanHash);
   });
 });
 
@@ -144,6 +211,44 @@ describe("generateVerdok — happy path UPSERT", () => {
         metadata: { config_hash: payload.config_hash },
       }),
     );
+
+    // Returned generatedAt must be the server-authoritative stamp (the same
+    // one written to the row) — not a client clock.
+    if (result.success) {
+      expect(result.data.generatedAt).toBe(payload.generated_at);
+    }
+  });
+
+  it("does not clean up on first generation (no prior object)", async () => {
+    await generateVerdok();
+    expect(storageRemoveMock).not.toHaveBeenCalled();
+  });
+
+  it("removes the previous PDF object on regeneration (no orphan)", async () => {
+    existingVerdokMaybeSingleMock.mockResolvedValue({
+      data: { pdf_storage_path: `${TENANT_ID}/verdok-OLD.pdf` },
+      error: null,
+    });
+
+    const result = await generateVerdok();
+
+    expect(result.success).toBe(true);
+    expect(storageRemoveMock).toHaveBeenCalledWith([
+      `${TENANT_ID}/verdok-OLD.pdf`,
+    ]);
+  });
+
+  it("a failed stale-cleanup still returns success (best-effort)", async () => {
+    existingVerdokMaybeSingleMock.mockResolvedValue({
+      data: { pdf_storage_path: `${TENANT_ID}/verdok-OLD.pdf` },
+      error: null,
+    });
+    storageRemoveMock.mockResolvedValue({ error: { message: "remove failed" } });
+
+    const result = await generateVerdok();
+
+    expect(result.success).toBe(true);
+    expect(upsertSpy).toHaveBeenCalledTimes(1);
   });
 
   it("does NOT write the DB row when storage upload fails (F-5)", async () => {

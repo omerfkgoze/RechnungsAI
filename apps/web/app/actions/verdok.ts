@@ -50,8 +50,10 @@ const INCOMPLETE_SETTINGS_MESSAGE =
 
 export type GenerateVerdokResult = ActionResult<{
   id: string;
-  /** true → AC7 guard tripped; UI shows the settings-link message. */
-  missingSettings?: boolean;
+  /** Server-authoritative generation timestamp (ISO). The UI must render
+   *  this — never a client `new Date()` — so the displayed date and the
+   *  download filename stay in lockstep with the stored row (D-1 class). */
+  generatedAt: string;
 }>;
 
 export async function generateVerdok(): Promise<GenerateVerdokResult> {
@@ -97,8 +99,12 @@ export async function generateVerdok(): Promise<GenerateVerdokResult> {
     return { success: false, error: "Interner Serverfehler." };
   }
 
-  // AC7 / F-9 — render only when the mandatory GoBD fields are present.
-  // Guard runs BEFORE assembly/render so no half-filled PDF is ever produced.
+  // AC7 / F-9 — render only when the mandatory GoBD fields are present AND
+  // the DATEV numeric fields are valid. Guard runs BEFORE assembly/render so
+  // no half-filled — or plausible-but-wrong — PDF is ever produced. Without
+  // the numeric checks an out-of-range fiscal-year start would silently
+  // render "Januar" and a null Sachkontenlänge "null Stellen" in a document
+  // submitted to the Finanzamt (review decision 2026-05-16).
   const required = [
     tenant.company_name,
     tenant.company_address,
@@ -106,21 +112,39 @@ export async function generateVerdok(): Promise<GenerateVerdokResult> {
     tenant.datev_berater_nr,
     tenant.datev_mandanten_nr,
   ];
-  if (required.some((v) => !v || String(v).trim() === "")) {
+  const fiscalStart = tenant.datev_fiscal_year_start;
+  const sachkontenlaenge = tenant.datev_sachkontenlaenge;
+  if (
+    required.some((v) => !v || String(v).trim() === "") ||
+    typeof sachkontenlaenge !== "number" ||
+    typeof fiscalStart !== "number" ||
+    fiscalStart < 1 ||
+    fiscalStart > 12
+  ) {
     return { success: false, error: INCOMPLETE_SETTINGS_MESSAGE };
   }
 
+  // Normalize string fields ONCE at the boundary so the config hash and the
+  // rendered PDF see identical values. Hashing raw DB values while the PDF
+  // trims them (orFallback) made a whitespace-only settings edit produce a
+  // different config_hash but an identical document → Story 7.2 would report
+  // a spurious "Aktualisierung verfügbar" (review finding 2026-05-16).
+  const norm = (v: string | null | undefined): string | null => {
+    const t = (v ?? "").trim();
+    return t === "" ? null : t;
+  };
+
   const hashInput: VerdokTenantInput = {
-    company_name: tenant.company_name ?? null,
-    company_address: tenant.company_address ?? null,
-    tax_id: tenant.tax_id ?? null,
+    company_name: norm(tenant.company_name),
+    company_address: norm(tenant.company_address),
+    tax_id: norm(tenant.tax_id),
     skr_plan: tenant.skr_plan,
-    datev_berater_nr: tenant.datev_berater_nr ?? null,
-    datev_mandanten_nr: tenant.datev_mandanten_nr ?? null,
-    datev_sachkontenlaenge: tenant.datev_sachkontenlaenge,
-    datev_fiscal_year_start: tenant.datev_fiscal_year_start,
-    datev_default_kreditorenkonto: tenant.datev_default_kreditorenkonto ?? null,
-    steuerberater_name: tenant.steuerberater_name ?? null,
+    datev_berater_nr: norm(tenant.datev_berater_nr),
+    datev_mandanten_nr: norm(tenant.datev_mandanten_nr),
+    datev_sachkontenlaenge: sachkontenlaenge,
+    datev_fiscal_year_start: fiscalStart,
+    datev_default_kreditorenkonto: norm(tenant.datev_default_kreditorenkonto),
+    steuerberater_name: norm(tenant.steuerberater_name),
   };
 
   const ai = resolveAiInfo();
@@ -149,6 +173,17 @@ export async function generateVerdok(): Promise<GenerateVerdokResult> {
     Sentry.captureException(err, { tags: { module: "verdok", action: "render" } });
     return { success: false, error: "Das PDF konnte nicht erstellt werden." };
   }
+
+  // Capture the path of the PDF this regeneration will replace so the old
+  // object can be removed after a successful UPSERT — otherwise every
+  // regeneration orphans the prior file forever (unbounded per-tenant
+  // storage growth; review finding 2026-05-16).
+  const { data: existingRow } = await supabase
+    .from("verfahrensdokumentation")
+    .select("pdf_storage_path")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  const previousStoragePath = existingRow?.pdf_storage_path ?? null;
 
   const storagePath = `${tenantId}/verdok-${generatedAtIso}.pdf`;
 
@@ -200,6 +235,21 @@ export async function generateVerdok(): Promise<GenerateVerdokResult> {
     metadata: { config_hash: configHash },
   });
 
+  // Best-effort stale-object cleanup. A failure here must NOT fail the
+  // action — the new PDF + row are already committed; an orphaned old file
+  // is a storage-cost issue, not a correctness one. Logged to Sentry.
+  if (previousStoragePath && previousStoragePath !== storagePath) {
+    const { error: removeError } = await supabase.storage
+      .from("verfahrensdokumentation")
+      .remove([previousStoragePath]);
+    if (removeError) {
+      console.error(LOG, "stale-cleanup-failed", removeError);
+      Sentry.captureException(removeError, {
+        tags: { module: "verdok", action: "cleanup" },
+      });
+    }
+  }
+
   revalidatePath("/einstellungen");
-  return { success: true, data: { id: row.id } };
+  return { success: true, data: { id: row.id, generatedAt: generatedAtIso } };
 }
