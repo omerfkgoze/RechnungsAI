@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-11
-last_updated: "2026-05-16 (Epic 7 prep P1+P2+P3 done — verfahrensdokumentation migration landed)"
+last_updated: "2026-05-16 (Story 7-1 created → ready-for-dev; epic-7 → in-progress)"
 project: RechnungsAI
 project_key: NOKEY
 tracking_system: file-system
@@ -173,8 +173,8 @@ development_status:
   prep-p4-dashboard-widget-route-investigation: backlog  # 7.2 dependency; cannot finalize before 7.1 ships the table
 
   # Epic 7: Verfahrensdokumentation
-  epic-7: backlog
-  7-1-verfahrensdokumentation-pdf-generation: backlog
+  epic-7: in-progress
+  7-1-verfahrensdokumentation-pdf-generation: ready-for-dev
   7-2-verfahrensdokumentation-status-and-auto-update: backlog
   epic-7-retrospective: optional
 
