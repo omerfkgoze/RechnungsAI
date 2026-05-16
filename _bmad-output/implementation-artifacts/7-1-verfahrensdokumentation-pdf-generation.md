@@ -175,6 +175,14 @@ Bu story **yeni migration eklemiyor** (P3'te landed). Mevcut migration'ın GDPR 
 - [Source: apps/web/app/actions/tenant.ts] — tenant settings okuma/yazma deseni
 - [Source: apps/web/app/(app)/einstellungen/page.tsx] — settings sayfası entegrasyon noktası
 
+### Browser Smoke Test
+
+#### UX Check Reviews
+- bir pdf generate ettim ve output bu sekilde her sey yolunda mi? sayfanin sonunda "Schriftprobe: ä ö ü ß Ä Ö Ü — Größe, Straße, Müller" gorunuyor : '/home/omerfkgoze/Pictures/Screenshots/Screenshot from 2026-05-16 16-47-29.png'
+- browser'da uygulama acilinca bir sure sonra console'da asagidaki hatayi aliyorum:
+  ![browser-console](<Screenshot from 2026-05-16 16-47-29.png>)
+
+
 ## Dev Agent Record
 
 ### Agent Model Used
